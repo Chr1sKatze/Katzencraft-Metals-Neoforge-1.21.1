@@ -26,5 +26,17 @@ public class ModItemModelProvider extends ItemModelProvider {
 
         basicItem(ModItems.SAPPHIRE_GEM.get());
         basicItem(ModItems.AMETHYST_GEM.get());
+
+        basicItem(ModItems.COMMON_WEAPON_SCROLL.get());
+        basicItem(ModItems.ADVANCED_WEAPON_SCROLL.get());
+        basicItem(ModItems.MASTER_WEAPON_SCROLL.get());
+
+        basicItem(ModItems.COMMON_ARMOR_SCROLL.get());
+        basicItem(ModItems.ADVANCED_ARMOR_SCROLL.get());
+        basicItem(ModItems.MASTER_ARMOR_SCROLL.get());
+
+        basicItem(ModItems.COMMON_GATHERING_SCROLL.get());
+        basicItem(ModItems.ADVANCED_GATHERING_SCROLL.get());
+        basicItem(ModItems.MASTER_GATHERING_SCROLL.get());
     }
 }

@@ -6,6 +6,7 @@ import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
 import net.chriskatze.katzencraftmetals.item.ModItems;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
 import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
+import net.chriskatze.katzencraftmetals.screen.CatoEnchantingScreen;
 import net.chriskatze.katzencraftmetals.screen.CrusherScreen;
 import net.chriskatze.katzencraftmetals.screen.KatzencraftAnvilScreen;
 import net.chriskatze.katzencraftmetals.world.KatzencraftWorldRulesData;
@@ -76,6 +77,18 @@ public class KatzencraftMetalsMod {
 
             event.accept(ModItems.SAPPHIRE_GEM);
             event.accept(ModItems.AMETHYST_GEM);
+
+            event.accept(ModItems.COMMON_WEAPON_SCROLL);
+            event.accept(ModItems.ADVANCED_WEAPON_SCROLL);
+            event.accept(ModItems.MASTER_WEAPON_SCROLL);
+
+            event.accept(ModItems.COMMON_ARMOR_SCROLL);
+            event.accept(ModItems.ADVANCED_ARMOR_SCROLL);
+            event.accept(ModItems.MASTER_ARMOR_SCROLL);
+
+            event.accept(ModItems.COMMON_GATHERING_SCROLL);
+            event.accept(ModItems.ADVANCED_GATHERING_SCROLL);
+            event.accept(ModItems.MASTER_GATHERING_SCROLL);
         }
 
         // BUILDING BLOCKS
@@ -146,6 +159,7 @@ public class KatzencraftMetalsMod {
         public static void registerScreens(RegisterMenuScreensEvent event) {
             event.register(ModMenuTypes.CRUSHER_MENU.get(), CrusherScreen::new);
             event.register(ModMenuTypes.KATZENCRAFT_ANVIL_MENU.get(), KatzencraftAnvilScreen::new);
+            event.register(ModMenuTypes.CATO_ENCHANTING_MENU.get(), CatoEnchantingScreen::new);
         }
     }
 }

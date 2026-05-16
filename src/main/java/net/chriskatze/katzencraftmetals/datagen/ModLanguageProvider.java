@@ -28,6 +28,8 @@ public class ModLanguageProvider extends LanguageProvider {
         add(ModItems.SAPPHIRE_GEM.get(), "Sapphire");
         add(ModItems.AMETHYST_GEM.get(), "Amethyst");
 
+        add(ModItems.COMMON_WEAPON_SCROLL.get(), "Common Weapon Scroll");
+
         // Blocks
         add(ModBlocks.PLATINUM_BLOCK.get(), "Platinum Block");
         add(ModBlocks.PLATINUM_ORE.get(), "Platinum Ore");
@@ -42,5 +44,11 @@ public class ModLanguageProvider extends LanguageProvider {
         add(ModBlocks.END_MYTHRIL_ORE.get(), "End Mythril Ore");
 
         add(ModBlocks.CRUSHER.get(), "Crusher");
+
+        // Enchantments
+        add("enchantment.katzencraftmetals.critical_chance", "Critical Chance");
+        add("enchantment.katzencraftmetals.critical_damage", "Critical Damage");
+        add("enchantment.katzencraftmetals.attack_speed", "Attack Speed");
+        add("enchantment.katzencraftmetals.attack_damage", "Attack Damage");
     }
 }

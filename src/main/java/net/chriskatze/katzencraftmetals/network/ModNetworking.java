@@ -13,6 +13,18 @@ public class ModNetworking {
     public static void register(final RegisterPayloadHandlersEvent event) {
         PayloadRegistrar registrar = event.registrar(KatzencraftMetalsMod.MODID);
 
+        registrar.playToServer(
+                RenameNameTagPayload.TYPE,
+                RenameNameTagPayload.STREAM_CODEC,
+                RenameNameTagPayload::handle
+        );
+
+        registrar.playToServer(
+                ApplyCatoEnchantPayload.TYPE,
+                ApplyCatoEnchantPayload.STREAM_CODEC,
+                ApplyCatoEnchantPayload::handle
+        );
+
         registrar.playToClient(
                 SyncHungerPayload.TYPE,
                 SyncHungerPayload.STREAM_CODEC,

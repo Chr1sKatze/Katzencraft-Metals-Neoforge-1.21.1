@@ -8,6 +8,8 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
+import java.util.function.Supplier;
+
 public class ModItems {
 
     public static final DeferredRegister.Items ITEMS =
@@ -54,6 +56,37 @@ public class ModItems {
 
     public static final DeferredItem<Item> AMETHYST_GEM =
             ITEMS.registerSimpleItem("amethyst_gem");
+
+    // ============================================================
+    // ENCHANTMENT SCROLLS
+    // ============================================================
+
+    public static final DeferredItem<Item> COMMON_WEAPON_SCROLL =
+            ITEMS.registerSimpleItem("common_weapon_scroll");
+
+    public static final DeferredItem<Item> ADVANCED_WEAPON_SCROLL =
+            ITEMS.registerSimpleItem("advanced_weapon_scroll");
+
+    public static final DeferredItem<Item> MASTER_WEAPON_SCROLL =
+            ITEMS.registerSimpleItem("master_weapon_scroll");
+
+    public static final DeferredItem<Item> COMMON_ARMOR_SCROLL =
+            ITEMS.registerSimpleItem("common_armor_scroll");
+
+    public static final DeferredItem<Item> ADVANCED_ARMOR_SCROLL =
+            ITEMS.registerSimpleItem("advanced_armor_scroll");
+
+    public static final DeferredItem<Item> MASTER_ARMOR_SCROLL =
+            ITEMS.registerSimpleItem("master_armor_scroll");
+
+    public static final DeferredItem<Item> COMMON_GATHERING_SCROLL =
+            ITEMS.registerSimpleItem("common_gathering_scroll");
+
+    public static final DeferredItem<Item> ADVANCED_GATHERING_SCROLL =
+            ITEMS.registerSimpleItem("advanced_gathering_scroll");
+
+    public static final DeferredItem<Item> MASTER_GATHERING_SCROLL =
+            ITEMS.registerSimpleItem("master_gathering_scroll");
 
     // =========================
     // REGISTER

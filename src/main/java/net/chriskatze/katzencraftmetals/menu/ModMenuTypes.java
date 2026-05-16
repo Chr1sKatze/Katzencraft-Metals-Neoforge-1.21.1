@@ -21,4 +21,9 @@ public class ModMenuTypes {
             MENUS.register("katzencraft_anvil_menu",
                     () -> IMenuTypeExtension.create((containerId, inventory, extraData) ->
                             new KatzencraftAnvilMenu(containerId, inventory)));
+
+    public static final Supplier<MenuType<CatoEnchantingMenu>> CATO_ENCHANTING_MENU =
+            MENUS.register("cato_enchanting_menu",
+                    () -> IMenuTypeExtension.create((containerId, inventory, extraData) ->
+                            new CatoEnchantingMenu(containerId, inventory, extraData)));
 }

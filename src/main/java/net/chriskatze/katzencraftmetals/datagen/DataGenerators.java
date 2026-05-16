@@ -60,6 +60,22 @@ public class DataGenerators {
                         new LootTableProvider.SubProviderEntry(
                                 registries -> new ModVanillaLootTableProvider(),
                                 LootContextParamSets.CHEST
+                        ),
+                        new LootTableProvider.SubProviderEntry(
+                                registries -> new ModVanillaEntityLootTableProvider(),
+                                LootContextParamSets.ENTITY
+                        ),
+                        new LootTableProvider.SubProviderEntry(
+                                registries -> new ModVanillaFishingLootTableProvider(),
+                                LootContextParamSets.FISHING
+                        ),
+                        new LootTableProvider.SubProviderEntry(
+                                registries -> new ModVanillaGameplayLootTableProvider(),
+                                LootContextParamSets.GIFT
+                        ),
+                        new LootTableProvider.SubProviderEntry(
+                                registries -> new ModVanillaArchaeologyLootTableProvider(),
+                                LootContextParamSets.ARCHAEOLOGY
                         )
                 ),
                 lookupProvider
