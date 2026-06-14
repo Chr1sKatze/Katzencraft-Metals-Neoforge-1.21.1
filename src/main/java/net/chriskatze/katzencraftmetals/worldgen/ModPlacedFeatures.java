@@ -42,27 +42,27 @@ public class ModPlacedFeatures {
 
         register(context, PLATINUM_ORE_PLACED,
                 configuredFeatures.getOrThrow(ModConfiguredFeatures.PLATINUM_ORE),
-                orePlacement(5, -64, 32));
+                orePlacement(20, -64, 64));
 
         register(context, NETHER_PLATINUM_ORE_PLACED,
                 configuredFeatures.getOrThrow(ModConfiguredFeatures.NETHER_PLATINUM_ORE),
-                orePlacement(8, 8, 118));
+                orePlacement(20, 0, 120));
 
         register(context, END_PLATINUM_ORE_PLACED,
                 configuredFeatures.getOrThrow(ModConfiguredFeatures.END_PLATINUM_ORE),
-                orePlacement(6, 0, 80));
+                orePlacement(20, 0, 100));
 
         register(context, MYTHRIL_ORE_PLACED,
                 configuredFeatures.getOrThrow(ModConfiguredFeatures.MYTHRIL_ORE),
-                orePlacement(3, -64, 16));
+                orePlacement(15, -64, 64));
 
         register(context, NETHER_MYTHRIL_ORE_PLACED,
                 configuredFeatures.getOrThrow(ModConfiguredFeatures.NETHER_MYTHRIL_ORE),
-                orePlacement(4, 8, 80));
+                orePlacement(15, 0, 120));
 
         register(context, END_MYTHRIL_ORE_PLACED,
                 configuredFeatures.getOrThrow(ModConfiguredFeatures.END_MYTHRIL_ORE),
-                orePlacement(3, 0, 64));
+                orePlacement(15, 0, 100));
 
         register(context, EXTRA_MONSTER_ROOM_PLACED,
                 configuredFeatures.getOrThrow(ModConfiguredFeatures.EXTRA_MONSTER_ROOM),

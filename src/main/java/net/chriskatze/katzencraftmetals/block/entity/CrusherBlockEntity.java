@@ -59,7 +59,9 @@ public class CrusherBlockEntity extends BlockEntity implements MenuProvider, Wor
         public void set(int index, int value) {
             switch (index) {
                 case 0 -> CrusherBlockEntity.this.progress = value;
+                case 1 -> CrusherBlockEntity.this.maxProgress = value;
                 case 2 -> CrusherBlockEntity.this.burnTime = value;
+                case 3 -> CrusherBlockEntity.this.maxBurnTime = value;
             }
         }
 

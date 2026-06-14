@@ -16,6 +16,18 @@ public class CrusherScreen extends AbstractContainerScreen<CrusherMenu> {
                     "textures/gui/crusher.png"
             );
 
+    private static final ResourceLocation PROGRESS_ARROW_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(
+                    KatzencraftMetalsMod.MODID,
+                    "textures/gui/crusher_progress_arrow.png"
+            );
+
+    private static final ResourceLocation LIT_PROGRESS_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(
+                    KatzencraftMetalsMod.MODID,
+                    "textures/gui/crusher_lit_progress.png"
+            );
+
     public CrusherScreen(CrusherMenu menu, Inventory playerInventory, Component title) {
         super(menu, playerInventory, title);
     }
@@ -29,8 +41,6 @@ public class CrusherScreen extends AbstractContainerScreen<CrusherMenu> {
 
         renderFuelFlame(graphics, x, y);
         renderProgressArrow(graphics, x, y);
-
-        renderProgressArrow(graphics, x, y);
     }
 
     private void renderProgressArrow(GuiGraphics graphics, int x, int y) {
@@ -40,22 +50,16 @@ public class CrusherScreen extends AbstractContainerScreen<CrusherMenu> {
             return;
         }
 
-        // background bar
-        graphics.fill(
+        graphics.blit(
+                PROGRESS_ARROW_TEXTURE,
                 x + 79,
                 y + 34,
-                x + 79 + 24,
-                y + 34 + 16,
-                0xFF3A3A3A
-        );
-
-        // filling bar
-        graphics.fill(
-                x + 79,
-                y + 34,
-                x + 79 + progress,
-                y + 34 + 16,
-                0xFFFFAA00
+                0,
+                0,
+                progress,
+                16,
+                24,
+                16
         );
     }
 
@@ -66,12 +70,16 @@ public class CrusherScreen extends AbstractContainerScreen<CrusherMenu> {
             return;
         }
 
-        graphics.fill(
+        graphics.blit(
+                LIT_PROGRESS_TEXTURE,
                 x + 56,
-                y + 36 + 13 - fuelProgress,
-                x + 56 + 14,
-                y + 36 + 14,
-                0xFFFF5500
+                y + 36 + (14 - fuelProgress),
+                0,
+                14 - fuelProgress,
+                14,
+                fuelProgress,
+                14,
+                14
         );
     }
 

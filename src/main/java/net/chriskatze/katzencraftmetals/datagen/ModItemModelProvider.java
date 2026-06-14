@@ -14,6 +14,15 @@ public class ModItemModelProvider extends ItemModelProvider {
 
     @Override
     protected void registerModels() {
+
+        basicItem(ModItems.CRUSHED_COAL.get());
+
+        basicItem(ModItems.IRON_POWDER.get());
+
+        basicItem(ModItems.STEEL_NUGGET.get());
+        basicItem(ModItems.STEEL_INGOT.get());
+        basicItem(ModItems.STEEL_POWDER.get());
+
         basicItem(ModItems.PLATINUM_NUGGET.get());
         basicItem(ModItems.RAW_PLATINUM.get());
         basicItem(ModItems.PLATINUM_INGOT.get());
@@ -27,16 +36,41 @@ public class ModItemModelProvider extends ItemModelProvider {
         basicItem(ModItems.SAPPHIRE_GEM.get());
         basicItem(ModItems.AMETHYST_GEM.get());
 
-        basicItem(ModItems.COMMON_WEAPON_SCROLL.get());
-        basicItem(ModItems.ADVANCED_WEAPON_SCROLL.get());
-        basicItem(ModItems.MASTER_WEAPON_SCROLL.get());
+        handheldItem(ModItems.STEEL_PICKAXE);
+        handheldItem(ModItems.STEEL_AXE);
+        handheldItem(ModItems.STEEL_SHOVEL);
+        handheldItem(ModItems.STEEL_HOE);
+        handheldItem(ModItems.STEEL_SWORD);
+        basicItem(ModItems.STEEL_HELMET.get());
+        basicItem(ModItems.STEEL_CHESTPLATE.get());
+        basicItem(ModItems.STEEL_LEGGINGS.get());
+        basicItem(ModItems.STEEL_BOOTS.get());
 
-        basicItem(ModItems.COMMON_ARMOR_SCROLL.get());
-        basicItem(ModItems.ADVANCED_ARMOR_SCROLL.get());
-        basicItem(ModItems.MASTER_ARMOR_SCROLL.get());
+        handheldItem(ModItems.MYTHRIL_PICKAXE);
+        handheldItem(ModItems.MYTHRIL_AXE);
+        handheldItem(ModItems.MYTHRIL_SHOVEL);
+        handheldItem(ModItems.MYTHRIL_HOE);
+        handheldItem(ModItems.MYTHRIL_SWORD);
+        basicItem(ModItems.MYTHRIL_HELMET.get());
+        basicItem(ModItems.MYTHRIL_CHESTPLATE.get());
+        basicItem(ModItems.MYTHRIL_LEGGINGS.get());
+        basicItem(ModItems.MYTHRIL_BOOTS.get());
+    }
 
-        basicItem(ModItems.COMMON_GATHERING_SCROLL.get());
-        basicItem(ModItems.ADVANCED_GATHERING_SCROLL.get());
-        basicItem(ModItems.MASTER_GATHERING_SCROLL.get());
+    private void handheldItem(net.neoforged.neoforge.registries.DeferredItem<?> item) {
+        withExistingParent(
+                item.getId().getPath(),
+                mcLoc("item/handheld")
+        ).texture(
+                "layer0",
+                modLoc("item/" + item.getId().getPath())
+        );
+    }
+
+    private void blockItem(net.neoforged.neoforge.registries.DeferredItem<?> item) {
+        withExistingParent(
+                item.getId().getPath(),
+                modLoc("block/" + item.getId().getPath())
+        );
     }
 }

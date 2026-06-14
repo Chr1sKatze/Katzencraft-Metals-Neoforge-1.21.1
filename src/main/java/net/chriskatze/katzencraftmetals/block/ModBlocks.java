@@ -5,9 +5,8 @@ import net.chriskatze.katzencraftmetals.block.custom.CrusherBlock;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.DropExperienceBlock;
+import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.state.properties.BlockSetType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -22,6 +21,65 @@ public class ModBlocks {
 
     public static final DeferredRegister.Items BLOCK_ITEMS =
             DeferredRegister.createItems(KatzencraftMetalsMod.MODID);
+
+    // =========================
+    // STEEL
+    // =========================
+
+    public static final DeferredBlock<Block> STEEL_BLOCK = registerBlock("steel_block",
+            () -> new Block(Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .requiresCorrectToolForDrops()));
+
+    // =========================
+    // STEEL BUILDING BLOCKS
+    // =========================
+
+    public static final DeferredBlock<Block> STEEL_BARS =
+            BLOCKS.register("steel_bars",
+                    () -> new IronBarsBlock(
+                            Block.Properties.ofFullCopy(Blocks.IRON_BARS)
+                    ));
+
+    public static final DeferredBlock<Block> STEEL_CHAIN =
+            BLOCKS.register("steel_chain",
+                    () -> new ChainBlock(
+                            Block.Properties.ofFullCopy(Blocks.CHAIN)
+                    ));
+
+    public static final DeferredBlock<Block> STEEL_PRESSURE_PLATE =
+            BLOCKS.register("steel_pressure_plate",
+                    () -> new PressurePlateBlock(
+                            BlockSetType.IRON,
+                            Block.Properties.ofFullCopy(Blocks.STONE_PRESSURE_PLATE)
+                    ));
+
+    public static final DeferredBlock<Block> STEEL_BUTTON =
+            BLOCKS.register("steel_button",
+                    () -> new ButtonBlock(
+                            BlockSetType.STONE,
+                            20,
+                            Block.Properties.ofFullCopy(Blocks.STONE_BUTTON)
+                    ));
+
+    public static final DeferredBlock<Block> STEEL_LEVER =
+            BLOCKS.register("steel_lever",
+                    () -> new LeverBlock(
+                            Block.Properties.ofFullCopy(Blocks.LEVER)
+                    ));
+
+    public static final DeferredBlock<Block> STEEL_DOOR =
+            BLOCKS.register("steel_door",
+                    () -> new DoorBlock(
+                            BlockSetType.IRON,
+                            Block.Properties.ofFullCopy(Blocks.IRON_DOOR)
+                    ));
+
+    public static final DeferredBlock<Block> STEEL_TRAPDOOR =
+            BLOCKS.register("steel_trapdoor",
+                    () -> new TrapDoorBlock(
+                            BlockSetType.IRON,
+                            Block.Properties.ofFullCopy(Blocks.IRON_TRAPDOOR)
+                    ));
 
     // =========================
     // PLATINUM

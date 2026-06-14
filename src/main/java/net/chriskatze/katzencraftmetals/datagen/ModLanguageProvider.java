@@ -15,6 +15,14 @@ public class ModLanguageProvider extends LanguageProvider {
     @Override
     protected void addTranslations() {
         // Items
+        add(ModItems.CRUSHED_COAL.get(), "Crushed Coal");
+
+        add(ModItems.IRON_POWDER.get(), "Iron Powder");
+
+        add(ModItems.STEEL_NUGGET.get(), "Steel Nugget");
+        add(ModItems.STEEL_INGOT.get(), "Steel Ingot");
+        add(ModItems.STEEL_POWDER.get(), "Steel Powder");
+
         add(ModItems.PLATINUM_NUGGET.get(), "Platinum Nugget");
         add(ModItems.RAW_PLATINUM.get(), "Raw Platinum");
         add(ModItems.PLATINUM_INGOT.get(), "Platinum Ingot");
@@ -28,9 +36,29 @@ public class ModLanguageProvider extends LanguageProvider {
         add(ModItems.SAPPHIRE_GEM.get(), "Sapphire");
         add(ModItems.AMETHYST_GEM.get(), "Amethyst");
 
-        add(ModItems.COMMON_WEAPON_SCROLL.get(), "Common Weapon Scroll");
+        add(ModItems.STEEL_SWORD.get(), "Steel Sword");
+        add(ModItems.STEEL_PICKAXE.get(), "Steel Pickaxe");
+        add(ModItems.STEEL_AXE.get(), "Steel Axe");
+        add(ModItems.STEEL_SHOVEL.get(), "Steel Shovel");
+        add(ModItems.STEEL_HOE.get(), "Steel Sword");
+        add(ModItems.STEEL_HELMET.get(), "Steel Helmet");
+        add(ModItems.STEEL_CHESTPLATE.get(), "Steel Chestplate");
+        add(ModItems.STEEL_LEGGINGS.get(), "Steel Leggings");
+        add(ModItems.STEEL_BOOTS.get(), "Steel Boots");
+
+        add(ModItems.MYTHRIL_SWORD.get(), "Mythril Sword");
+        add(ModItems.MYTHRIL_PICKAXE.get(), "Mythril Pickaxe");
+        add(ModItems.MYTHRIL_AXE.get(), "Mythril Axe");
+        add(ModItems.MYTHRIL_SHOVEL.get(), "Mythril Shovel");
+        add(ModItems.MYTHRIL_HOE.get(), "Mythril Hoe");
+        add(ModItems.MYTHRIL_HELMET.get(), "Mythril Helmet");
+        add(ModItems.MYTHRIL_CHESTPLATE.get(), "Mythril Chestplate");
+        add(ModItems.MYTHRIL_LEGGINGS.get(), "Mythril Leggings");
+        add(ModItems.MYTHRIL_BOOTS.get(), "Mythril Boots");
 
         // Blocks
+        add(ModBlocks.STEEL_BLOCK.get(), "Steel Block");
+
         add(ModBlocks.PLATINUM_BLOCK.get(), "Platinum Block");
         add(ModBlocks.PLATINUM_ORE.get(), "Platinum Ore");
         add(ModBlocks.DEEPSLATE_PLATINUM_ORE.get(), "Deepslate Platinum Ore");
@@ -44,11 +72,5 @@ public class ModLanguageProvider extends LanguageProvider {
         add(ModBlocks.END_MYTHRIL_ORE.get(), "End Mythril Ore");
 
         add(ModBlocks.CRUSHER.get(), "Crusher");
-
-        // Enchantments
-        add("enchantment.katzencraftmetals.critical_chance", "Critical Chance");
-        add("enchantment.katzencraftmetals.critical_damage", "Critical Damage");
-        add("enchantment.katzencraftmetals.attack_speed", "Attack Speed");
-        add("enchantment.katzencraftmetals.attack_damage", "Attack Damage");
     }
 }

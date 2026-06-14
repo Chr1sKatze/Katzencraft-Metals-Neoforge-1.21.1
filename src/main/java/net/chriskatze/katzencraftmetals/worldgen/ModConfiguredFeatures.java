@@ -52,17 +52,21 @@ public class ModConfiguredFeatures {
                         OreConfiguration.target(stoneReplaceables, ModBlocks.PLATINUM_ORE.get().defaultBlockState()),
                         OreConfiguration.target(deepslateReplaceables, ModBlocks.DEEPSLATE_PLATINUM_ORE.get().defaultBlockState())
                 ),
-                6
+                12
         ));
 
         register(context, NETHER_PLATINUM_ORE, Feature.ORE, new OreConfiguration(
-                List.of(OreConfiguration.target(netherrack, ModBlocks.NETHER_PLATINUM_ORE.get().defaultBlockState())),
-                8
+                List.of(
+                        OreConfiguration.target(netherrack, ModBlocks.NETHER_PLATINUM_ORE.get().defaultBlockState())
+                ),
+                16
         ));
 
         register(context, END_PLATINUM_ORE, Feature.ORE, new OreConfiguration(
-                List.of(OreConfiguration.target(endStone, ModBlocks.END_PLATINUM_ORE.get().defaultBlockState())),
-                8
+                List.of(
+                        OreConfiguration.target(endStone, ModBlocks.END_PLATINUM_ORE.get().defaultBlockState())
+                ),
+                16
         ));
 
         register(context, MYTHRIL_ORE, Feature.ORE, new OreConfiguration(
@@ -70,17 +74,21 @@ public class ModConfiguredFeatures {
                         OreConfiguration.target(stoneReplaceables, ModBlocks.MYTHRIL_ORE.get().defaultBlockState()),
                         OreConfiguration.target(deepslateReplaceables, ModBlocks.DEEPSLATE_MYTHRIL_ORE.get().defaultBlockState())
                 ),
-                4
+                12
         ));
 
         register(context, NETHER_MYTHRIL_ORE, Feature.ORE, new OreConfiguration(
-                List.of(OreConfiguration.target(netherrack, ModBlocks.NETHER_MYTHRIL_ORE.get().defaultBlockState())),
-                5
+                List.of(
+                        OreConfiguration.target(netherrack, ModBlocks.NETHER_MYTHRIL_ORE.get().defaultBlockState())
+                ),
+                16
         ));
 
         register(context, END_MYTHRIL_ORE, Feature.ORE, new OreConfiguration(
-                List.of(OreConfiguration.target(endStone, ModBlocks.END_MYTHRIL_ORE.get().defaultBlockState())),
-                5
+                List.of(
+                        OreConfiguration.target(endStone, ModBlocks.END_MYTHRIL_ORE.get().defaultBlockState())
+                ),
+                16
         ));
 
         register(context, EXTRA_MONSTER_ROOM, Feature.MONSTER_ROOM, NoneFeatureConfiguration.INSTANCE);

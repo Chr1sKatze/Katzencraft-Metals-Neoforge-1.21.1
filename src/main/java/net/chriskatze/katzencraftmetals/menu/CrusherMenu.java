@@ -50,9 +50,9 @@ public class CrusherMenu extends AbstractContainerMenu {
         });
 
         // Output slots
-        this.addSlot(new OutputSlot(container, 1, 116, 25));
-        this.addSlot(new OutputSlot(container, 2, 116, 45));
-        this.addSlot(new OutputSlot(container, 3, 140, 35));
+        this.addSlot(new OutputSlot(container, 1, 110, 35));
+        this.addSlot(new OutputSlot(container, 2, 130, 35));
+        this.addSlot(new OutputSlot(container, 3, 150, 35));
 
         addPlayerInventory(playerInventory);
         addPlayerHotbar(playerInventory);
@@ -151,11 +151,12 @@ public class CrusherMenu extends AbstractContainerMenu {
     public int getScaledFuelProgress() {
         int burnTime = data.get(2);
         int maxBurnTime = data.get(3);
-        int flameSize = 13;
 
-        return maxBurnTime != 0 && burnTime != 0
-                ? burnTime * flameSize / maxBurnTime
-                : 0;
+        if (maxBurnTime <= 0) {
+            return 0;
+        }
+
+        return Math.max(1, burnTime * 14 / maxBurnTime);
     }
 
     private void addPlayerInventory(Inventory playerInventory) {

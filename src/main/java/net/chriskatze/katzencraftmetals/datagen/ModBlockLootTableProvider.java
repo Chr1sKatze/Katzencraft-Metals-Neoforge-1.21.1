@@ -30,7 +30,8 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
 
     @Override
     protected void generate() {
-        // Storage blocks
+        // blocks
+        dropSelf(ModBlocks.STEEL_BLOCK.get());
         dropSelf(ModBlocks.PLATINUM_BLOCK.get());
         dropSelf(ModBlocks.MYTHRIL_BLOCK.get());
 
@@ -161,7 +162,8 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
                 ModBlocks.MYTHRIL_ORE.get(),
                 ModBlocks.DEEPSLATE_MYTHRIL_ORE.get(),
                 ModBlocks.NETHER_MYTHRIL_ORE.get(),
-                ModBlocks.END_MYTHRIL_ORE.get()
+                ModBlocks.END_MYTHRIL_ORE.get(),
+                ModBlocks.STEEL_BLOCK.get()
         );
     }
 }

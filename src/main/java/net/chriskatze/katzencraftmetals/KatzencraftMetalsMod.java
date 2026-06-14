@@ -3,10 +3,10 @@ package net.chriskatze.katzencraftmetals;
 import com.mojang.logging.LogUtils;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
+import net.chriskatze.katzencraftmetals.config.CatoToolTierConfig;
 import net.chriskatze.katzencraftmetals.item.ModItems;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
 import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
-import net.chriskatze.katzencraftmetals.screen.CatoEnchantingScreen;
 import net.chriskatze.katzencraftmetals.screen.CrusherScreen;
 import net.chriskatze.katzencraftmetals.screen.KatzencraftAnvilScreen;
 import net.chriskatze.katzencraftmetals.world.KatzencraftWorldRulesData;
@@ -52,8 +52,9 @@ public class KatzencraftMetalsMod {
         // Register for general events (optional but fine)
         NeoForge.EVENT_BUS.register(this);
 
-        // Config
-        modContainer.registerConfig(ModConfig.Type.COMMON, Config.SPEC);
+        // Configs
+        modContainer.registerConfig(
+                ModConfig.Type.COMMON, CatoToolTierConfig.SPEC, "katzencraftmetals-tooltiers.toml");
     }
 
     // =========================
@@ -64,6 +65,14 @@ public class KatzencraftMetalsMod {
 
         // INGREDIENTS
         if (event.getTabKey() == CreativeModeTabs.INGREDIENTS) {
+
+            event.accept(ModItems.CRUSHED_COAL);
+
+            event.accept(ModItems.IRON_POWDER);
+
+            event.accept(ModItems.STEEL_NUGGET);
+            event.accept(ModItems.STEEL_INGOT);
+            event.accept(ModItems.STEEL_POWDER);
 
             event.accept(ModItems.PLATINUM_NUGGET);
             event.accept(ModItems.RAW_PLATINUM);
@@ -77,25 +86,23 @@ public class KatzencraftMetalsMod {
 
             event.accept(ModItems.SAPPHIRE_GEM);
             event.accept(ModItems.AMETHYST_GEM);
-
-            event.accept(ModItems.COMMON_WEAPON_SCROLL);
-            event.accept(ModItems.ADVANCED_WEAPON_SCROLL);
-            event.accept(ModItems.MASTER_WEAPON_SCROLL);
-
-            event.accept(ModItems.COMMON_ARMOR_SCROLL);
-            event.accept(ModItems.ADVANCED_ARMOR_SCROLL);
-            event.accept(ModItems.MASTER_ARMOR_SCROLL);
-
-            event.accept(ModItems.COMMON_GATHERING_SCROLL);
-            event.accept(ModItems.ADVANCED_GATHERING_SCROLL);
-            event.accept(ModItems.MASTER_GATHERING_SCROLL);
         }
 
         // BUILDING BLOCKS
         if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
 
             event.accept(ModBlocks.PLATINUM_BLOCK);
+
             event.accept(ModBlocks.MYTHRIL_BLOCK);
+
+            event.accept(ModBlocks.STEEL_BLOCK);
+            event.accept(ModBlocks.STEEL_DOOR);
+            event.accept(ModBlocks.STEEL_TRAPDOOR);
+            event.accept(ModBlocks.STEEL_LEVER);
+            event.accept(ModBlocks.STEEL_BARS);
+            event.accept(ModBlocks.STEEL_CHAIN);
+            event.accept(ModBlocks.STEEL_PRESSURE_PLATE);
+            event.accept(ModBlocks.STEEL_BUTTON);
         }
 
         // NATURAL BLOCKS
@@ -115,6 +122,36 @@ public class KatzencraftMetalsMod {
         // FUNCTIONAL BLOCKS
         if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
             event.accept(ModBlocks.CRUSHER);
+        }
+
+        // COMBAT
+        if (event.getTabKey() == CreativeModeTabs.COMBAT) {
+
+            event.accept(ModItems.STEEL_SWORD);
+            event.accept(ModItems.STEEL_HELMET);
+            event.accept(ModItems.STEEL_CHESTPLATE);
+            event.accept(ModItems.STEEL_LEGGINGS);
+            event.accept(ModItems.STEEL_BOOTS);
+
+            event.accept(ModItems.MYTHRIL_SWORD);
+            event.accept(ModItems.MYTHRIL_HELMET);
+            event.accept(ModItems.MYTHRIL_CHESTPLATE);
+            event.accept(ModItems.MYTHRIL_LEGGINGS);
+            event.accept(ModItems.MYTHRIL_BOOTS);
+        }
+
+        // TOOLS & UTILITIES
+        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
+
+            event.accept(ModItems.STEEL_PICKAXE);
+            event.accept(ModItems.STEEL_AXE);
+            event.accept(ModItems.STEEL_SHOVEL);
+            event.accept(ModItems.STEEL_HOE);
+
+            event.accept(ModItems.MYTHRIL_PICKAXE);
+            event.accept(ModItems.MYTHRIL_AXE);
+            event.accept(ModItems.MYTHRIL_SHOVEL);
+            event.accept(ModItems.MYTHRIL_HOE);
         }
     }
 
@@ -138,7 +175,6 @@ public class KatzencraftMetalsMod {
         if (data.isApplied()) return;
 
         level.getGameRules().getRule(GameRules.RULE_DOFIRETICK).set(false, level.getServer());
-        level.getGameRules().getRule(GameRules.RULE_NATURAL_REGENERATION).set(false, level.getServer());
         level.getGameRules().getRule(GameRules.RULE_KEEPINVENTORY).set(true, level.getServer());
 
         data.setApplied();
@@ -146,7 +182,7 @@ public class KatzencraftMetalsMod {
         LOGGER.info("Applied Katzencraft Metals default gamerules.");
     }
 
-    @EventBusSubscriber(modid = KatzencraftMetalsMod.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
+    @EventBusSubscriber(modid = KatzencraftMetalsMod.MODID, value = Dist.CLIENT)
     public static class ClientModEvents {
 
         @SubscribeEvent
@@ -159,7 +195,6 @@ public class KatzencraftMetalsMod {
         public static void registerScreens(RegisterMenuScreensEvent event) {
             event.register(ModMenuTypes.CRUSHER_MENU.get(), CrusherScreen::new);
             event.register(ModMenuTypes.KATZENCRAFT_ANVIL_MENU.get(), KatzencraftAnvilScreen::new);
-            event.register(ModMenuTypes.CATO_ENCHANTING_MENU.get(), CatoEnchantingScreen::new);
         }
     }
 }
