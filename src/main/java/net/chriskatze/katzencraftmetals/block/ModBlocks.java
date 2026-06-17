@@ -70,14 +70,14 @@ public class ModBlocks {
     public static final DeferredBlock<Block> STEEL_DOOR =
             BLOCKS.register("steel_door",
                     () -> new DoorBlock(
-                            BlockSetType.IRON,
+                            BlockSetType.COPPER,
                             Block.Properties.ofFullCopy(Blocks.IRON_DOOR)
                     ));
 
     public static final DeferredBlock<Block> STEEL_TRAPDOOR =
             BLOCKS.register("steel_trapdoor",
                     () -> new TrapDoorBlock(
-                            BlockSetType.IRON,
+                            BlockSetType.COPPER,
                             Block.Properties.ofFullCopy(Blocks.IRON_TRAPDOOR)
                     ));
 

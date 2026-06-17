@@ -10,7 +10,6 @@ import net.neoforged.neoforge.event.level.BlockDropsEvent;
 @EventBusSubscriber
 public class ModEvents {
 
-
     @SubscribeEvent
     public static void onLivingExperienceDrop(LivingExperienceDropEvent event) {
         event.setDroppedExperience(0);

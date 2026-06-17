@@ -181,20 +181,4 @@ public class KatzencraftMetalsMod {
 
         LOGGER.info("Applied Katzencraft Metals default gamerules.");
     }
-
-    @EventBusSubscriber(modid = KatzencraftMetalsMod.MODID, value = Dist.CLIENT)
-    public static class ClientModEvents {
-
-        @SubscribeEvent
-        public static void onClientSetup(FMLClientSetupEvent event) {
-            LOGGER.info("Katzencraft Metals client setup");
-            LOGGER.info("Minecraft user: {}", Minecraft.getInstance().getUser().getName());
-        }
-
-        @SubscribeEvent
-        public static void registerScreens(RegisterMenuScreensEvent event) {
-            event.register(ModMenuTypes.CRUSHER_MENU.get(), CrusherScreen::new);
-            event.register(ModMenuTypes.KATZENCRAFT_ANVIL_MENU.get(), KatzencraftAnvilScreen::new);
-        }
-    }
 }

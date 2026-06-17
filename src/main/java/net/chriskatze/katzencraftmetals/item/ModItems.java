@@ -6,6 +6,7 @@ import net.minecraft.world.item.*;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.common.SimpleTier;
 
 import java.util.function.Supplier;
 

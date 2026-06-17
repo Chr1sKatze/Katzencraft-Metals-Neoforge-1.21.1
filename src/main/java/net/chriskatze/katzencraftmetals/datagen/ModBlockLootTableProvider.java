@@ -32,7 +32,16 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
     protected void generate() {
         // blocks
         dropSelf(ModBlocks.STEEL_BLOCK.get());
+        dropSelf(ModBlocks.STEEL_BARS.get());
+        dropSelf(ModBlocks.STEEL_CHAIN.get());
+        dropSelf(ModBlocks.STEEL_PRESSURE_PLATE.get());
+        dropSelf(ModBlocks.STEEL_BUTTON.get());
+        dropSelf(ModBlocks.STEEL_LEVER.get());
+        dropSelf(ModBlocks.STEEL_DOOR.get());
+        dropSelf(ModBlocks.STEEL_TRAPDOOR.get());
+
         dropSelf(ModBlocks.PLATINUM_BLOCK.get());
+
         dropSelf(ModBlocks.MYTHRIL_BLOCK.get());
 
         // simple raw ore drop + gemstone bonus chance
@@ -158,12 +167,21 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
                 ModBlocks.DEEPSLATE_PLATINUM_ORE.get(),
                 ModBlocks.NETHER_PLATINUM_ORE.get(),
                 ModBlocks.END_PLATINUM_ORE.get(),
+
                 ModBlocks.MYTHRIL_BLOCK.get(),
                 ModBlocks.MYTHRIL_ORE.get(),
                 ModBlocks.DEEPSLATE_MYTHRIL_ORE.get(),
                 ModBlocks.NETHER_MYTHRIL_ORE.get(),
                 ModBlocks.END_MYTHRIL_ORE.get(),
-                ModBlocks.STEEL_BLOCK.get()
+
+                ModBlocks.STEEL_BLOCK.get(),
+                ModBlocks.STEEL_BARS.get(),
+                ModBlocks.STEEL_CHAIN.get(),
+                ModBlocks.STEEL_PRESSURE_PLATE.get(),
+                ModBlocks.STEEL_BUTTON.get(),
+                ModBlocks.STEEL_LEVER.get(),
+                ModBlocks.STEEL_DOOR.get(),
+                ModBlocks.STEEL_TRAPDOOR.get()
         );
     }
 }
