@@ -12,9 +12,11 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import java.util.Map;
@@ -341,14 +343,21 @@ public class FoundryFaucetBlockEntityRenderer
             return;
         }
 
-        BlockEntity blockEntityBelow =
-                faucet.getLevel().getBlockEntity(
-                        faucet.getBlockPos().below()
+        FoundryFaucetBlockEntity.CauldronTarget cauldronTarget =
+                FoundryFaucetBlockEntity.findCauldronTarget(
+                        faucet.getLevel(),
+                        faucet.getBlockPos()
                 );
 
-        if (!(blockEntityBelow instanceof CastingCauldronBlockEntity cauldron)) {
+        if (cauldronTarget == null) {
             return;
         }
+
+        CastingCauldronBlockEntity cauldron =
+                cauldronTarget.cauldron();
+
+        int cauldronDistance =
+                cauldronTarget.distance();
 
         float displayedMoltenAmount =
                 CastingCauldronFillSmoother.getDisplayedMoltenAmount(
@@ -363,12 +372,15 @@ public class FoundryFaucetBlockEntityRenderer
                 1.0f
         );
 
+        float cauldronBlockBaseY =
+                -cauldronDistance;
+
         float cauldronBottomY =
-                -1.0f
+                cauldronBlockBaseY
                         + CAULDRON_MIN_Y;
 
         float cauldronSurfaceY =
-                -1.0f + Mth.lerp(
+                cauldronBlockBaseY + Mth.lerp(
                         fillPercentage,
                         CAULDRON_MIN_Y,
                         CAULDRON_MAX_Y
@@ -2238,9 +2250,35 @@ public class FoundryFaucetBlockEntityRenderer
     }
 
     /*
-     * The stream extends into the block below the Faucet.
-     * Rendering off-screen avoids it disappearing too early
-     * at the edge of the camera view.
+     * The rendered stream is part of the Faucet BlockEntityRenderer, but it
+     * extends up to three blocks below the Faucet block.
+     *
+     * The default BER bounding box is only the Faucet's own one-block cube.
+     * Expanding it downward keeps the renderer active whenever any visible
+     * part of the stream is still inside the camera frustum.
+     */
+    @Override
+    public AABB getRenderBoundingBox(
+            FoundryFaucetBlockEntity faucet
+    ) {
+        BlockPos pos =
+                faucet.getBlockPos();
+
+        return new AABB(
+                pos.getX(),
+                pos.getY()
+                        - FoundryFaucetBlockEntity.MAX_CAULDRON_DISTANCE,
+                pos.getZ(),
+                pos.getX() + 1.0,
+                pos.getY() + 1.0,
+                pos.getZ() + 1.0
+        );
+    }
+
+    /*
+     * Keep rendering while the expanded bounding box is partially outside the
+     * screen. The bounding box above is still what defines the useful visible
+     * scope of this renderer.
      */
     @Override
     public boolean shouldRenderOffScreen(

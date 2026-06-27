@@ -9,11 +9,15 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Set;
@@ -47,7 +51,61 @@ public class FoundryTankBlock extends BaseEntityBlock {
 
     @Override
     public RenderShape getRenderShape(BlockState state) {
-        return RenderShape.MODEL;
+        return RenderShape.ENTITYBLOCK_ANIMATED;
+    }
+
+    /*
+     * The Tank is visually transparent even though it keeps its normal
+     * full-block collision shape.
+     *
+     * These match the light/visual behavior used by vanilla transparent
+     * blocks, preventing the invisible block volume from darkening opaque
+     * blocks seen through the Tank.
+     */
+    @Override
+    protected VoxelShape getVisualShape(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos,
+            CollisionContext context
+    ) {
+        return Shapes.empty();
+    }
+
+    @Override
+    protected VoxelShape getOcclusionShape(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos
+    ) {
+        return Shapes.empty();
+    }
+
+    @Override
+    protected int getLightBlock(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos
+    ) {
+        return 0;
+    }
+
+    @Override
+    protected float getShadeBrightness(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos
+    ) {
+        return 1.0f;
+    }
+
+    @Override
+    protected boolean propagatesSkylightDown(
+            BlockState state,
+            BlockGetter level,
+            BlockPos pos
+    ) {
+        return true;
     }
 
     @Override

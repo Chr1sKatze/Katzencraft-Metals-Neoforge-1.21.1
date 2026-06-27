@@ -13,11 +13,20 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jetbrains.annotations.Nullable;
 
 public class FoundryFaucetBlockEntity extends BlockEntity {
 
     public static final int TRANSFER_INTERVAL = 2;
     public static final int TRANSFER_AMOUNT = 1;
+
+    /*
+     * A Casting Cauldron may be one, two, or three blocks below the Faucet.
+     */
+    public static final int MAX_CAULDRON_DISTANCE = 3;
+
+    private static final float MIN_SOURCE_AMOUNT =
+            0.0001f;
 
     public static final int STREAM_ANIMATION_INTERVAL = 2;
     public static final int STREAM_ANIMATION_STEPS = 8;
@@ -52,21 +61,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             return;
         }
 
-        if (faucet.pouring) {
-            if (faucet.streamAnimationStep < STREAM_ANIMATION_STEPS) {
-                faucet.streamAnimationTimer++;
-
-                if (faucet.streamAnimationTimer >= STREAM_ANIMATION_INTERVAL) {
-                    faucet.streamAnimationTimer = 0;
-                    faucet.streamAnimationStep++;
-
-                    faucet.setChanged();
-                    faucet.syncToClient();
-                }
-
-                return;
-            }
-        } else {
+        if (!faucet.pouring) {
             if (faucet.streamAnimationStep > 0) {
                 faucet.streamAnimationTimer++;
 
@@ -82,6 +77,37 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             return;
         }
 
+        /*
+         * Validate the complete pouring route every tick, including while the
+         * stream is extending. This prevents a Faucet from visually continuing
+         * when its source layer becomes empty or its Cauldron is removed.
+         */
+        PouringContext context =
+                resolvePouringContext(
+                        level,
+                        pos,
+                        state
+                );
+
+        if (context == null) {
+            faucet.stopPouring();
+            return;
+        }
+
+        if (faucet.streamAnimationStep < STREAM_ANIMATION_STEPS) {
+            faucet.streamAnimationTimer++;
+
+            if (faucet.streamAnimationTimer >= STREAM_ANIMATION_INTERVAL) {
+                faucet.streamAnimationTimer = 0;
+                faucet.streamAnimationStep++;
+
+                faucet.setChanged();
+                faucet.syncToClient();
+            }
+
+            return;
+        }
+
         faucet.transferTimer++;
 
         if (faucet.transferTimer < TRANSFER_INTERVAL) {
@@ -90,63 +116,11 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
 
         faucet.transferTimer = 0;
 
-        Direction facing =
-                state.getValue(FoundryFaucetBlock.FACING);
-
-        BlockPos tankPosition =
-                pos.relative(facing.getOpposite());
-
-        BlockEntity tankBlockEntity =
-                level.getBlockEntity(tankPosition);
-
-        if (!(tankBlockEntity instanceof FoundryTankBlockEntity tank)) {
-            faucet.stopPouring();
-            return;
-        }
-
-        /*
-         * Orphan Tank sections retain their liquid and visuals, but they
-         * cannot operate Faucets until a Controller claims them again.
-         */
-        if (!tank.hasActiveController()) {
-            faucet.stopPouring();
-            return;
-        }
-
-        BlockEntity cauldronBlockEntity =
-                level.getBlockEntity(pos.below());
-
-        if (
-                !(cauldronBlockEntity
-                        instanceof CastingCauldronBlockEntity cauldron)
-        ) {
-            faucet.stopPouring();
-            return;
-        }
-
-        ResourceLocation storedMetal =
-                tank.getStoredMetal();
-
-        if (storedMetal == null || tank.isEmpty()) {
-            faucet.stopPouring();
-            return;
-        }
-
-        if (cauldron.isFull()) {
-            faucet.stopPouring();
-            return;
-        }
-
-        if (!cauldron.canAccept(
-                storedMetal,
-                TRANSFER_AMOUNT
-        )) {
-            faucet.stopPouring();
-            return;
-        }
-
         int extracted =
-                tank.extract(TRANSFER_AMOUNT);
+                context.tank()
+                        .extract(
+                                TRANSFER_AMOUNT
+                        );
 
         if (extracted != TRANSFER_AMOUNT) {
             faucet.stopPouring();
@@ -154,24 +128,194 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         }
 
         int inserted =
-                cauldron.insert(
-                        storedMetal,
-                        extracted
-                );
+                context.cauldron()
+                        .insert(
+                                context.metal(),
+                                extracted
+                        );
 
         if (inserted != extracted) {
-            tank.insert(
-                    storedMetal,
-                    extracted
-            );
+            context.tank()
+                    .insert(
+                            context.metal(),
+                            extracted
+                    );
 
             faucet.stopPouring();
             return;
         }
 
-        if (cauldron.isFull() || tank.isEmpty()) {
+        /*
+         * The network may still contain molten metal below this Faucet.
+         * Stop specifically when the liquid surface has fallen below the
+         * attached Tank layer.
+         */
+        if (
+                context.cauldron().isFull()
+                        || !hasMoltenAtFaucetHeight(
+                        context.tank()
+                )
+        ) {
             faucet.stopPouring();
         }
+    }
+
+    // =========================
+    // SMART SOURCE / TARGET LOOKUP
+    // =========================
+
+    /**
+     * Returns true when molten metal currently occupies the horizontal Tank
+     * layer to which this Faucet is attached.
+     *
+     * The Tank network distributes liquid from its lowest layer upward, so
+     * this naturally gives the desired behavior:
+     *
+     * - bottom Faucet works while the bottom layer contains liquid
+     * - middle Faucet works only after liquid reaches the middle layer
+     * - top Faucet works only after liquid reaches the top layer
+     */
+    public static boolean hasMoltenAtFaucetHeight(
+            FoundryTankBlockEntity tank
+    ) {
+        return tank.getStoredMetal() != null
+                && tank.getLocalVisualMoltenAmount()
+                > MIN_SOURCE_AMOUNT;
+    }
+
+    /**
+     * Finds the first Casting Cauldron in the vertical column below a Faucet.
+     *
+     * Valid distances are one through three blocks. Every intermediate block
+     * must have an empty collision shape so the molten stream is unobstructed.
+     */
+    @Nullable
+    public static CauldronTarget findCauldronTarget(
+            Level level,
+            BlockPos faucetPos
+    ) {
+        for (
+                int distance = 1;
+                distance <= MAX_CAULDRON_DISTANCE;
+                distance++
+        ) {
+            BlockPos checkedPos =
+                    faucetPos.below(distance);
+
+            BlockEntity blockEntity =
+                    level.getBlockEntity(
+                            checkedPos
+                    );
+
+            if (
+                    blockEntity
+                            instanceof CastingCauldronBlockEntity cauldron
+            ) {
+                return new CauldronTarget(
+                        cauldron,
+                        distance
+                );
+            }
+
+            /*
+             * A solid block terminates the search. A Cauldron farther below
+             * it cannot receive a stream through the obstruction.
+             */
+            if (!level.getBlockState(
+                    checkedPos
+            ).getCollisionShape(
+                    level,
+                    checkedPos
+            ).isEmpty()) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    @Nullable
+    private static PouringContext resolvePouringContext(
+            Level level,
+            BlockPos faucetPos,
+            BlockState faucetState
+    ) {
+        Direction facing =
+                faucetState.getValue(
+                        FoundryFaucetBlock.FACING
+                );
+
+        BlockPos tankPosition =
+                faucetPos.relative(
+                        facing.getOpposite()
+                );
+
+        BlockEntity tankBlockEntity =
+                level.getBlockEntity(
+                        tankPosition
+                );
+
+        if (!(tankBlockEntity instanceof FoundryTankBlockEntity tank)) {
+            return null;
+        }
+
+        if (
+                !tank.hasActiveController()
+                        || !hasMoltenAtFaucetHeight(
+                        tank
+                )
+        ) {
+            return null;
+        }
+
+        ResourceLocation storedMetal =
+                tank.getStoredMetal();
+
+        if (storedMetal == null) {
+            return null;
+        }
+
+        CauldronTarget target =
+                findCauldronTarget(
+                        level,
+                        faucetPos
+                );
+
+        if (target == null) {
+            return null;
+        }
+
+        CastingCauldronBlockEntity cauldron =
+                target.cauldron();
+
+        if (
+                cauldron.isFull()
+                        || !cauldron.canAccept(
+                        storedMetal,
+                        TRANSFER_AMOUNT
+                )
+        ) {
+            return null;
+        }
+
+        return new PouringContext(
+                tank,
+                cauldron,
+                storedMetal
+        );
+    }
+
+    public record CauldronTarget(
+            CastingCauldronBlockEntity cauldron,
+            int distance
+    ) {
+    }
+
+    private record PouringContext(
+            FoundryTankBlockEntity tank,
+            CastingCauldronBlockEntity cauldron,
+            ResourceLocation metal
+    ) {
     }
 
     // =========================

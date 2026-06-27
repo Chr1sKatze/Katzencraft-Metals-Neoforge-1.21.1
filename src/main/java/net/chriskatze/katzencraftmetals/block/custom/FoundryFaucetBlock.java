@@ -262,15 +262,16 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
         }
 
         /*
-         * Cauldron directly below the Faucet.
+         * A Faucet draws only from the exact Tank height to which it is
+         * attached. Metal may still exist in lower Tank layers without being
+         * reachable by a middle or top Faucet.
          */
-        BlockEntity cauldronBlockEntity =
-                level.getBlockEntity(pos.below());
-
-        if (!(cauldronBlockEntity instanceof CastingCauldronBlockEntity cauldron)) {
+        if (!FoundryFaucetBlockEntity.hasMoltenAtFaucetHeight(
+                tank
+        )) {
             player.displayClientMessage(
                     Component.literal(
-                            "Place a Casting Cauldron below the faucet."
+                            "There is no molten metal at this faucet height."
                     ),
                     true
             );
@@ -278,16 +279,25 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
-        if (tank.isEmpty() || tank.getStoredMetal() == null) {
+        FoundryFaucetBlockEntity.CauldronTarget cauldronTarget =
+                FoundryFaucetBlockEntity.findCauldronTarget(
+                        level,
+                        pos
+                );
+
+        if (cauldronTarget == null) {
             player.displayClientMessage(
                     Component.literal(
-                            "The Foundry Tank is empty."
+                            "Place a Casting Cauldron within 3 clear blocks below the faucet."
                     ),
                     true
             );
 
             return InteractionResult.CONSUME;
         }
+
+        CastingCauldronBlockEntity cauldron =
+                cauldronTarget.cauldron();
 
         if (cauldron.isFull()) {
             player.displayClientMessage(
