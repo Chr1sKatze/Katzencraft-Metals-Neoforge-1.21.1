@@ -1,21 +1,27 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
+import net.chriskatze.katzencraftmetals.menu.FuelChamberMenu;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleContainer;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.chriskatze.katzencraftmetals.menu.FuelChamberMenu;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
 public class FuelChamberBlockEntity
         extends BlockEntity
@@ -26,54 +32,260 @@ public class FuelChamberBlockEntity
     /*
      * One coal provides 1600 active melting ticks.
      *
-     * This value only decreases when the controller calls
-     * supplyBurnTick().
+     * This value only decreases while a connected Controller actively
+     * requests one melting tick.
      */
     public static final int COAL_BURN_TIME = 1600;
 
-    private final SimpleContainer fuelInventory = new SimpleContainer(SLOT_COUNT) {
+    /*
+     * The Controller UUID this Fuel Chamber belongs to.
+     *
+     * null means unassigned. Facing has no structural meaning.
+     */
+    @Nullable
+    private UUID controllerId;
 
-        /*
-         * All three slots accept normal coal only.
-         */
-        @Override
-        public boolean canPlaceItem(int slot, ItemStack stack) {
-            return stack.is(Items.COAL);
-        }
+    private final SimpleContainer fuelInventory =
+            new SimpleContainer(SLOT_COUNT) {
 
-        /*
-         * Ensure inventory changes are saved.
-         */
-        @Override
-        public void setChanged() {
-            super.setChanged();
-            FuelChamberBlockEntity.this.setChanged();
-        }
-    };
+                @Override
+                public boolean canPlaceItem(
+                        int slot,
+                        ItemStack stack
+                ) {
+                    return stack.is(Items.COAL);
+                }
+
+                @Override
+                public void setChanged() {
+                    super.setChanged();
+                    FuelChamberBlockEntity.this.setChanged();
+                }
+            };
 
     private int burnTimeRemaining;
     private int maxBurnTime;
 
-    public FuelChamberBlockEntity(BlockPos pos, BlockState state) {
-        super(ModBlockEntities.FUEL_CHAMBER.get(), pos, state);
+    public FuelChamberBlockEntity(
+            BlockPos pos,
+            BlockState state
+    ) {
+        super(
+                ModBlockEntities.FUEL_CHAMBER.get(),
+                pos,
+                state
+        );
+    }
+
+    // =========================
+    // FOUNDRY ASSIGNMENT
+    // =========================
+
+    @Nullable
+    public UUID getControllerId() {
+        return controllerId;
+    }
+
+    public void setControllerId(
+            @Nullable UUID controllerId
+    ) {
+        if (Objects.equals(
+                this.controllerId,
+                controllerId
+        )) {
+            return;
+        }
+
+        this.controllerId =
+                controllerId;
+
+        setChanged();
     }
 
     /**
-     * Called by the future foundry controller while metal is
-     * actively being melted.
+     * Resolves this chamber from the blocks physically touching it.
      *
-     * @return true when one melting tick was supplied
+     * Valid connections:
+     *
+     * - any of the six faces of a Controller
+     * - any of the six faces of a Tank owned by a Controller
+     *
+     * The clicked block wins when it identifies one of the candidates.
+     * Otherwise assignment occurs only when exactly one Controller is valid.
      */
-    public boolean supplyBurnTick() {
-        if (level == null || level.isClientSide()) {
-            return false;
+    public void tryAutoAssign(
+            @Nullable BlockPos clickedAgainstPosition
+    ) {
+        if (
+                level == null
+                        || level.isClientSide()
+        ) {
+            return;
+        }
+
+        Map<UUID, FoundryControllerBlockEntity> candidates =
+                collectCandidateControllers();
+
+        if (
+                controllerId != null
+                        && candidates.containsKey(controllerId)
+        ) {
+            return;
+        }
+
+        FoundryControllerBlockEntity preferred =
+                findPreferredController(
+                        clickedAgainstPosition,
+                        candidates
+                );
+
+        if (preferred != null) {
+            setControllerId(
+                    preferred.getControllerId()
+            );
+
+            return;
+        }
+
+        if (candidates.size() == 1) {
+            setControllerId(
+                    candidates.keySet()
+                            .iterator()
+                            .next()
+            );
+
+            return;
         }
 
         /*
-         * Begin burning another coal only when the previous coal
-         * has no stored burn time left.
+         * An old assignment that is no longer physically valid is stale.
+         * Ambiguous chambers deliberately remain unassigned.
          */
-        if (burnTimeRemaining <= 0 && !consumeCoal()) {
+        setControllerId(null);
+    }
+
+    private Map<UUID, FoundryControllerBlockEntity>
+    collectCandidateControllers() {
+        Map<UUID, FoundryControllerBlockEntity> candidates =
+                new LinkedHashMap<>();
+
+        if (level == null) {
+            return candidates;
+        }
+
+        for (Direction direction : Direction.values()) {
+            BlockPos neighborPos =
+                    worldPosition.relative(direction);
+
+            BlockEntity blockEntity =
+                    level.getBlockEntity(neighborPos);
+
+            if (
+                    blockEntity
+                            instanceof FoundryControllerBlockEntity controller
+            ) {
+                candidates.putIfAbsent(
+                        controller.getControllerId(),
+                        controller
+                );
+
+                continue;
+            }
+
+            if (
+                    blockEntity
+                            instanceof FoundryTankBlockEntity tank
+            ) {
+                FoundryTankNetwork network =
+                        tank.getNetwork();
+
+                if (network == null) {
+                    continue;
+                }
+
+                FoundryControllerBlockEntity controller =
+                        network.getAttachedController();
+
+                if (controller != null) {
+                    candidates.putIfAbsent(
+                            controller.getControllerId(),
+                            controller
+                    );
+                }
+            }
+        }
+
+        return candidates;
+    }
+
+    @Nullable
+    private FoundryControllerBlockEntity findPreferredController(
+            @Nullable BlockPos clickedAgainstPosition,
+            Map<UUID, FoundryControllerBlockEntity> candidates
+    ) {
+        if (
+                level == null
+                        || clickedAgainstPosition == null
+        ) {
+            return null;
+        }
+
+        BlockEntity clickedBlockEntity =
+                level.getBlockEntity(
+                        clickedAgainstPosition
+                );
+
+        if (
+                clickedBlockEntity
+                        instanceof FoundryControllerBlockEntity controller
+                        && candidates.containsKey(
+                        controller.getControllerId()
+                )
+        ) {
+            return controller;
+        }
+
+        if (
+                clickedBlockEntity
+                        instanceof FoundryTankBlockEntity tank
+        ) {
+            FoundryTankNetwork network =
+                    tank.getNetwork();
+
+            FoundryControllerBlockEntity controller =
+                    network != null
+                            ? network.getAttachedController()
+                            : null;
+
+            if (
+                    controller != null
+                            && candidates.containsKey(
+                            controller.getControllerId()
+                    )
+            ) {
+                return controller;
+            }
+        }
+
+        return null;
+    }
+
+    // =========================
+    // FUEL SUPPLY
+    // =========================
+
+    public boolean supplyBurnTick() {
+        if (
+                level == null
+                        || level.isClientSide()
+        ) {
+            return false;
+        }
+
+        if (
+                burnTimeRemaining <= 0
+                        && !consumeCoal()
+        ) {
             return false;
         }
 
@@ -83,21 +295,25 @@ public class FuelChamberBlockEntity
         return true;
     }
 
-    /**
-     * Finds the first available coal slot and consumes one coal.
-     */
     private boolean consumeCoal() {
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
-            ItemStack stack = fuelInventory.getItem(slot);
+            ItemStack stack =
+                    fuelInventory.getItem(slot);
 
             if (!stack.is(Items.COAL)) {
                 continue;
             }
 
-            fuelInventory.removeItem(slot, 1);
+            fuelInventory.removeItem(
+                    slot,
+                    1
+            );
 
-            burnTimeRemaining = COAL_BURN_TIME;
-            maxBurnTime = COAL_BURN_TIME;
+            burnTimeRemaining =
+                    COAL_BURN_TIME;
+
+            maxBurnTime =
+                    COAL_BURN_TIME;
 
             setChanged();
             return true;
@@ -112,7 +328,10 @@ public class FuelChamberBlockEntity
         }
 
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
-            if (fuelInventory.getItem(slot).is(Items.COAL)) {
+            if (
+                    fuelInventory.getItem(slot)
+                            .is(Items.COAL)
+            ) {
                 return true;
             }
         }
@@ -133,13 +352,16 @@ public class FuelChamberBlockEntity
     }
 
     public int getStoredCoalCount() {
-        int coalCount = 0;
+        int coalCount =
+                0;
 
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
-            ItemStack stack = fuelInventory.getItem(slot);
+            ItemStack stack =
+                    fuelInventory.getItem(slot);
 
             if (stack.is(Items.COAL)) {
-                coalCount += stack.getCount();
+                coalCount +=
+                        stack.getCount();
             }
         }
 
@@ -159,7 +381,17 @@ public class FuelChamberBlockEntity
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        super.saveAdditional(tag, registries);
+        super.saveAdditional(
+                tag,
+                registries
+        );
+
+        if (controllerId != null) {
+            tag.putString(
+                    "ControllerId",
+                    controllerId.toString()
+            );
+        }
 
         tag.put(
                 "FuelInventory",
@@ -182,9 +414,34 @@ public class FuelChamberBlockEntity
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        super.loadAdditional(tag, registries);
+        super.loadAdditional(
+                tag,
+                registries
+        );
 
-        if (tag.contains("FuelInventory", Tag.TAG_LIST)) {
+        controllerId =
+                null;
+
+        if (tag.contains("ControllerId")) {
+            try {
+                controllerId =
+                        UUID.fromString(
+                                tag.getString(
+                                        "ControllerId"
+                                )
+                        );
+            } catch (IllegalArgumentException ignored) {
+                controllerId =
+                        null;
+            }
+        }
+
+        fuelInventory.removeAllItems();
+
+        if (tag.contains(
+                "FuelInventory",
+                Tag.TAG_LIST
+        )) {
             fuelInventory.fromTag(
                     tag.getList(
                             "FuelInventory",
@@ -194,16 +451,26 @@ public class FuelChamberBlockEntity
             );
         }
 
-        burnTimeRemaining = Math.max(
-                0,
-                tag.getInt("BurnTimeRemaining")
-        );
+        burnTimeRemaining =
+                Math.max(
+                        0,
+                        tag.getInt(
+                                "BurnTimeRemaining"
+                        )
+                );
 
-        maxBurnTime = Math.max(
-                0,
-                tag.getInt("MaxBurnTime")
-        );
+        maxBurnTime =
+                Math.max(
+                        0,
+                        tag.getInt(
+                                "MaxBurnTime"
+                        )
+                );
     }
+
+    // =========================
+    // MENU
+    // =========================
 
     @Override
     public Component getDisplayName() {

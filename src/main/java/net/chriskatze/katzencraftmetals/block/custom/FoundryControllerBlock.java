@@ -116,10 +116,11 @@ public class FoundryControllerBlock extends BaseEntityBlock {
                         instanceof FoundryControllerBlockEntity controller
         ) {
             /*
-             * When placed against a large prebuilt orphan layout, the
-             * Controller automatically claims the largest still-valid part.
+             * When placed beside a prebuilt orphan Tank layout, the
+             * Controller automatically claims the largest valid part touching
+             * its back, left, or right side.
              */
-            controller.ensureAttachedTankNetwork();
+            controller.ensureTankNetwork();
         }
     }
 
@@ -148,7 +149,7 @@ public class FoundryControllerBlock extends BaseEntityBlock {
                      * Removing the Controller turns its surviving Tank
                      * component into an orphan section.
                      */
-                    controller.releaseTankNetwork();
+                    controller.releaseFoundry();
                 }
 
                 Containers.dropContents(

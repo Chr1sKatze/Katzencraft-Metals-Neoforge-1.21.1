@@ -22,6 +22,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public class FoundryControllerBlockEntity
@@ -43,7 +48,7 @@ public class FoundryControllerBlockEntity
     /*
      * Every Controller owns one persistent UUID.
      *
-     * Tanks assigned to this Foundry store this same UUID.
+     * Tanks and Fuel Chambers assigned to this Foundry store the same UUID.
      */
     private UUID controllerId =
             UUID.randomUUID();
@@ -77,11 +82,11 @@ public class FoundryControllerBlockEntity
                         case 0 -> progress;
                         case 1 -> MAX_PROGRESS;
                         case 2 -> {
-                            FoundryTankBlockEntity tank =
-                                    getConnectedTank();
+                            FoundryTankNetwork network =
+                                    getOwnedTankNetwork();
 
-                            yield tank != null
-                                    ? tank.getMoltenAmount()
+                            yield network != null
+                                    ? network.getMoltenAmount()
                                     : 0;
                         }
                         default -> 0;
@@ -116,23 +121,112 @@ public class FoundryControllerBlockEntity
     }
 
     // =========================
-    // CONTROLLER ID / CONNECTION
+    // CONTROLLER ID / FACING
     // =========================
 
     public UUID getControllerId() {
         return controllerId;
     }
 
-    public BlockPos getAttachedTankPosition() {
-        Direction front =
-                getBlockState().getValue(
-                        FoundryControllerBlock.FACING
-                );
-
-        return worldPosition.relative(
-                front.getOpposite()
+    public Direction getFacing() {
+        return getBlockState().getValue(
+                FoundryControllerBlock.FACING
         );
     }
+
+    /**
+     * A Controller connects to Tanks directly behind it, to its left,
+     * or to its right. A Tank directly in front is never a valid attachment.
+     */
+    public boolean isValidTankAttachmentPosition(
+            BlockPos tankPos
+    ) {
+        if (tankPos.getY() != worldPosition.getY()) {
+            return false;
+        }
+
+        int deltaX =
+                tankPos.getX()
+                        - worldPosition.getX();
+
+        int deltaZ =
+                tankPos.getZ()
+                        - worldPosition.getZ();
+
+        if (Math.abs(deltaX) + Math.abs(deltaZ) != 1) {
+            return false;
+        }
+
+        int forwardDistance =
+                deltaX * getFacing().getStepX()
+                        + deltaZ * getFacing().getStepZ();
+
+        return forwardDistance <= 0;
+    }
+
+    /**
+     * The complete Tank layout may extend behind or beside the Controller,
+     * but no Tank in the owned network may lie in front of it.
+     */
+    public boolean canOwnTankLayout(
+            Set<BlockPos> tankPositions
+    ) {
+        if (tankPositions.isEmpty()) {
+            return false;
+        }
+
+        boolean touchesController =
+                false;
+
+        Direction facing =
+                getFacing();
+
+        for (BlockPos tankPos : tankPositions) {
+            int deltaX =
+                    tankPos.getX()
+                            - worldPosition.getX();
+
+            int deltaZ =
+                    tankPos.getZ()
+                            - worldPosition.getZ();
+
+            int forwardDistance =
+                    deltaX * facing.getStepX()
+                            + deltaZ * facing.getStepZ();
+
+            if (forwardDistance > 0) {
+                return false;
+            }
+
+            if (isValidTankAttachmentPosition(tankPos)) {
+                touchesController =
+                        true;
+            }
+        }
+
+        return touchesController;
+    }
+
+    public List<BlockPos> getValidTankAttachmentPositions() {
+        Direction facing =
+                getFacing();
+
+        return List.of(
+                worldPosition.relative(
+                        facing.getOpposite()
+                ),
+                worldPosition.relative(
+                        facing.getClockWise()
+                ),
+                worldPosition.relative(
+                        facing.getCounterClockWise()
+                )
+        );
+    }
+
+    // =========================
+    // TANK NETWORK
+    // =========================
 
     @Nullable
     public FoundryTankNetwork getOwnedTankNetwork() {
@@ -140,37 +234,81 @@ public class FoundryControllerBlockEntity
             return null;
         }
 
-        BlockEntity blockEntity =
-                level.getBlockEntity(
-                        getAttachedTankPosition()
-                );
+        FoundryTankNetwork best =
+                null;
 
-        if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
-            return null;
+        Set<BlockPos> alreadyChecked =
+                new HashSet<>();
+
+        for (BlockPos attachmentPos : getValidTankAttachmentPositions()) {
+            BlockEntity blockEntity =
+                    level.getBlockEntity(
+                            attachmentPos
+                    );
+
+            if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
+                continue;
+            }
+
+            FoundryTankNetwork network =
+                    tank.getNetwork();
+
+            if (
+                    network == null
+                            || !controllerId.equals(
+                            network.getOwnerId()
+                    )
+                            || !canOwnTankLayout(
+                            network.getTankPositions()
+                    )
+            ) {
+                continue;
+            }
+
+            BlockPos networkKey =
+                    network.getTankPositions()
+                            .stream()
+                            .min(
+                                    Comparator
+                                            .comparingInt(
+                                                    (BlockPos pos) ->
+                                                            pos.getY()
+                                            )
+                                            .thenComparingInt(
+                                                    pos ->
+                                                            pos.getX()
+                                            )
+                                            .thenComparingInt(
+                                                    pos ->
+                                                            pos.getZ()
+                                            )
+                            )
+                            .orElse(
+                                    attachmentPos
+                            );
+
+            if (!alreadyChecked.add(networkKey)) {
+                continue;
+            }
+
+            if (
+                    best == null
+                            || network.getTankCount()
+                            > best.getTankCount()
+            ) {
+                best =
+                        network;
+            }
         }
 
-        FoundryTankNetwork network =
-                tank.getNetwork();
-
-        if (
-                network == null
-                        || !controllerId.equals(
-                        network.getOwnerId()
-                )
-        ) {
-            return null;
-        }
-
-        return network;
+        return best;
     }
 
     /**
-     * Establishes or restores this Controller's automatic Tank connection.
-     *
-     * This also migrates worlds created by the previous prototype, where
-     * Tank UUIDs were not yet the persistent Controller UUID.
+     * Restores an existing owned network or claims the largest valid
+     * unassigned layout touching the Controller on its back/left/right side.
      */
-    public boolean ensureAttachedTankNetwork() {
+    public boolean ensureTankNetwork() {
         if (
                 level == null
                         || level.isClientSide()
@@ -178,65 +316,153 @@ public class FoundryControllerBlockEntity
             return false;
         }
 
-        BlockPos tankPosition =
-                getAttachedTankPosition();
-
-        BlockEntity blockEntity =
-                level.getBlockEntity(tankPosition);
-
-        if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
-            return false;
-        }
-
-        FoundryTankNetwork existing =
-                tank.getNetwork();
-
-        if (
-                existing != null
-                        && controllerId.equals(
-                        existing.getOwnerId()
-                )
-        ) {
+        if (getOwnedTankNetwork() != null) {
             return true;
         }
 
-        /*
-         * A differently owned active network belongs to another Controller
-         * and must never be stolen.
-         */
-        if (
-                existing != null
-                        && existing.getOwnerId() != null
-                        && existing.isActive()
-        ) {
-            return false;
-        }
-
-        /*
-         * Old prototype IDs and cut-off owner IDs are treated as orphaned.
-         */
-        if (
-                existing != null
-                        && existing.getOwnerId() != null
-                        && !existing.isActive()
-        ) {
-            existing.releaseOwnership();
-        }
-
-        return FoundryTankNetwork.claimLargestUnassignedLayout(
-                level,
-                tankPosition,
-                controllerId
-        ) != null;
+        return FoundryTankNetwork
+                .claimLargestUnassignedLayoutForController(
+                        level,
+                        this
+                )
+                != null;
     }
 
-    public void releaseTankNetwork() {
+    /**
+     * Releases every local machine owned by this Controller.
+     */
+    public void releaseFoundry() {
         FoundryTankNetwork network =
                 getOwnedTankNetwork();
+
+        for (
+                FuelChamberBlockEntity fuelChamber :
+                collectNearbyFuelChambers(network)
+        ) {
+            if (controllerId.equals(
+                    fuelChamber.getControllerId()
+            )) {
+                fuelChamber.setControllerId(null);
+            }
+        }
 
         if (network != null) {
             network.releaseOwnership();
         }
+    }
+
+    // =========================
+    // FUEL CHAMBER
+    // =========================
+
+    @Nullable
+    private FuelChamberBlockEntity getConnectedFuelChamber(
+            FoundryTankNetwork network
+    ) {
+        List<FuelChamberBlockEntity> fuelChambers =
+                collectNearbyFuelChambers(network);
+
+        fuelChambers.sort(
+                Comparator
+                        .comparingLong(
+                                (FuelChamberBlockEntity fuelChamber) ->
+                                        distanceSquared(
+                                                worldPosition,
+                                                fuelChamber.getBlockPos()
+                                        )
+                        )
+                        .thenComparingInt(
+                                fuelChamber ->
+                                        fuelChamber.getBlockPos().getY()
+                        )
+                        .thenComparingInt(
+                                fuelChamber ->
+                                        fuelChamber.getBlockPos().getX()
+                        )
+                        .thenComparingInt(
+                                fuelChamber ->
+                                        fuelChamber.getBlockPos().getZ()
+                        )
+        );
+
+        /*
+         * Preserve an existing valid assignment first.
+         */
+        for (FuelChamberBlockEntity fuelChamber : fuelChambers) {
+            if (controllerId.equals(
+                    fuelChamber.getControllerId()
+            )) {
+                return fuelChamber;
+            }
+        }
+
+        /*
+         * Unassigned or stale Fuel Chambers resolve their surrounding
+         * Controllers automatically. Ambiguous chambers remain unused.
+         */
+        for (FuelChamberBlockEntity fuelChamber : fuelChambers) {
+            fuelChamber.tryAutoAssign(null);
+
+            if (controllerId.equals(
+                    fuelChamber.getControllerId()
+            )) {
+                return fuelChamber;
+            }
+        }
+
+        return null;
+    }
+
+    private List<FuelChamberBlockEntity> collectNearbyFuelChambers(
+            @Nullable FoundryTankNetwork network
+    ) {
+        if (level == null) {
+            return List.of();
+        }
+
+        Set<BlockPos> candidatePositions =
+                new HashSet<>();
+
+        /*
+         * A Fuel Chamber may sit on any of the six faces of the Controller:
+         * above, below, north, south, east, or west.
+         */
+        for (Direction direction : Direction.values()) {
+            candidatePositions.add(
+                    worldPosition.relative(direction)
+            );
+        }
+
+        /*
+         * It may alternatively touch any Tank belonging to the network,
+         * again on any of the six faces.
+         */
+        if (network != null) {
+            for (BlockPos tankPos : network.getTankPositions()) {
+                for (Direction direction : Direction.values()) {
+                    candidatePositions.add(
+                            tankPos.relative(direction)
+                    );
+                }
+            }
+        }
+
+        List<FuelChamberBlockEntity> result =
+                new ArrayList<>();
+
+        for (BlockPos candidatePos : candidatePositions) {
+            BlockEntity blockEntity =
+                    level.getBlockEntity(candidatePos);
+
+            if (
+                    blockEntity
+                            instanceof FuelChamberBlockEntity fuelChamber
+            ) {
+                result.add(fuelChamber);
+            }
+        }
+
+        return result;
     }
 
     // =========================
@@ -253,29 +479,43 @@ public class FoundryControllerBlockEntity
             return;
         }
 
-        if (!controller.ensureAttachedTankNetwork()) {
+        if (!controller.ensureTankNetwork()) {
+            controller.resetProgress();
+            return;
+        }
+
+        FoundryTankNetwork network =
+                controller.getOwnedTankNetwork();
+
+        if (network == null) {
             controller.resetProgress();
             return;
         }
 
         ItemStack inputStack =
-                controller.inputInventory.getItem(INPUT_SLOT);
+                controller.inputInventory.getItem(
+                        INPUT_SLOT
+                );
 
         if (!inputStack.is(Items.RAW_IRON)) {
             controller.resetProgress();
             return;
         }
 
-        BlockEntity blockEntityBelow =
-                level.getBlockEntity(pos.below());
+        FuelChamberBlockEntity fuelChamber =
+                controller.getConnectedFuelChamber(
+                        network
+                );
 
-        if (!(blockEntityBelow instanceof FuelChamberBlockEntity fuelChamber)) {
+        if (fuelChamber == null) {
             controller.resetProgress();
             return;
         }
 
         FoundryTankBlockEntity tank =
-                controller.getConnectedTank();
+                controller.getAnyTank(
+                        network
+                );
 
         if (tank == null) {
             controller.resetProgress();
@@ -302,11 +542,57 @@ public class FoundryControllerBlockEntity
         controller.setChanged();
     }
 
+    @Nullable
+    private FoundryTankBlockEntity getAnyTank(
+            FoundryTankNetwork network
+    ) {
+        if (level == null) {
+            return null;
+        }
+
+        List<BlockPos> positions =
+                new ArrayList<>(
+                        network.getTankPositions()
+                );
+
+        positions.sort(
+                Comparator
+                        .comparingInt(
+                                (BlockPos tankPos) ->
+                                        tankPos.getY()
+                        )
+                        .thenComparingInt(
+                                tankPos ->
+                                        tankPos.getX()
+                        )
+                        .thenComparingInt(
+                                tankPos ->
+                                        tankPos.getZ()
+                        )
+        );
+
+        for (BlockPos tankPos : positions) {
+            BlockEntity blockEntity =
+                    level.getBlockEntity(tankPos);
+
+            if (
+                    blockEntity
+                            instanceof FoundryTankBlockEntity tank
+            ) {
+                return tank;
+            }
+        }
+
+        return null;
+    }
+
     private void finishMelting(
             FoundryTankBlockEntity tank
     ) {
         ItemStack inputStack =
-                inputInventory.getItem(INPUT_SLOT);
+                inputInventory.getItem(
+                        INPUT_SLOT
+                );
 
         if (!inputStack.is(Items.RAW_IRON)) {
             resetProgress();
@@ -344,6 +630,27 @@ public class FoundryControllerBlockEntity
 
         progress = 0;
         setChanged();
+    }
+
+    private static long distanceSquared(
+            BlockPos first,
+            BlockPos second
+    ) {
+        long deltaX =
+                first.getX()
+                        - second.getX();
+
+        long deltaY =
+                first.getY()
+                        - second.getY();
+
+        long deltaZ =
+                first.getZ()
+                        - second.getZ();
+
+        return deltaX * deltaX
+                + deltaY * deltaY
+                + deltaZ * deltaZ;
     }
 
     // =========================
@@ -389,35 +696,6 @@ public class FoundryControllerBlockEntity
 
     public int getMaxProgress() {
         return MAX_PROGRESS;
-    }
-
-    @Nullable
-    private FoundryTankBlockEntity getConnectedTank() {
-        if (level == null) {
-            return null;
-        }
-
-        BlockEntity blockEntity =
-                level.getBlockEntity(
-                        getAttachedTankPosition()
-                );
-
-        if (blockEntity instanceof FoundryTankBlockEntity tank) {
-            FoundryTankNetwork network =
-                    tank.getNetwork();
-
-            if (
-                    network != null
-                            && controllerId.equals(
-                            network.getOwnerId()
-                    )
-                            && network.isActive()
-            ) {
-                return tank;
-            }
-        }
-
-        return null;
     }
 
     // =========================

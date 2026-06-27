@@ -138,24 +138,17 @@ public class FoundryTankBlock extends BaseEntityBlock {
         if (
                 !joinedActiveNetwork
                         && placer instanceof Player player
+                        && FoundryTankNetwork.hasNearbyFoundryCandidate(
+                        level,
+                        pos
+                )
         ) {
-            BlockEntity clickedBlockEntity =
-                    level.getBlockEntity(
-                            placementIntent.clickedAgainstPos()
-                    );
-
-            if (
-                    clickedBlockEntity
-                            instanceof FoundryTankBlockEntity clickedTank
-                            && clickedTank.hasActiveController()
-            ) {
-                player.displayClientMessage(
-                        Component.literal(
-                                "This Tank was placed, but it could not join that Foundry layout."
-                        ),
-                        true
-                );
-            }
+            player.displayClientMessage(
+                    Component.literal(
+                            "This Tank was placed, but it could not join that Foundry layout."
+                    ),
+                    true
+            );
         }
     }
 
