@@ -17,32 +17,23 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 public class FoundryFaucetBlockEntityRenderer
         implements BlockEntityRenderer<FoundryFaucetBlockEntity> {
 
+    /*
+     * Use the same still molten-iron sheet as the Tank and Cauldron.
+     *
+     * The shared MoltenIronAnimation helper keeps every rendered
+     * surface on the exact same vanilla-style frame and speed.
+     */
     private static final ResourceLocation MOLTEN_IRON_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(
                     KatzencraftMetalsMod.MODID,
                     "textures/block/molten_iron.png"
             );
-
-    /*
-     * molten_iron.png:
-     *
-     * 16 pixels wide
-     * 320 pixels high
-     * 320 / 16 = 20 animation frames
-     */
-    private static final int MOLTEN_FRAME_COUNT = 20;
-
-    /*
-     * One frame every four game ticks.
-     *
-     * 20 ticks = 1 second
-     * 5 frames are shown per second
-     * One full animation loop takes 4 seconds
-     */
-    private static final int MOLTEN_FRAME_TIME = 4;
 
     /*
      * Interior coordinates of the open Faucet channel.
@@ -119,6 +110,14 @@ public class FoundryFaucetBlockEntityRenderer
     private static final float CAULDRON_MIN_Y = 4.05f / 16.0f;
     private static final float CAULDRON_MAX_Y = 14.25f / 16.0f;
 
+    private static final float STREAM_ANIMATION_DURATION_TICKS =
+            FoundryFaucetBlockEntity.STREAM_ANIMATION_STEPS
+                    * FoundryFaucetBlockEntity.STREAM_ANIMATION_INTERVAL;
+
+    private final Map<FoundryFaucetBlockEntity, StreamRenderState>
+            streamRenderStates =
+            new WeakHashMap<>();
+
     public FoundryFaucetBlockEntityRenderer(
             BlockEntityRendererProvider.Context context
     ) {
@@ -133,33 +132,26 @@ public class FoundryFaucetBlockEntityRenderer
             int packedLight,
             int packedOverlay
     ) {
-        boolean pouring =
-                faucet.isPouring();
-
-        boolean draining =
-                faucet.isDraining();
-
-        if (!pouring && !draining) {
-            return;
-        }
-
         if (faucet.getLevel() == null) {
             return;
         }
 
-        long gameTime =
-                faucet.getLevel().getGameTime();
+        float streamProgress =
+                getDisplayedStreamProgress(
+                        faucet,
+                        partialTick
+                );
 
-        int moltenFrame =
-                getPingPongFrame(gameTime);
+        boolean pouring =
+                faucet.isPouring();
 
-        float moltenMinV =
-                (float) moltenFrame
-                        / MOLTEN_FRAME_COUNT;
-
-        float moltenMaxV =
-                (float) (moltenFrame + 1)
-                        / MOLTEN_FRAME_COUNT;
+        if (
+                !pouring
+                        && streamProgress <= 0.0001f
+        ) {
+            streamRenderStates.remove(faucet);
+            return;
+        }
 
         BlockEntity blockEntityBelow =
                 faucet.getLevel().getBlockEntity(
@@ -170,20 +162,19 @@ public class FoundryFaucetBlockEntityRenderer
             return;
         }
 
+        float displayedMoltenAmount =
+                CastingCauldronFillSmoother.getDisplayedMoltenAmount(
+                        cauldron,
+                        partialTick
+                );
+
         float fillPercentage = Mth.clamp(
-                (float) cauldron.getMoltenAmount()
+                displayedMoltenAmount
                         / CastingCauldronBlockEntity.REQUIRED_MOLTEN_AMOUNT,
                 0.0f,
                 1.0f
         );
 
-        /*
-         * The cauldron occupies the block directly below
-         * the Faucet.
-         *
-         * Therefore its local height must be moved down
-         * by one complete block.
-         */
         float cauldronSurfaceY =
                 -1.0f + Mth.lerp(
                         fillPercentage,
@@ -191,32 +182,11 @@ public class FoundryFaucetBlockEntityRenderer
                         CAULDRON_MAX_Y
                 );
 
-        /*
-         * Use the exact discrete animation step without partial-tick
-         * interpolation.
-         *
-         * The stream changes only once every TRANSFER_INTERVAL ticks,
-         * matching the stepped movement of the molten metal inside
-         * the Casting Cauldron.
-         */
-        float streamProgress = Mth.clamp(
-                (float) faucet.getStreamAnimationStep()
-                        / FoundryFaucetBlockEntity.STREAM_ANIMATION_STEPS,
-                0.0f,
-                1.0f
-        );
-
         float streamBottomY;
         float streamInnerTopY;
         float streamOuterTopY;
 
         if (pouring) {
-            /*
-             * Startup animation:
-             *
-             * Keep the upper edge connected to the Faucet and move
-             * the bottom edge downward toward the cauldron.
-             */
             streamBottomY =
                     Mth.lerp(
                             streamProgress,
@@ -230,12 +200,6 @@ public class FoundryFaucetBlockEntityRenderer
             streamOuterTopY =
                     STREAM_OUTER_TOP_Y;
         } else {
-            /*
-             * Shutdown animation:
-             *
-             * Keep the lower edge at the cauldron and move the upper
-             * edge downward.
-             */
             streamBottomY =
                     cauldronSurfaceY;
 
@@ -254,6 +218,17 @@ public class FoundryFaucetBlockEntityRenderer
                     );
         }
 
+        MoltenIronAnimation.Frame animationFrame =
+                MoltenIronAnimation.getFrame(
+                        faucet.getLevel().getGameTime()
+                );
+
+        float frameMinV =
+                animationFrame.minV();
+
+        float frameMaxV =
+                animationFrame.maxV();
+
         VertexConsumer consumer =
                 bufferSource.getBuffer(
                         RenderType.entityTranslucent(
@@ -263,10 +238,6 @@ public class FoundryFaucetBlockEntityRenderer
 
         poseStack.pushPose();
 
-        /*
-         * The renderer geometry is authored facing north,
-         * just like the Blockbench Faucet model.
-         */
         rotateForFacing(
                 poseStack,
                 faucet.getBlockState().getValue(
@@ -277,23 +248,111 @@ public class FoundryFaucetBlockEntityRenderer
         PoseStack.Pose pose =
                 poseStack.last();
 
-        /*
-         * Visible molten metal flowing through the open
-         * Faucet channel.
-         */
+        renderMoltenPass(
+                consumer,
+                pose,
+                pouring,
+                streamBottomY,
+                streamInnerTopY,
+                streamOuterTopY,
+                packedOverlay,
+                frameMinV,
+                frameMaxV,
+                255
+        );
+
+        poseStack.popPose();
+    }
+
+    private float getDisplayedStreamProgress(
+            FoundryFaucetBlockEntity faucet,
+            float partialTick
+    ) {
+        double currentRenderTime =
+                faucet.getLevel().getGameTime()
+                        + partialTick;
+
+        float initialProgress = Mth.clamp(
+                (float) faucet.getStreamAnimationStep()
+                        / FoundryFaucetBlockEntity.STREAM_ANIMATION_STEPS,
+                0.0f,
+                1.0f
+        );
+
+        StreamRenderState renderState =
+                streamRenderStates.computeIfAbsent(
+                        faucet,
+                        ignored -> new StreamRenderState(
+                                initialProgress,
+                                currentRenderTime
+                        )
+                );
+
+        double elapsedTicks =
+                Math.max(
+                        0.0,
+                        currentRenderTime
+                                - renderState.lastRenderTime
+                );
+
+        renderState.lastRenderTime =
+                currentRenderTime;
+
+        float targetProgress =
+                faucet.isPouring()
+                        ? 1.0f
+                        : 0.0f;
+
+        float maximumChange =
+                (float) elapsedTicks
+                        / STREAM_ANIMATION_DURATION_TICKS;
+
+        if (targetProgress > renderState.displayedProgress) {
+            renderState.displayedProgress =
+                    Math.min(
+                            targetProgress,
+                            renderState.displayedProgress
+                                    + maximumChange
+                    );
+        } else if (targetProgress < renderState.displayedProgress) {
+            renderState.displayedProgress =
+                    Math.max(
+                            targetProgress,
+                            renderState.displayedProgress
+                                    - maximumChange
+                    );
+        }
+
+        return Mth.clamp(
+                renderState.displayedProgress,
+                0.0f,
+                1.0f
+        );
+    }
+
+    private static void renderMoltenPass(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            boolean pouring,
+            float streamBottomY,
+            float streamInnerTopY,
+            float streamOuterTopY,
+            int packedOverlay,
+            float frameMinV,
+            float frameMaxV,
+            int alpha
+    ) {
         if (pouring) {
             renderChannelLiquid(
                     consumer,
                     pose,
                     packedOverlay,
-                    moltenMinV,
-                    moltenMaxV
+                    frameMinV,
+                    frameMaxV,
+                    alpha
             );
         }
 
-        /*
-         * At zero startup progress there is not yet a vertical stream.
-         */
         if (streamBottomY < streamOuterTopY) {
             renderStream(
                     consumer,
@@ -302,52 +361,17 @@ public class FoundryFaucetBlockEntityRenderer
                     streamInnerTopY,
                     streamOuterTopY,
                     packedOverlay,
-                    moltenMinV,
-                    moltenMaxV
+                    frameMinV,
+                    frameMaxV,
+                    alpha
             );
         }
-
-        poseStack.popPose();
-    }
-
-    /*
-     * Plays the animation forwards and backwards so there is
-     * no sudden jump from the final frame back to the first.
-     */
-    private static int getPingPongFrame(
-            long gameTime
-    ) {
-        if (MOLTEN_FRAME_COUNT <= 1) {
-            return 0;
-        }
-
-        int cycleLength =
-                MOLTEN_FRAME_COUNT * 2 - 2;
-
-        int cycleFrame =
-                (int) (
-                        gameTime / MOLTEN_FRAME_TIME
-                                % cycleLength
-                );
-
-        if (cycleFrame < MOLTEN_FRAME_COUNT) {
-            return cycleFrame;
-        }
-
-        return cycleLength - cycleFrame;
     }
 
     private static void rotateForFacing(
             PoseStack poseStack,
             Direction facing
     ) {
-        /*
-         * The renderer geometry is authored pointing north.
-         *
-         * North and south were previously reversed, which made
-         * the molten stream emerge from the opposite side of the
-         * Faucet for those two directions.
-         */
         float rotationDegrees =
                 switch (facing) {
                     case NORTH -> 0.0f;
@@ -381,7 +405,8 @@ public class FoundryFaucetBlockEntityRenderer
             PoseStack.Pose pose,
             int packedOverlay,
             float frameMinV,
-            float frameMaxV
+            float frameMaxV,
+            int alpha
     ) {
         // =========================
         // TOP SURFACE
@@ -400,7 +425,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         addVertex(
@@ -416,7 +442,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         addVertex(
@@ -432,7 +459,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         addVertex(
@@ -448,7 +476,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         /*
@@ -473,7 +502,8 @@ public class FoundryFaucetBlockEntityRenderer
                 -1.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         // Back
@@ -492,7 +522,8 @@ public class FoundryFaucetBlockEntityRenderer
                 1.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         // West
@@ -511,7 +542,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         // East
@@ -530,7 +562,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
     }
 
@@ -542,7 +575,8 @@ public class FoundryFaucetBlockEntityRenderer
             float outerTopY,
             int packedOverlay,
             float frameMinV,
-            float frameMaxV
+            float frameMaxV,
+            int alpha
     ) {
         float minX = STREAM_MIN_X;
         float maxX = STREAM_MAX_X;
@@ -577,7 +611,8 @@ public class FoundryFaucetBlockEntityRenderer
                 -1.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         // Inner face
@@ -596,7 +631,8 @@ public class FoundryFaucetBlockEntityRenderer
                 1.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         // West side
@@ -615,7 +651,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         // East side
@@ -634,7 +671,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         /*
@@ -662,7 +700,8 @@ public class FoundryFaucetBlockEntityRenderer
                     1.0f,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             // West triangular side
@@ -679,7 +718,8 @@ public class FoundryFaucetBlockEntityRenderer
                     0.0f,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             addVertex(
@@ -695,7 +735,8 @@ public class FoundryFaucetBlockEntityRenderer
                     0.0f,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             addVertex(
@@ -711,7 +752,8 @@ public class FoundryFaucetBlockEntityRenderer
                     0.0f,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             addVertex(
@@ -727,7 +769,8 @@ public class FoundryFaucetBlockEntityRenderer
                     0.0f,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             // East triangular side
@@ -744,7 +787,8 @@ public class FoundryFaucetBlockEntityRenderer
                     0.0f,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             addVertex(
@@ -760,7 +804,8 @@ public class FoundryFaucetBlockEntityRenderer
                     0.0f,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             addVertex(
@@ -776,7 +821,8 @@ public class FoundryFaucetBlockEntityRenderer
                     0.0f,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             addVertex(
@@ -792,7 +838,8 @@ public class FoundryFaucetBlockEntityRenderer
                     0.0f,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
         }
 
@@ -813,7 +860,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         addVertex(
@@ -829,7 +877,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         addVertex(
@@ -845,7 +894,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
 
         addVertex(
@@ -861,7 +911,8 @@ public class FoundryFaucetBlockEntityRenderer
                 0.0f,
                 packedOverlay,
                 frameMinV,
-                frameMaxV
+                frameMaxV,
+                alpha
         );
     }
 
@@ -887,7 +938,8 @@ public class FoundryFaucetBlockEntityRenderer
             float normalZ,
             int packedOverlay,
             float frameMinV,
-            float frameMaxV
+            float frameMaxV,
+            int alpha
     ) {
         if (topY <= bottomY) {
             return;
@@ -919,7 +971,8 @@ public class FoundryFaucetBlockEntityRenderer
                     normalZ,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             addVertex(
@@ -935,7 +988,8 @@ public class FoundryFaucetBlockEntityRenderer
                     normalZ,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             addVertex(
@@ -951,7 +1005,8 @@ public class FoundryFaucetBlockEntityRenderer
                     normalZ,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             addVertex(
@@ -967,7 +1022,8 @@ public class FoundryFaucetBlockEntityRenderer
                     normalZ,
                     packedOverlay,
                     frameMinV,
-                    frameMaxV
+                    frameMaxV,
+                    alpha
             );
 
             segmentTop =
@@ -988,7 +1044,8 @@ public class FoundryFaucetBlockEntityRenderer
             float normalZ,
             int packedOverlay,
             float frameMinV,
-            float frameMaxV
+            float frameMaxV,
+            int alpha
     ) {
         consumer.addVertex(
                         pose.pose(),
@@ -996,7 +1053,7 @@ public class FoundryFaucetBlockEntityRenderer
                         y,
                         z
                 )
-                .setColor(0xFFFFFFFF)
+                .setColor(255, 255, 255, alpha)
                 .setUv(
                         u,
                         Mth.lerp(
@@ -1015,6 +1072,23 @@ public class FoundryFaucetBlockEntityRenderer
                         normalY,
                         normalZ
                 );
+    }
+
+    private static final class StreamRenderState {
+
+        private float displayedProgress;
+        private double lastRenderTime;
+
+        private StreamRenderState(
+                float displayedProgress,
+                double lastRenderTime
+        ) {
+            this.displayedProgress =
+                    displayedProgress;
+
+            this.lastRenderTime =
+                    lastRenderTime;
+        }
     }
 
     /*

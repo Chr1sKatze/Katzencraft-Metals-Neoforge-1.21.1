@@ -16,19 +16,9 @@ import net.minecraft.world.level.block.state.BlockState;
 
 public class FoundryFaucetBlockEntity extends BlockEntity {
 
-    /*
-     * One molten unit is transferred every four ticks.
-     *
-     * 20 ticks = 1 second
-     * 54 units = 10.8 seconds
-     */
     public static final int TRANSFER_INTERVAL = 2;
     public static final int TRANSFER_AMOUNT = 1;
 
-    /*
-     * The stream animation advances every tick, while molten metal
-     * is transferred into the cauldron every two ticks.
-     */
     public static final int STREAM_ANIMATION_INTERVAL = 2;
     public static final int STREAM_ANIMATION_STEPS = 8;
 
@@ -62,18 +52,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             return;
         }
 
-        /*
-         * Extend or retract the stream in discrete steps.
-         *
-         * Each visible step takes exactly TRANSFER_INTERVAL ticks,
-         * matching the cadence of the rising molten metal inside
-         * the Casting Cauldron.
-         */
         if (faucet.pouring) {
-            /*
-             * Extend the stream toward the cauldron before actual
-             * molten-metal transfer begins.
-             */
             if (faucet.streamAnimationStep < STREAM_ANIMATION_STEPS) {
                 faucet.streamAnimationTimer++;
 
@@ -88,10 +67,6 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                 return;
             }
         } else {
-            /*
-             * When pouring stops, retract the remaining stream using
-             * the same stepped timing.
-             */
             if (faucet.streamAnimationStep > 0) {
                 faucet.streamAnimationTimer++;
 
@@ -118,9 +93,6 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         Direction facing =
                 state.getValue(FoundryFaucetBlock.FACING);
 
-        /*
-         * The Tank must be directly behind the Faucet.
-         */
         BlockPos tankPosition =
                 pos.relative(facing.getOpposite());
 
@@ -133,9 +105,14 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         }
 
         /*
-         * The Casting Cauldron must be directly below
-         * the Faucet.
+         * Orphan Tank sections retain their liquid and visuals, but they
+         * cannot operate Faucets until a Controller claims them again.
          */
+        if (!tank.hasActiveController()) {
+            faucet.stopPouring();
+            return;
+        }
+
         BlockEntity cauldronBlockEntity =
                 level.getBlockEntity(pos.below());
 
@@ -150,17 +127,11 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         ResourceLocation storedMetal =
                 tank.getStoredMetal();
 
-        /*
-         * Stop if the Tank no longer contains metal.
-         */
         if (storedMetal == null || tank.isEmpty()) {
             faucet.stopPouring();
             return;
         }
 
-        /*
-         * Stop once the cast is completely filled.
-         */
         if (cauldron.isFull()) {
             faucet.stopPouring();
             return;
@@ -188,9 +159,6 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                         extracted
                 );
 
-        /*
-         * Restore the metal if insertion unexpectedly fails.
-         */
         if (inserted != extracted) {
             tank.insert(
                     storedMetal,
@@ -201,9 +169,6 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             return;
         }
 
-        /*
-         * Begin retracting the stream after the final unit.
-         */
         if (cauldron.isFull() || tank.isEmpty()) {
             faucet.stopPouring();
         }
@@ -230,10 +195,6 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         this.transferTimer = 0;
         this.streamAnimationTimer = 0;
 
-        /*
-         * Keep streamAnimationStep unchanged so reversing midway
-         * continues from the current position.
-         */
         setChanged();
         syncToClient();
     }
@@ -259,9 +220,13 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     public CompoundTag getUpdateTag(
             HolderLookup.Provider registries
     ) {
-        CompoundTag tag = new CompoundTag();
+        CompoundTag tag =
+                new CompoundTag();
 
-        saveAdditional(tag, registries);
+        saveAdditional(
+                tag,
+                registries
+        );
 
         return tag;
     }
@@ -272,7 +237,10 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     }
 
     private void syncToClient() {
-        if (level == null || level.isClientSide()) {
+        if (
+                level == null
+                        || level.isClientSide()
+        ) {
             return;
         }
 
@@ -296,7 +264,10 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        super.saveAdditional(tag, registries);
+        super.saveAdditional(
+                tag,
+                registries
+        );
 
         tag.putBoolean(
                 "Pouring",
@@ -314,20 +285,26 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        super.loadAdditional(tag, registries);
+        super.loadAdditional(
+                tag,
+                registries
+        );
 
         pouring =
                 tag.getBoolean("Pouring");
 
         transferTimer = 0;
 
-        streamAnimationStep = Math.max(
-                0,
-                Math.min(
-                        STREAM_ANIMATION_STEPS,
-                        tag.getInt("StreamAnimationStep")
-                )
-        );
+        streamAnimationStep =
+                Math.max(
+                        0,
+                        Math.min(
+                                STREAM_ANIMATION_STEPS,
+                                tag.getInt(
+                                        "StreamAnimationStep"
+                                )
+                        )
+                );
 
         streamAnimationTimer = 0;
     }

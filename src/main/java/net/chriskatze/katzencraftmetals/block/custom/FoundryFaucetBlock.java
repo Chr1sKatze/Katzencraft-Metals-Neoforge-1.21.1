@@ -250,6 +250,17 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
+        if (!tank.hasActiveController()) {
+            player.displayClientMessage(
+                    Component.literal(
+                            "This Tank section is not connected to a Foundry Controller."
+                    ),
+                    true
+            );
+
+            return InteractionResult.CONSUME;
+        }
+
         /*
          * Cauldron directly below the Faucet.
          */

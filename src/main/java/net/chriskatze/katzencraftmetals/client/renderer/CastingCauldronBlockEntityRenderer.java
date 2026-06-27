@@ -27,9 +27,6 @@ public class CastingCauldronBlockEntityRenderer
                     "textures/block/cooled_iron.png"
             );
 
-    private static final int MOLTEN_FRAME_COUNT = 20;
-    private static final int MOLTEN_FRAME_TIME = 4;
-
     private static final float MOLTEN_FRAME_SIZE = 16.0f;
     private static final float COOLED_TEXTURE_SIZE = 16.0f;
 
@@ -122,19 +119,16 @@ public class CastingCauldronBlockEntityRenderer
                         * coolingBlend
                         * (3.0f - 2.0f * coolingBlend);
 
-        long gameTime =
-                cauldron.getLevel().getGameTime();
-
-        int moltenFrame =
-                getPingPongFrame(gameTime);
+        MoltenIronAnimation.Frame animationFrame =
+                MoltenIronAnimation.getFrame(
+                        cauldron.getLevel().getGameTime()
+                );
 
         float moltenFrameMinV =
-                (float) moltenFrame
-                        / MOLTEN_FRAME_COUNT;
+                animationFrame.minV();
 
         float moltenFrameMaxV =
-                (float) (moltenFrame + 1)
-                        / MOLTEN_FRAME_COUNT;
+                animationFrame.maxV();
 
         poseStack.pushPose();
 
@@ -195,29 +189,6 @@ public class CastingCauldronBlockEntityRenderer
         }
 
         poseStack.popPose();
-    }
-
-    private static int getPingPongFrame(
-            long gameTime
-    ) {
-        if (MOLTEN_FRAME_COUNT <= 1) {
-            return 0;
-        }
-
-        int cycleLength =
-                MOLTEN_FRAME_COUNT * 2 - 2;
-
-        int cycleFrame =
-                (int) (
-                        gameTime / MOLTEN_FRAME_TIME
-                                % cycleLength
-                );
-
-        if (cycleFrame < MOLTEN_FRAME_COUNT) {
-            return cycleFrame;
-        }
-
-        return cycleLength - cycleFrame;
     }
 
     private static void renderMetalVolume(

@@ -8,26 +8,48 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Objects;
+import java.util.UUID;
+
 public class FoundryTankBlockEntity extends BlockEntity {
 
-    /*
-     * 108 units represent two complete metal blocks.
-     *
-     * 54 units = one block
-     * 108 units = two blocks
-     */
     public static final int CAPACITY = 108;
+
+    /*
+     * Allows older saves from the previous master-Tank prototype to
+     * load one temporarily oversized local value. The next successful
+     * network claim redistributes it into normal 0-108 local shares.
+     */
+    private static final int MAX_LEGACY_NETWORK_CAPACITY =
+            CAPACITY
+                    * FoundryTankNetwork.MAX_TANK_COUNT;
+
+    /*
+     * This is the persistent UUID of the owning Controller.
+     *
+     * null means that the Tank belongs to an unassigned/orphan section.
+     */
+    @Nullable
+    private UUID networkId;
 
     @Nullable
     private ResourceLocation storedMetal;
 
+    /*
+     * Every Tank stores an integer local share.
+     */
     private int moltenAmount;
+
+    @Nullable
+    private FoundryTankNetwork cachedNetwork;
+
+    private long cachedNetworkGameTime =
+            Long.MIN_VALUE;
 
     public FoundryTankBlockEntity(
             BlockPos pos,
@@ -41,99 +63,113 @@ public class FoundryTankBlockEntity extends BlockEntity {
     }
 
     // =========================
-    // INSERTION
+    // NETWORK
+    // =========================
+
+    @Nullable
+    public FoundryTankNetwork getNetwork() {
+        if (level == null) {
+            return null;
+        }
+
+        long gameTime =
+                level.getGameTime();
+
+        if (cachedNetworkGameTime != gameTime) {
+            cachedNetwork =
+                    FoundryTankNetwork.find(
+                            level,
+                            worldPosition
+                    );
+
+            cachedNetworkGameTime =
+                    gameTime;
+        }
+
+        return cachedNetwork;
+    }
+
+    public void invalidateNetworkCache() {
+        cachedNetwork = null;
+        cachedNetworkGameTime =
+                Long.MIN_VALUE;
+    }
+
+    @Nullable
+    public UUID getNetworkId() {
+        return networkId;
+    }
+
+    public void setNetworkId(
+            @Nullable UUID networkId
+    ) {
+        if (Objects.equals(
+                this.networkId,
+                networkId
+        )) {
+            return;
+        }
+
+        this.networkId =
+                networkId;
+
+        invalidateNetworkCache();
+        setChanged();
+        syncToClient();
+    }
+
+    public boolean hasActiveController() {
+        FoundryTankNetwork network =
+                getNetwork();
+
+        return network != null
+                && network.isActive();
+    }
+
+    // =========================
+    // INSERTION / EXTRACTION
     // =========================
 
     public boolean canAccept(
             ResourceLocation metal,
             int amount
     ) {
-        if (amount <= 0) {
-            return false;
-        }
+        FoundryTankNetwork network =
+                getNetwork();
 
-        if (
-                storedMetal != null
-                        && !storedMetal.equals(metal)
-        ) {
-            return false;
-        }
-
-        return moltenAmount + amount <= CAPACITY;
+        return network != null
+                && network.canAccept(
+                metal,
+                amount
+        );
     }
 
-    /**
-     * Inserts molten metal and returns the amount actually inserted.
-     */
     public int insert(
             ResourceLocation metal,
             int amount
     ) {
-        if (amount <= 0) {
-            return 0;
-        }
+        FoundryTankNetwork network =
+                getNetwork();
 
-        if (
-                storedMetal != null
-                        && !storedMetal.equals(metal)
-        ) {
-            return 0;
-        }
-
-        int accepted = Math.min(
-                amount,
-                CAPACITY - moltenAmount
-        );
-
-        if (accepted <= 0) {
-            return 0;
-        }
-
-        if (storedMetal == null) {
-            storedMetal = metal;
-        }
-
-        moltenAmount += accepted;
-
-        setChanged();
-        syncToClient();
-
-        return accepted;
+        return network != null
+                ? network.insert(
+                metal,
+                amount
+        )
+                : 0;
     }
 
-    // =========================
-    // EXTRACTION
-    // =========================
-
-    /**
-     * Extracts molten metal and returns the amount actually removed.
-     */
     public int extract(
             int requestedAmount
     ) {
-        if (
-                requestedAmount <= 0
-                        || moltenAmount <= 0
-        ) {
-            return 0;
-        }
+        FoundryTankNetwork network =
+                getNetwork();
 
-        int extracted = Math.min(
-                requestedAmount,
-                moltenAmount
-        );
-
-        moltenAmount -= extracted;
-
-        if (moltenAmount <= 0) {
-            moltenAmount = 0;
-            storedMetal = null;
-        }
-
-        setChanged();
-        syncToClient();
-
-        return extracted;
+        return network != null
+                ? network.extract(
+                requestedAmount
+        )
+                : 0;
     }
 
     // =========================
@@ -141,32 +177,115 @@ public class FoundryTankBlockEntity extends BlockEntity {
     // =========================
 
     public int getMoltenAmount() {
-        return moltenAmount;
+        FoundryTankNetwork network =
+                getNetwork();
+
+        return network != null
+                ? network.getMoltenAmount()
+                : moltenAmount;
     }
 
     public int getCapacity() {
-        return CAPACITY;
+        FoundryTankNetwork network =
+                getNetwork();
+
+        return network != null
+                ? network.getCapacity()
+                : CAPACITY;
     }
 
     public float getFillPercentage() {
         return Mth.clamp(
-                (float) moltenAmount / CAPACITY,
+                (float) getMoltenAmount()
+                        / getCapacity(),
                 0.0f,
                 1.0f
         );
     }
 
+    public float getLocalVisualMoltenAmount() {
+        FoundryTankNetwork network =
+                getNetwork();
+
+        if (network != null) {
+            return network.getLocalVisualMoltenAmount(
+                    worldPosition
+            );
+        }
+
+        return Mth.clamp(
+                moltenAmount,
+                0,
+                CAPACITY
+        );
+    }
+
     public boolean isEmpty() {
-        return moltenAmount <= 0;
+        return getMoltenAmount() <= 0;
     }
 
     public boolean isFull() {
-        return moltenAmount >= CAPACITY;
+        return getMoltenAmount()
+                >= getCapacity();
     }
 
     @Nullable
     public ResourceLocation getStoredMetal() {
+        FoundryTankNetwork network =
+                getNetwork();
+
+        return network != null
+                ? network.getStoredMetal()
+                : storedMetal;
+    }
+
+    // =========================
+    // LOCAL STORAGE
+    // =========================
+
+    int getLocalMoltenAmount() {
+        return moltenAmount;
+    }
+
+    @Nullable
+    ResourceLocation getLocalStoredMetal() {
         return storedMetal;
+    }
+
+    void setLocalStorage(
+            @Nullable ResourceLocation metal,
+            int amount
+    ) {
+        int clampedAmount =
+                Mth.clamp(
+                        amount,
+                        0,
+                        CAPACITY
+                );
+
+        ResourceLocation normalizedMetal =
+                clampedAmount > 0
+                        ? metal
+                        : null;
+
+        if (
+                moltenAmount == clampedAmount
+                        && Objects.equals(
+                        storedMetal,
+                        normalizedMetal
+                )
+        ) {
+            return;
+        }
+
+        storedMetal =
+                normalizedMetal;
+
+        moltenAmount =
+                clampedAmount;
+
+        setChanged();
+        syncToClient();
     }
 
     // =========================
@@ -193,7 +312,7 @@ public class FoundryTankBlockEntity extends BlockEntity {
         return ClientboundBlockEntityDataPacket.create(this);
     }
 
-    private void syncToClient() {
+    void syncToClient() {
         if (
                 level == null
                         || level.isClientSide()
@@ -226,6 +345,13 @@ public class FoundryTankBlockEntity extends BlockEntity {
                 registries
         );
 
+        if (networkId != null) {
+            tag.putString(
+                    "TankNetworkId",
+                    networkId.toString()
+            );
+        }
+
         if (storedMetal != null) {
             tag.putString(
                     "StoredMetal",
@@ -249,8 +375,22 @@ public class FoundryTankBlockEntity extends BlockEntity {
                 registries
         );
 
+        networkId = null;
         storedMetal = null;
         moltenAmount = 0;
+
+        if (tag.contains("TankNetworkId")) {
+            try {
+                networkId =
+                        UUID.fromString(
+                                tag.getString(
+                                        "TankNetworkId"
+                                )
+                        );
+            } catch (IllegalArgumentException ignored) {
+                networkId = null;
+            }
+        }
 
         if (tag.contains("StoredMetal")) {
             storedMetal =
@@ -259,16 +399,13 @@ public class FoundryTankBlockEntity extends BlockEntity {
                     );
         }
 
-        moltenAmount = Mth.clamp(
-                tag.getInt("MoltenAmount"),
-                0,
-                CAPACITY
-        );
+        moltenAmount =
+                Mth.clamp(
+                        tag.getInt("MoltenAmount"),
+                        0,
+                        MAX_LEGACY_NETWORK_CAPACITY
+                );
 
-        /*
-         * Prevent malformed data from containing an amount
-         * without an associated metal type.
-         */
         if (storedMetal == null) {
             moltenAmount = 0;
         }
@@ -276,5 +413,7 @@ public class FoundryTankBlockEntity extends BlockEntity {
         if (moltenAmount == 0) {
             storedMetal = null;
         }
+
+        invalidateNetworkCache();
     }
 }

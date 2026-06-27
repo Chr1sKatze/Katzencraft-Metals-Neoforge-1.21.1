@@ -4,7 +4,14 @@ import com.mojang.serialization.MapCodec;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Containers;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.RenderShape;
@@ -12,28 +19,29 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import org.jetbrains.annotations.Nullable;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.core.Direction;
-import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.phys.BlockHitResult;
+import org.jetbrains.annotations.Nullable;
 
 public class FoundryControllerBlock extends BaseEntityBlock {
 
     public static final MapCodec<FoundryControllerBlock> CODEC =
             simpleCodec(FoundryControllerBlock::new);
 
+    public static final DirectionProperty FACING =
+            BlockStateProperties.HORIZONTAL_FACING;
+
     public FoundryControllerBlock(Properties properties) {
         super(properties);
 
-        this.registerDefaultState(
-                this.stateDefinition.any()
-                        .setValue(FACING, Direction.NORTH)
+        registerDefaultState(
+                stateDefinition.any()
+                        .setValue(
+                                FACING,
+                                Direction.NORTH
+                        )
         );
     }
 
@@ -52,7 +60,10 @@ public class FoundryControllerBlock extends BaseEntityBlock {
             BlockPos pos,
             BlockState state
     ) {
-        return new FoundryControllerBlockEntity(pos, state);
+        return new FoundryControllerBlockEntity(
+                pos,
+                state
+        );
     }
 
     @Nullable
@@ -73,8 +84,48 @@ public class FoundryControllerBlock extends BaseEntityBlock {
         );
     }
 
-    public static final DirectionProperty FACING =
-            BlockStateProperties.HORIZONTAL_FACING;
+    // =========================
+    // AUTOMATIC CLAIMING
+    // =========================
+
+    @Override
+    public void setPlacedBy(
+            Level level,
+            BlockPos pos,
+            BlockState state,
+            @Nullable LivingEntity placer,
+            ItemStack stack
+    ) {
+        super.setPlacedBy(
+                level,
+                pos,
+                state,
+                placer,
+                stack
+        );
+
+        if (level.isClientSide()) {
+            return;
+        }
+
+        BlockEntity blockEntity =
+                level.getBlockEntity(pos);
+
+        if (
+                blockEntity
+                        instanceof FoundryControllerBlockEntity controller
+        ) {
+            /*
+             * When placed against a large prebuilt orphan layout, the
+             * Controller automatically claims the largest still-valid part.
+             */
+            controller.ensureAttachedTankNetwork();
+        }
+    }
+
+    // =========================
+    // REMOVAL
+    // =========================
 
     @Override
     protected void onRemove(
@@ -88,7 +139,18 @@ public class FoundryControllerBlock extends BaseEntityBlock {
             BlockEntity blockEntity =
                     level.getBlockEntity(pos);
 
-            if (blockEntity instanceof FoundryControllerBlockEntity controller) {
+            if (
+                    blockEntity
+                            instanceof FoundryControllerBlockEntity controller
+            ) {
+                if (!level.isClientSide()) {
+                    /*
+                     * Removing the Controller turns its surviving Tank
+                     * component into an orphan section.
+                     */
+                    controller.releaseTankNetwork();
+                }
+
                 Containers.dropContents(
                         level,
                         pos,
@@ -106,6 +168,10 @@ public class FoundryControllerBlock extends BaseEntityBlock {
         );
     }
 
+    // =========================
+    // INTERACTION
+    // =========================
+
     @Override
     protected InteractionResult useWithoutItem(
             BlockState state,
@@ -122,12 +188,14 @@ public class FoundryControllerBlock extends BaseEntityBlock {
                 level.getBlockEntity(pos);
 
         if (
-                blockEntity instanceof FoundryControllerBlockEntity controller
+                blockEntity
+                        instanceof FoundryControllerBlockEntity controller
                         && player instanceof ServerPlayer serverPlayer
         ) {
             serverPlayer.openMenu(
                     controller,
-                    buffer -> buffer.writeBlockPos(pos)
+                    buffer ->
+                            buffer.writeBlockPos(pos)
             );
 
             return InteractionResult.CONSUME;
@@ -140,10 +208,11 @@ public class FoundryControllerBlock extends BaseEntityBlock {
     public BlockState getStateForPlacement(
             BlockPlaceContext context
     ) {
-        return this.defaultBlockState()
+        return defaultBlockState()
                 .setValue(
                         FACING,
-                        context.getHorizontalDirection().getOpposite()
+                        context.getHorizontalDirection()
+                                .getOpposite()
                 );
     }
 

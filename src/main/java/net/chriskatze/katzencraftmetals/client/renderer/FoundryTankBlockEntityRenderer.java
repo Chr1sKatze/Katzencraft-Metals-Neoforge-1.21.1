@@ -26,24 +26,12 @@ public class FoundryTankBlockEntityRenderer
             );
 
     /*
-     * molten_iron.png:
+     * Every observed increase is animated over eight ticks.
      *
-     * 16 pixels wide
-     * 320 pixels high
-     * 320 / 16 = 20 animation frames
-     */
-    private static final int MOLTEN_FRAME_COUNT = 20;
-    private static final int MOLTEN_FRAME_TIME = 4;
-
-    /*
-     * One smelted raw iron adds 6 molten units.
-     *
-     * Visually raise those 6 units over 8 ticks (0.4 seconds)
-     * instead of jumping to the new height immediately.
+     * This works for one Tank and for wide Tank layers where one
+     * six-unit insertion is visually shared across several blocks.
      */
     private static final float RISE_ANIMATION_TICKS = 8.0f;
-    private static final float RISE_UNITS_PER_TICK =
-            6.0f / RISE_ANIMATION_TICKS;
 
     /*
      * Each server-side Faucet transfer updates the Tank once every
@@ -116,7 +104,7 @@ public class FoundryTankBlockEntityRenderer
 
         float fillPercentage = Mth.clamp(
                 displayedMoltenAmount
-                        / tank.getCapacity(),
+                        / FoundryTankBlockEntity.CAPACITY,
                 0.0f,
                 1.0f
         );
@@ -127,21 +115,16 @@ public class FoundryTankBlockEntityRenderer
                 MAX_Y
         );
 
-        long gameTime =
-                tank.getLevel() == null
-                        ? 0L
-                        : tank.getLevel().getGameTime();
-
-        int frame =
-                getPingPongFrame(gameTime);
+        MoltenIronAnimation.Frame animationFrame =
+                MoltenIronAnimation.getFrame(
+                        tank.getLevel().getGameTime()
+                );
 
         float frameMinV =
-                (float) frame
-                        / MOLTEN_FRAME_COUNT;
+                animationFrame.minV();
 
         float frameMaxV =
-                (float) (frame + 1)
-                        / MOLTEN_FRAME_COUNT;
+                animationFrame.maxV();
 
         VertexConsumer consumer =
                 bufferSource.getBuffer(
@@ -168,17 +151,14 @@ public class FoundryTankBlockEntityRenderer
     }
 
     /*
-     * Smooth both increases and decreases in the Tank's visible
-     * liquid level.
+     * Smooth both filling and draining for this individual Tank block.
      *
-     * Rising uses the chosen ore-smelting animation speed.
+     * The target value already accounts for:
      *
-     * Draining does not assume that only one Faucet is active.
-     * Whenever the real Tank amount decreases, the complete observed
-     * decrease is animated over one Faucet transfer interval.
-     *
-     * A decrease of 1, 2, or 3 units therefore automatically renders
-     * one, two, or three times as fast.
+     * - the complete network amount
+     * - bottom-to-top layer filling
+     * - the number of Tanks in the current horizontal layer
+     * - any number of simultaneously running Faucets
      */
     private float getDisplayedMoltenAmount(
             FoundryTankBlockEntity tank,
@@ -188,148 +168,72 @@ public class FoundryTankBlockEntityRenderer
                 tank.getLevel().getGameTime()
                         + partialTick;
 
+        float targetAmount =
+                tank.getLocalVisualMoltenAmount();
+
         TankRenderState renderState =
                 renderStates.computeIfAbsent(
                         tank,
                         ignored -> new TankRenderState(
-                                tank.getMoltenAmount(),
+                                targetAmount,
                                 currentRenderTime
                         )
                 );
 
-        double elapsedTicks = Math.max(
-                0.0,
-                currentRenderTime
-                        - renderState.lastRenderTime
-        );
-
-        renderState.lastRenderTime =
-                currentRenderTime;
-
-        float targetAmount =
-                tank.getMoltenAmount();
-
-        /*
-         * Detect a newly received server-side decrease.
-         *
-         * Start a fresh interpolation from the currently displayed
-         * amount to the newest real amount. If multiple Faucets have
-         * transferred during the same update, targetAmount will have
-         * fallen by multiple units and the animation covers that whole
-         * distance within the same two-tick interval.
-         */
-        if (targetAmount < renderState.lastTargetAmount) {
-            renderState.drainStartAmount =
+        if (
+                Math.abs(
+                        targetAmount
+                                - renderState.lastTargetAmount
+                ) > 0.00001f
+        ) {
+            /*
+             * Continue smoothly from the currently displayed value
+             * whenever a new server-side target arrives.
+             */
+            renderState.transitionStartAmount =
                     renderState.displayedAmount;
 
-            renderState.drainTargetAmount =
+            renderState.transitionTargetAmount =
                     targetAmount;
 
-            renderState.drainStartTime =
+            renderState.transitionStartTime =
                     currentRenderTime;
 
-            renderState.draining =
-                    true;
-        } else if (targetAmount > renderState.lastTargetAmount) {
-            /*
-             * A new insertion cancels any old drain interpolation.
-             */
-            renderState.draining =
-                    false;
+            renderState.transitionDuration =
+                    targetAmount
+                            > renderState.lastTargetAmount
+                            ? RISE_ANIMATION_TICKS
+                            : DRAIN_ANIMATION_TICKS;
+
+            renderState.lastTargetAmount =
+                    targetAmount;
         }
 
-        renderState.lastTargetAmount =
-                targetAmount;
+        float progress = Mth.clamp(
+                (float) (
+                        (
+                                currentRenderTime
+                                        - renderState.transitionStartTime
+                        )
+                                / renderState.transitionDuration
+                ),
+                0.0f,
+                1.0f
+        );
 
-        if (targetAmount > renderState.displayedAmount) {
-            float maximumRise =
-                    RISE_UNITS_PER_TICK
-                            * (float) elapsedTicks;
+        renderState.displayedAmount =
+                Mth.lerp(
+                        progress,
+                        renderState.transitionStartAmount,
+                        renderState.transitionTargetAmount
+                );
 
+        if (progress >= 1.0f) {
             renderState.displayedAmount =
-                    Math.min(
-                            targetAmount,
-                            renderState.displayedAmount
-                                    + maximumRise
-                    );
-        } else if (targetAmount < renderState.displayedAmount) {
-            /*
-             * This fallback also handles a Tank loaded with a visual
-             * amount above its real amount.
-             */
-            if (!renderState.draining) {
-                renderState.drainStartAmount =
-                        renderState.displayedAmount;
-
-                renderState.drainTargetAmount =
-                        targetAmount;
-
-                renderState.drainStartTime =
-                        currentRenderTime;
-
-                renderState.draining =
-                        true;
-            }
-
-            float drainProgress = Mth.clamp(
-                    (float) (
-                            (
-                                    currentRenderTime
-                                            - renderState.drainStartTime
-                            )
-                                    / DRAIN_ANIMATION_TICKS
-                    ),
-                    0.0f,
-                    1.0f
-            );
-
-            renderState.displayedAmount =
-                    Mth.lerp(
-                            drainProgress,
-                            renderState.drainStartAmount,
-                            renderState.drainTargetAmount
-                    );
-
-            if (drainProgress >= 1.0f) {
-                renderState.displayedAmount =
-                        targetAmount;
-
-                renderState.draining =
-                        false;
-            }
-        } else {
-            renderState.draining =
-                    false;
+                    renderState.transitionTargetAmount;
         }
 
         return renderState.displayedAmount;
-    }
-
-    /*
-     * Plays the texture forwards and backwards to avoid a visible
-     * jump between the last and first animation frames.
-     */
-    private static int getPingPongFrame(
-            long gameTime
-    ) {
-        if (MOLTEN_FRAME_COUNT <= 1) {
-            return 0;
-        }
-
-        int cycleLength =
-                MOLTEN_FRAME_COUNT * 2 - 2;
-
-        int cycleFrame =
-                (int) (
-                        gameTime / MOLTEN_FRAME_TIME
-                                % cycleLength
-                );
-
-        if (cycleFrame < MOLTEN_FRAME_COUNT) {
-            return cycleFrame;
-        }
-
-        return cycleLength - cycleFrame;
     }
 
     private static void renderLiquidVolume(
@@ -743,37 +647,33 @@ public class FoundryTankBlockEntityRenderer
         private float displayedAmount;
         private float lastTargetAmount;
 
-        private float drainStartAmount;
-        private float drainTargetAmount;
-        private double drainStartTime;
-        private boolean draining;
+        private float transitionStartAmount;
+        private float transitionTargetAmount;
 
-        private double lastRenderTime;
+        private double transitionStartTime;
+        private float transitionDuration;
 
         private TankRenderState(
-                float displayedAmount,
+                float initialAmount,
                 double currentRenderTime
         ) {
             this.displayedAmount =
-                    displayedAmount;
+                    initialAmount;
 
             this.lastTargetAmount =
-                    displayedAmount;
+                    initialAmount;
 
-            this.drainStartAmount =
-                    displayedAmount;
+            this.transitionStartAmount =
+                    initialAmount;
 
-            this.drainTargetAmount =
-                    displayedAmount;
+            this.transitionTargetAmount =
+                    initialAmount;
 
-            this.drainStartTime =
+            this.transitionStartTime =
                     currentRenderTime;
 
-            this.draining =
-                    false;
-
-            this.lastRenderTime =
-                    currentRenderTime;
+            this.transitionDuration =
+                    1.0f;
         }
     }
 

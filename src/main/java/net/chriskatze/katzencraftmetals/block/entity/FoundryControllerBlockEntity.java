@@ -1,11 +1,14 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
+import net.chriskatze.katzencraftmetals.block.custom.FoundryControllerBlock;
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.player.Inventory;
@@ -18,9 +21,8 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
-import net.chriskatze.katzencraftmetals.block.custom.FoundryControllerBlock;
-import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+
+import java.util.UUID;
 
 public class FoundryControllerBlockEntity
         extends BlockEntity
@@ -36,20 +38,24 @@ public class FoundryControllerBlockEntity
     public static final int SLOT_COUNT = 1;
 
     public static final int MAX_PROGRESS = 20;
+    public static final int MOLTEN_IRON_PER_RAW_IRON = 6;
 
     /*
-     * Temporary storage value.
+     * Every Controller owns one persistent UUID.
      *
-     * Later, these units will be transferred into the actual
-     * molten-metal tank.
+     * Tanks assigned to this Foundry store this same UUID.
      */
-    public static final int MOLTEN_IRON_PER_RAW_IRON = 6;
+    private UUID controllerId =
+            UUID.randomUUID();
 
     private final SimpleContainer inputInventory =
             new SimpleContainer(SLOT_COUNT) {
 
                 @Override
-                public boolean canPlaceItem(int slot, ItemStack stack) {
+                public boolean canPlaceItem(
+                        int slot,
+                        ItemStack stack
+                ) {
                     return stack.is(Items.RAW_IRON);
                 }
 
@@ -62,43 +68,41 @@ public class FoundryControllerBlockEntity
 
     private int progress;
 
-    /*
-     * Values synchronized with the open menu:
-     *
-     * 0 = progress
-     * 1 = maximum progress
-     * 2 = molten iron amount
-     */
-    private final ContainerData data = new ContainerData() {
+    private final ContainerData data =
+            new ContainerData() {
 
-        @Override
-        public int get(int index) {
-            return switch (index) {
-                case 0 -> progress;
-                case 1 -> MAX_PROGRESS;
-                case 2 -> {
-                    FoundryTankBlockEntity tank = getConnectedTank();
+                @Override
+                public int get(int index) {
+                    return switch (index) {
+                        case 0 -> progress;
+                        case 1 -> MAX_PROGRESS;
+                        case 2 -> {
+                            FoundryTankBlockEntity tank =
+                                    getConnectedTank();
 
-                    yield tank != null
-                            ? tank.getMoltenAmount()
-                            : 0;
+                            yield tank != null
+                                    ? tank.getMoltenAmount()
+                                    : 0;
+                        }
+                        default -> 0;
+                    };
                 }
-                default -> 0;
+
+                @Override
+                public void set(
+                        int index,
+                        int value
+                ) {
+                    if (index == 0) {
+                        progress = value;
+                    }
+                }
+
+                @Override
+                public int getCount() {
+                    return 3;
+                }
             };
-        }
-
-        @Override
-        public void set(int index, int value) {
-            switch (index) {
-                case 0 -> progress = value;
-            }
-        }
-
-        @Override
-        public int getCount() {
-            return 3;
-        }
-    };
 
     public FoundryControllerBlockEntity(
             BlockPos pos,
@@ -109,6 +113,130 @@ public class FoundryControllerBlockEntity
                 pos,
                 state
         );
+    }
+
+    // =========================
+    // CONTROLLER ID / CONNECTION
+    // =========================
+
+    public UUID getControllerId() {
+        return controllerId;
+    }
+
+    public BlockPos getAttachedTankPosition() {
+        Direction front =
+                getBlockState().getValue(
+                        FoundryControllerBlock.FACING
+                );
+
+        return worldPosition.relative(
+                front.getOpposite()
+        );
+    }
+
+    @Nullable
+    public FoundryTankNetwork getOwnedTankNetwork() {
+        if (level == null) {
+            return null;
+        }
+
+        BlockEntity blockEntity =
+                level.getBlockEntity(
+                        getAttachedTankPosition()
+                );
+
+        if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
+            return null;
+        }
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (
+                network == null
+                        || !controllerId.equals(
+                        network.getOwnerId()
+                )
+        ) {
+            return null;
+        }
+
+        return network;
+    }
+
+    /**
+     * Establishes or restores this Controller's automatic Tank connection.
+     *
+     * This also migrates worlds created by the previous prototype, where
+     * Tank UUIDs were not yet the persistent Controller UUID.
+     */
+    public boolean ensureAttachedTankNetwork() {
+        if (
+                level == null
+                        || level.isClientSide()
+        ) {
+            return false;
+        }
+
+        BlockPos tankPosition =
+                getAttachedTankPosition();
+
+        BlockEntity blockEntity =
+                level.getBlockEntity(tankPosition);
+
+        if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
+            return false;
+        }
+
+        FoundryTankNetwork existing =
+                tank.getNetwork();
+
+        if (
+                existing != null
+                        && controllerId.equals(
+                        existing.getOwnerId()
+                )
+        ) {
+            return true;
+        }
+
+        /*
+         * A differently owned active network belongs to another Controller
+         * and must never be stolen.
+         */
+        if (
+                existing != null
+                        && existing.getOwnerId() != null
+                        && existing.isActive()
+        ) {
+            return false;
+        }
+
+        /*
+         * Old prototype IDs and cut-off owner IDs are treated as orphaned.
+         */
+        if (
+                existing != null
+                        && existing.getOwnerId() != null
+                        && !existing.isActive()
+        ) {
+            existing.releaseOwnership();
+        }
+
+        return FoundryTankNetwork.claimLargestUnassignedLayout(
+                level,
+                tankPosition,
+                controllerId
+        ) != null;
+    }
+
+    public void releaseTankNetwork() {
+        FoundryTankNetwork network =
+                getOwnedTankNetwork();
+
+        if (network != null) {
+            network.releaseOwnership();
+        }
     }
 
     // =========================
@@ -125,63 +253,35 @@ public class FoundryControllerBlockEntity
             return;
         }
 
+        if (!controller.ensureAttachedTankNetwork()) {
+            controller.resetProgress();
+            return;
+        }
+
         ItemStack inputStack =
                 controller.inputInventory.getItem(INPUT_SLOT);
 
-        /*
-         * No valid melting input:
-         * cancel incomplete progress.
-         */
         if (!inputStack.is(Items.RAW_IRON)) {
             controller.resetProgress();
             return;
         }
 
-        /*
-         * The Fuel Chamber must be directly below
-         * the Foundry Controller.
-         */
         BlockEntity blockEntityBelow =
                 level.getBlockEntity(pos.below());
 
         if (!(blockEntityBelow instanceof FuelChamberBlockEntity fuelChamber)) {
-            /*
-             * Removing or replacing the Fuel Chamber
-             * invalidates the current melting operation.
-             */
             controller.resetProgress();
             return;
         }
 
-        /*
-         * Determine the position directly behind the Controller.
-         */
-        Direction front =
-                state.getValue(FoundryControllerBlock.FACING);
+        FoundryTankBlockEntity tank =
+                controller.getConnectedTank();
 
-        BlockPos tankPosition =
-                pos.relative(front.getOpposite());
-
-        BlockEntity tankBlockEntity =
-                level.getBlockEntity(tankPosition);
-
-        /*
-         * The Foundry Tank must be directly behind
-         * the Controller.
-         */
-        if (!(tankBlockEntity instanceof FoundryTankBlockEntity tank)) {
-            /*
-             * Removing or replacing the Tank invalidates
-             * the current melting operation.
-             */
+        if (tank == null) {
             controller.resetProgress();
             return;
         }
 
-        /*
-         * A full Tank, or a Tank containing another metal,
-         * pauses melting without consuming fuel.
-         */
         if (!tank.canAccept(
                 MOLTEN_IRON,
                 MOLTEN_IRON_PER_RAW_IRON
@@ -189,23 +289,12 @@ public class FoundryControllerBlockEntity
             return;
         }
 
-        /*
-         * The Fuel Chamber only consumes a burn tick while
-         * a valid melting operation is actively progressing.
-         *
-         * Running out of coal pauses progress rather than
-         * resetting it.
-         */
         if (!fuelChamber.supplyBurnTick()) {
             return;
         }
 
         controller.progress++;
 
-        /*
-         * Once enough active melting ticks have passed,
-         * transfer the molten iron into the Tank.
-         */
         if (controller.progress >= MAX_PROGRESS) {
             controller.finishMelting(tank);
         }
@@ -231,10 +320,11 @@ public class FoundryControllerBlockEntity
             return;
         }
 
-        int inserted = tank.insert(
-                MOLTEN_IRON,
-                MOLTEN_IRON_PER_RAW_IRON
-        );
+        int inserted =
+                tank.insert(
+                        MOLTEN_IRON,
+                        MOLTEN_IRON_PER_RAW_IRON
+                );
 
         if (inserted != MOLTEN_IRON_PER_RAW_IRON) {
             return;
@@ -301,6 +391,35 @@ public class FoundryControllerBlockEntity
         return MAX_PROGRESS;
     }
 
+    @Nullable
+    private FoundryTankBlockEntity getConnectedTank() {
+        if (level == null) {
+            return null;
+        }
+
+        BlockEntity blockEntity =
+                level.getBlockEntity(
+                        getAttachedTankPosition()
+                );
+
+        if (blockEntity instanceof FoundryTankBlockEntity tank) {
+            FoundryTankNetwork network =
+                    tank.getNetwork();
+
+            if (
+                    network != null
+                            && controllerId.equals(
+                            network.getOwnerId()
+                    )
+                            && network.isActive()
+            ) {
+                return tank;
+            }
+        }
+
+        return null;
+    }
+
     // =========================
     // SAVE / LOAD
     // =========================
@@ -310,14 +429,25 @@ public class FoundryControllerBlockEntity
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        super.saveAdditional(tag, registries);
+        super.saveAdditional(
+                tag,
+                registries
+        );
+
+        tag.putString(
+                "ControllerId",
+                controllerId.toString()
+        );
 
         tag.put(
                 "InputInventory",
                 inputInventory.createTag(registries)
         );
 
-        tag.putInt("Progress", progress);
+        tag.putInt(
+                "Progress",
+                progress
+        );
     }
 
     @Override
@@ -325,11 +455,34 @@ public class FoundryControllerBlockEntity
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        super.loadAdditional(tag, registries);
+        super.loadAdditional(
+                tag,
+                registries
+        );
+
+        if (tag.contains("ControllerId")) {
+            try {
+                controllerId =
+                        UUID.fromString(
+                                tag.getString(
+                                        "ControllerId"
+                                )
+                        );
+            } catch (IllegalArgumentException ignored) {
+                controllerId =
+                        UUID.randomUUID();
+            }
+        } else {
+            controllerId =
+                    UUID.randomUUID();
+        }
 
         inputInventory.removeAllItems();
 
-        if (tag.contains("InputInventory", Tag.TAG_LIST)) {
+        if (tag.contains(
+                "InputInventory",
+                Tag.TAG_LIST
+        )) {
             inputInventory.fromTag(
                     tag.getList(
                             "InputInventory",
@@ -339,36 +492,10 @@ public class FoundryControllerBlockEntity
             );
         }
 
-        progress = Math.max(
-                0,
-                tag.getInt("Progress")
-        );
-    }
-
-    @Nullable
-    private FoundryTankBlockEntity getConnectedTank() {
-        if (level == null) {
-            return null;
-        }
-
-        Direction front =
-                getBlockState().getValue(
-                        FoundryControllerBlock.FACING
+        progress =
+                Math.max(
+                        0,
+                        tag.getInt("Progress")
                 );
-
-        /*
-         * The tank stands behind the Controller.
-         */
-        BlockPos tankPosition =
-                worldPosition.relative(front.getOpposite());
-
-        BlockEntity blockEntity =
-                level.getBlockEntity(tankPosition);
-
-        if (blockEntity instanceof FoundryTankBlockEntity tank) {
-            return tank;
-        }
-
-        return null;
     }
 }
