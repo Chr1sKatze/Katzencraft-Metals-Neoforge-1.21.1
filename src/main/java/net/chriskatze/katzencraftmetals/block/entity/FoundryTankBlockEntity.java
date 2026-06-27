@@ -3,8 +3,13 @@ package net.chriskatze.katzencraftmetals.block.entity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
@@ -47,7 +52,10 @@ public class FoundryTankBlockEntity extends BlockEntity {
             return false;
         }
 
-        if (storedMetal != null && !storedMetal.equals(metal)) {
+        if (
+                storedMetal != null
+                        && !storedMetal.equals(metal)
+        ) {
             return false;
         }
 
@@ -65,7 +73,10 @@ public class FoundryTankBlockEntity extends BlockEntity {
             return 0;
         }
 
-        if (storedMetal != null && !storedMetal.equals(metal)) {
+        if (
+                storedMetal != null
+                        && !storedMetal.equals(metal)
+        ) {
             return 0;
         }
 
@@ -83,7 +94,9 @@ public class FoundryTankBlockEntity extends BlockEntity {
         }
 
         moltenAmount += accepted;
+
         setChanged();
+        syncToClient();
 
         return accepted;
     }
@@ -93,10 +106,15 @@ public class FoundryTankBlockEntity extends BlockEntity {
     // =========================
 
     /**
-     * Later, the faucet will call this method.
+     * Extracts molten metal and returns the amount actually removed.
      */
-    public int extract(int requestedAmount) {
-        if (requestedAmount <= 0 || moltenAmount <= 0) {
+    public int extract(
+            int requestedAmount
+    ) {
+        if (
+                requestedAmount <= 0
+                        || moltenAmount <= 0
+        ) {
             return 0;
         }
 
@@ -113,6 +131,7 @@ public class FoundryTankBlockEntity extends BlockEntity {
         }
 
         setChanged();
+        syncToClient();
 
         return extracted;
     }
@@ -129,6 +148,14 @@ public class FoundryTankBlockEntity extends BlockEntity {
         return CAPACITY;
     }
 
+    public float getFillPercentage() {
+        return Mth.clamp(
+                (float) moltenAmount / CAPACITY,
+                0.0f,
+                1.0f
+        );
+    }
+
     public boolean isEmpty() {
         return moltenAmount <= 0;
     }
@@ -143,6 +170,49 @@ public class FoundryTankBlockEntity extends BlockEntity {
     }
 
     // =========================
+    // CLIENT SYNCHRONIZATION
+    // =========================
+
+    @Override
+    public CompoundTag getUpdateTag(
+            HolderLookup.Provider registries
+    ) {
+        CompoundTag tag =
+                new CompoundTag();
+
+        saveAdditional(
+                tag,
+                registries
+        );
+
+        return tag;
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    private void syncToClient() {
+        if (
+                level == null
+                        || level.isClientSide()
+        ) {
+            return;
+        }
+
+        BlockState state =
+                getBlockState();
+
+        level.sendBlockUpdated(
+                worldPosition,
+                state,
+                state,
+                Block.UPDATE_CLIENTS
+        );
+    }
+
+    // =========================
     // SAVE / LOAD
     // =========================
 
@@ -151,7 +221,10 @@ public class FoundryTankBlockEntity extends BlockEntity {
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        super.saveAdditional(tag, registries);
+        super.saveAdditional(
+                tag,
+                registries
+        );
 
         if (storedMetal != null) {
             tag.putString(
@@ -171,15 +244,19 @@ public class FoundryTankBlockEntity extends BlockEntity {
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        super.loadAdditional(tag, registries);
+        super.loadAdditional(
+                tag,
+                registries
+        );
 
         storedMetal = null;
         moltenAmount = 0;
 
         if (tag.contains("StoredMetal")) {
-            storedMetal = ResourceLocation.tryParse(
-                    tag.getString("StoredMetal")
-            );
+            storedMetal =
+                    ResourceLocation.tryParse(
+                            tag.getString("StoredMetal")
+                    );
         }
 
         moltenAmount = Mth.clamp(

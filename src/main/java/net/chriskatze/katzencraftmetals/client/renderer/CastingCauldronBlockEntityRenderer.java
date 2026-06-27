@@ -27,29 +27,15 @@ public class CastingCauldronBlockEntityRenderer
                     "textures/block/cooled_iron.png"
             );
 
-    /*
-     * molten_iron.png:
-     *
-     * 16 pixels wide
-     * 320 pixels high
-     * 320 / 16 = 20 animation frames
-     */
     private static final int MOLTEN_FRAME_COUNT = 20;
-
-    /*
-     * One frame every four game ticks.
-     */
     private static final int MOLTEN_FRAME_TIME = 4;
 
     private static final float MOLTEN_FRAME_SIZE = 16.0f;
     private static final float COOLED_TEXTURE_SIZE = 16.0f;
 
     /*
-     * Small outward offset for the cooled overlay.
-     *
-     * The two textures are cross-faded during cooling. Rendering
-     * the cooled layer very slightly outside the molten layer avoids
-     * Z-fighting while remaining visually indistinguishable in size.
+     * The cooled layer is rendered very slightly outside the molten
+     * layer so both can overlap without Z-fighting during the fade.
      */
     private static final float COOLED_OVERLAY_OFFSET = 0.0005f;
 
@@ -76,20 +62,30 @@ public class CastingCauldronBlockEntityRenderer
             int packedLight,
             int packedOverlay
     ) {
-        if (cauldron.isEmpty()) {
+        if (cauldron.getLevel() == null) {
+            return;
+        }
+
+        /*
+         * Smooth the visible increase between the one-unit server
+         * updates sent by the Faucet.
+         */
+        float displayedMoltenAmount =
+                CastingCauldronFillSmoother.getDisplayedMoltenAmount(
+                        cauldron,
+                        partialTick
+                );
+
+        if (displayedMoltenAmount <= 0.0f) {
             return;
         }
 
         float fillPercentage = Mth.clamp(
-                (float) cauldron.getMoltenAmount()
+                displayedMoltenAmount
                         / CastingCauldronBlockEntity.REQUIRED_MOLTEN_AMOUNT,
                 0.0f,
                 1.0f
         );
-
-        if (fillPercentage <= 0.0f) {
-            return;
-        }
 
         float surfaceY = Mth.lerp(
                 fillPercentage,
@@ -98,37 +94,36 @@ public class CastingCauldronBlockEntityRenderer
         );
 
         /*
-         * Convert cooling progress into a smooth cross-fade.
-         *
-         * smoothstep keeps the beginning and end of the transition
-         * softer than a plain linear blend.
+         * The cooled texture fades uniformly over the whole molten
+         * texture. This is a simple texture cross-fade, not a moving
+         * top-to-bottom cooling front.
          */
-        float coolingBlend = Mth.clamp(
-                (float) cauldron.getCoolingProgress()
-                        / CastingCauldronBlockEntity.MAX_COOLING_PROGRESS,
-                0.0f,
-                1.0f
-        );
+        float coolingBlend;
 
         if (cauldron.isCooled()) {
             coolingBlend = 1.0f;
+        } else {
+            coolingBlend = Mth.clamp(
+                    (
+                            cauldron.getCoolingProgress()
+                                    + partialTick
+                    )
+                            / CastingCauldronBlockEntity.MAX_COOLING_PROGRESS,
+                    0.0f,
+                    1.0f
+            );
         }
 
+        /*
+         * Smoothstep softens both the start and end of the fade.
+         */
         coolingBlend =
                 coolingBlend
                         * coolingBlend
                         * (3.0f - 2.0f * coolingBlend);
 
-        float moltenAlpha =
-                1.0f - coolingBlend;
-
-        float cooledAlpha =
-                coolingBlend;
-
         long gameTime =
-                cauldron.getLevel() == null
-                        ? 0L
-                        : cauldron.getLevel().getGameTime();
+                cauldron.getLevel().getGameTime();
 
         int moltenFrame =
                 getPingPongFrame(gameTime);
@@ -147,9 +142,12 @@ public class CastingCauldronBlockEntityRenderer
                 poseStack.last();
 
         /*
-         * Render the animated molten texture first.
+         * Keep the molten texture fully visible underneath while the
+         * cooled texture fades in over it.
+         *
+         * This avoids the metal becoming transparent during cooling.
          */
-        if (moltenAlpha > 0.001f) {
+        if (!cauldron.isCooled()) {
             VertexConsumer moltenConsumer =
                     bufferSource.getBuffer(
                             RenderType.entityTranslucent(
@@ -166,15 +164,15 @@ public class CastingCauldronBlockEntityRenderer
                     moltenFrameMaxV,
                     LightTexture.FULL_BRIGHT,
                     packedOverlay,
-                    moltenAlpha,
+                    1.0f,
                     0.0f
             );
         }
 
         /*
-         * Fade the cooled texture in on top of the molten texture.
+         * Fade the cooled texture in across the entire metal volume.
          */
-        if (cooledAlpha > 0.001f) {
+        if (coolingBlend > 0.001f) {
             VertexConsumer cooledConsumer =
                     bufferSource.getBuffer(
                             RenderType.entityTranslucent(
@@ -191,7 +189,7 @@ public class CastingCauldronBlockEntityRenderer
                     1.0f,
                     packedLight,
                     packedOverlay,
-                    cooledAlpha,
+                    coolingBlend,
                     COOLED_OVERLAY_OFFSET
             );
         }
@@ -199,15 +197,6 @@ public class CastingCauldronBlockEntityRenderer
         poseStack.popPose();
     }
 
-    /*
-     * Plays the frames forwards and then backwards:
-     *
-     * 0, 1, 2, ... 19, 18, 17, ... 1, 0
-     *
-     * This avoids the visible jump from the final frame directly
-     * back to the first frame when the texture is not perfectly
-     * seamless.
-     */
     private static int getPingPongFrame(
             long gameTime
     ) {
@@ -243,23 +232,14 @@ public class CastingCauldronBlockEntityRenderer
             float alpha,
             float geometryOffset
     ) {
-        float minX =
-                MIN_X - geometryOffset;
+        float minX = MIN_X - geometryOffset;
+        float maxX = MAX_X + geometryOffset;
 
-        float maxX =
-                MAX_X + geometryOffset;
+        float minZ = MIN_Z - geometryOffset;
+        float maxZ = MAX_Z + geometryOffset;
 
-        float minZ =
-                MIN_Z - geometryOffset;
-
-        float maxZ =
-                MAX_Z + geometryOffset;
-
-        float minY =
-                MIN_Y - geometryOffset;
-
-        float topY =
-                surfaceY + geometryOffset;
+        float minY = MIN_Y - geometryOffset;
+        float topY = surfaceY + geometryOffset;
 
         float uvScale =
                 16.0f / textureSize;
@@ -276,385 +256,130 @@ public class CastingCauldronBlockEntityRenderer
         float sideTopV =
                 1.0f - liquidHeightUv;
 
-        // =========================
-        // TOP SURFACE
-        // =========================
+        // TOP
+        addVertex(consumer, pose, minX, topY, minZ,
+                0.0f, 0.0f,
+                0.0f, 1.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                topY,
-                minZ,
-                0.0f,
-                0.0f,
-                0.0f,
-                1.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, minX, topY, maxZ,
+                0.0f, depthUv,
+                0.0f, 1.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                topY,
-                maxZ,
-                0.0f,
-                depthUv,
-                0.0f,
-                1.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, maxX, topY, maxZ,
+                widthUv, depthUv,
+                0.0f, 1.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                topY,
-                maxZ,
-                widthUv,
-                depthUv,
-                0.0f,
-                1.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, maxX, topY, minZ,
+                widthUv, 0.0f,
+                0.0f, 1.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                topY,
-                minZ,
-                widthUv,
-                0.0f,
-                0.0f,
-                1.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        // NORTH
+        addVertex(consumer, pose, minX, minY, minZ,
+                0.0f, 1.0f,
+                0.0f, 0.0f, -1.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        // =========================
-        // NORTH SIDE
-        // =========================
+        addVertex(consumer, pose, maxX, minY, minZ,
+                widthUv, 1.0f,
+                0.0f, 0.0f, -1.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                minY,
-                minZ,
-                0.0f,
-                1.0f,
-                0.0f,
-                0.0f,
-                -1.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, maxX, topY, minZ,
+                widthUv, sideTopV,
+                0.0f, 0.0f, -1.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                minY,
-                minZ,
-                widthUv,
-                1.0f,
-                0.0f,
-                0.0f,
-                -1.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, minX, topY, minZ,
+                0.0f, sideTopV,
+                0.0f, 0.0f, -1.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                topY,
-                minZ,
-                widthUv,
-                sideTopV,
-                0.0f,
-                0.0f,
-                -1.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        // SOUTH
+        addVertex(consumer, pose, maxX, minY, maxZ,
+                0.0f, 1.0f,
+                0.0f, 0.0f, 1.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                topY,
-                minZ,
-                0.0f,
-                sideTopV,
-                0.0f,
-                0.0f,
-                -1.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, minX, minY, maxZ,
+                widthUv, 1.0f,
+                0.0f, 0.0f, 1.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        // =========================
-        // SOUTH SIDE
-        // =========================
+        addVertex(consumer, pose, minX, topY, maxZ,
+                widthUv, sideTopV,
+                0.0f, 0.0f, 1.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                minY,
-                maxZ,
-                0.0f,
-                1.0f,
-                0.0f,
-                0.0f,
-                1.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, maxX, topY, maxZ,
+                0.0f, sideTopV,
+                0.0f, 0.0f, 1.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                minY,
-                maxZ,
-                widthUv,
-                1.0f,
-                0.0f,
-                0.0f,
-                1.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        // WEST
+        addVertex(consumer, pose, minX, minY, maxZ,
+                0.0f, 1.0f,
+                -1.0f, 0.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                topY,
-                maxZ,
-                widthUv,
-                sideTopV,
-                0.0f,
-                0.0f,
-                1.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, minX, minY, minZ,
+                depthUv, 1.0f,
+                -1.0f, 0.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                topY,
-                maxZ,
-                0.0f,
-                sideTopV,
-                0.0f,
-                0.0f,
-                1.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, minX, topY, minZ,
+                depthUv, sideTopV,
+                -1.0f, 0.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        // =========================
-        // WEST SIDE
-        // =========================
+        addVertex(consumer, pose, minX, topY, maxZ,
+                0.0f, sideTopV,
+                -1.0f, 0.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                minY,
-                maxZ,
-                0.0f,
-                1.0f,
-                -1.0f,
-                0.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        // EAST
+        addVertex(consumer, pose, maxX, minY, minZ,
+                0.0f, 1.0f,
+                1.0f, 0.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                minY,
-                minZ,
-                depthUv,
-                1.0f,
-                -1.0f,
-                0.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, maxX, minY, maxZ,
+                depthUv, 1.0f,
+                1.0f, 0.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                topY,
-                minZ,
-                depthUv,
-                sideTopV,
-                -1.0f,
-                0.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, maxX, topY, maxZ,
+                depthUv, sideTopV,
+                1.0f, 0.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
 
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                topY,
-                maxZ,
-                0.0f,
-                sideTopV,
-                -1.0f,
-                0.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
-
-        // =========================
-        // EAST SIDE
-        // =========================
-
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                minY,
-                minZ,
-                0.0f,
-                1.0f,
-                1.0f,
-                0.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                minY,
-                maxZ,
-                depthUv,
-                1.0f,
-                1.0f,
-                0.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                topY,
-                maxZ,
-                depthUv,
-                sideTopV,
-                1.0f,
-                0.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                topY,
-                minZ,
-                0.0f,
-                sideTopV,
-                1.0f,
-                0.0f,
-                0.0f,
-                packedLight,
-                packedOverlay,
-                frameMinV,
-                frameMaxV,
-                alpha
-        );
+        addVertex(consumer, pose, maxX, topY, minZ,
+                0.0f, sideTopV,
+                1.0f, 0.0f, 0.0f,
+                packedLight, packedOverlay,
+                frameMinV, frameMaxV, alpha);
     }
 
     private static void addVertex(
@@ -688,17 +413,18 @@ public class CastingCauldronBlockEntityRenderer
                         255
                 );
 
-        int color =
-                alphaValue << 24
-                        | 0x00FFFFFF;
-
         consumer.addVertex(
                         pose.pose(),
                         x,
                         y,
                         z
                 )
-                .setColor(color)
+                .setColor(
+                        255,
+                        255,
+                        255,
+                        alphaValue
+                )
                 .setUv(u, textureV)
                 .setOverlay(packedOverlay)
                 .setLight(packedLight)

@@ -80,22 +80,20 @@ public class CastingCauldronBlockEntity extends BlockEntity {
         cauldron.updateVisualState();
 
         /*
-         * Empty and already-cooled cauldrons do nothing.
+         * Empty, partially filled, and already-cooled
+         * cauldrons do not cool.
          */
-        if (cauldron.isEmpty() || cauldron.cooled) {
+        if (
+                cauldron.isEmpty()
+                        || !cauldron.isFull()
+                        || cauldron.cooled
+        ) {
             return;
         }
 
         /*
-         * A partially filled cauldron does not cool yet.
-         *
-         * Cooling starts only after all 54 units have
-         * entered the basin.
+         * Advance the cooling process.
          */
-        if (!cauldron.isFull()) {
-            return;
-        }
-
         cauldron.coolingProgress++;
 
         if (
@@ -108,13 +106,16 @@ public class CastingCauldronBlockEntity extends BlockEntity {
             cauldron.cooled = true;
 
             cauldron.updateVisualState();
-            cauldron.setChanged();
-            cauldron.syncToClient();
-
-            return;
         }
 
+        /*
+         * setChanged() saves the new value.
+         *
+         * syncToClient() sends every intermediate cooling value
+         * to the renderer, allowing the cooled texture to fade in.
+         */
         cauldron.setChanged();
+        cauldron.syncToClient();
     }
 
     // =========================

@@ -341,13 +341,20 @@ public class FoundryFaucetBlockEntityRenderer
             PoseStack poseStack,
             Direction facing
     ) {
+        /*
+         * The renderer geometry is authored pointing north.
+         *
+         * North and south were previously reversed, which made
+         * the molten stream emerge from the opposite side of the
+         * Faucet for those two directions.
+         */
         float rotationDegrees =
                 switch (facing) {
-                    case NORTH -> 180.0f;
+                    case NORTH -> 0.0f;
                     case EAST -> 270.0f;
-                    case SOUTH -> 0.0f;
+                    case SOUTH -> 180.0f;
                     case WEST -> 90.0f;
-                    default -> 180.0f;
+                    default -> 0.0f;
                 };
 
         poseStack.translate(

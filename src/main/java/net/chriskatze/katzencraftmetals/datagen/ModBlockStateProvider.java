@@ -51,38 +51,18 @@ public class ModBlockStateProvider extends BlockStateProvider {
         ModelFile controllerModel = cubeAll(ModBlocks.FOUNDRY_CONTROLLER.get());
         horizontalBlock(ModBlocks.FOUNDRY_CONTROLLER.get(), controllerModel);
         simpleBlockItem(ModBlocks.FOUNDRY_CONTROLLER.get(), controllerModel);
-        blockWithItem(ModBlocks.FOUNDRY_TANK.get());
-        ModelFile castingCauldronModel =
-                new ModelFile.UncheckedModelFile(
-                        modLoc("block/casting_cauldron")
-                );
-
-        getVariantBuilder(
-                ModBlocks.CASTING_CAULDRON.get()
-        ).forAllStates(state ->
-                ConfiguredModel.builder()
+        ModelFile foundryTankModel = models().getExistingFile(modLoc("block/foundry_tank"));
+        simpleBlock(ModBlocks.FOUNDRY_TANK.get(), foundryTankModel);
+        simpleBlockItem(ModBlocks.FOUNDRY_TANK.get(), foundryTankModel);
+        ModelFile castingCauldronModel = new ModelFile.UncheckedModelFile(modLoc("block/casting_cauldron"));
+        getVariantBuilder(ModBlocks.CASTING_CAULDRON.get())
+                .forAllStates(state -> ConfiguredModel.builder()
                         .modelFile(castingCauldronModel)
-                        .build()
-        );
-
-        simpleBlockItem(
-                ModBlocks.CASTING_CAULDRON.get(),
-                castingCauldronModel
-        );
-        ModelFile faucetModel =
-                new ModelFile.UncheckedModelFile(
-                        modLoc("block/foundry_faucet")
-                );
-
-        horizontalBlock(
-                ModBlocks.FOUNDRY_FAUCET.get(),
-                faucetModel
-        );
-
-        simpleBlockItem(
-                ModBlocks.FOUNDRY_FAUCET.get(),
-                faucetModel
-        );
+                        .build());
+        simpleBlockItem(ModBlocks.CASTING_CAULDRON.get(), castingCauldronModel);
+        ModelFile faucetModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_faucet"));
+        horizontalBlock(ModBlocks.FOUNDRY_FAUCET.get(), faucetModel);
+        simpleBlockItem(ModBlocks.FOUNDRY_FAUCET.get(), faucetModel);
     }
 
 

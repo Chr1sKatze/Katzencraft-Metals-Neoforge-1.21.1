@@ -244,6 +244,7 @@ public class ModBlocks {
                             BlockBehaviour.Properties.of()
                                     .strength(3.5f, 6.0f)
                                     .requiresCorrectToolForDrops()
+                                    .noOcclusion()
                                     .sound(SoundType.METAL)
                     )
             );

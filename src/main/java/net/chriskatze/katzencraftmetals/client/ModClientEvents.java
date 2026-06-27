@@ -2,7 +2,10 @@ package net.chriskatze.katzencraftmetals.client;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
+import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
+import net.chriskatze.katzencraftmetals.client.renderer.CastingCauldronBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryFaucetBlockEntityRenderer;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
 import net.chriskatze.katzencraftmetals.screen.CrusherScreen;
 import net.chriskatze.katzencraftmetals.screen.FoundryControllerScreen;
@@ -15,24 +18,28 @@ import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
-import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
-import net.chriskatze.katzencraftmetals.client.renderer.CastingCauldronBlockEntityRenderer;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 import static net.chriskatze.katzencraftmetals.KatzencraftMetalsMod.LOGGER;
 
-@EventBusSubscriber(modid = KatzencraftMetalsMod.MODID, value = Dist.CLIENT)
+@EventBusSubscriber(
+        modid = KatzencraftMetalsMod.MODID,
+        value = Dist.CLIENT
+)
 public class ModClientEvents {
 
     @SubscribeEvent
-    public static void onClientSetup(FMLClientSetupEvent event) {
-
+    public static void onClientSetup(
+            FMLClientSetupEvent event
+    ) {
         LOGGER.info("Katzencraft Metals client setup");
-        LOGGER.info("Minecraft user: {}", Minecraft.getInstance().getUser().getName());
+        LOGGER.info(
+                "Minecraft user: {}",
+                Minecraft.getInstance().getUser().getName()
+        );
 
         event.enqueueWork(() -> {
-
             ItemBlockRenderTypes.setRenderLayer(
                     ModBlocks.STEEL_TRAPDOOR.get(),
                     RenderType.cutout()
@@ -56,8 +63,9 @@ public class ModClientEvents {
     }
 
     @SubscribeEvent
-    public static void registerScreens(RegisterMenuScreensEvent event) {
-
+    public static void registerScreens(
+            RegisterMenuScreensEvent event
+    ) {
         event.register(
                 ModMenuTypes.CRUSHER_MENU.get(),
                 CrusherScreen::new
@@ -91,6 +99,11 @@ public class ModClientEvents {
         event.registerBlockEntityRenderer(
                 ModBlockEntities.FOUNDRY_FAUCET.get(),
                 FoundryFaucetBlockEntityRenderer::new
+        );
+
+        event.registerBlockEntityRenderer(
+                ModBlockEntities.FOUNDRY_TANK.get(),
+                FoundryTankBlockEntityRenderer::new
         );
     }
 }
