@@ -1,12 +1,13 @@
 package net.chriskatze.katzencraftmetals.network;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
+import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 
-@EventBusSubscriber(modid = KatzencraftMetalsMod.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = KatzencraftMetalsMod.MODID, value = Dist.CLIENT)
 public class ModNetworking {
 
     @SubscribeEvent

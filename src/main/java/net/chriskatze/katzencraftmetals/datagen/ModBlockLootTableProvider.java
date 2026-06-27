@@ -30,6 +30,14 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
 
     @Override
     protected void generate() {
+        // machines
+        dropSelf(ModBlocks.FUEL_CHAMBER.get());
+        dropSelf(ModBlocks.FOUNDRY_CONTROLLER.get());
+        dropSelf(ModBlocks.CRUSHER.get());
+        dropSelf(ModBlocks.FOUNDRY_TANK.get());
+        dropSelf(ModBlocks.CASTING_CAULDRON.get());
+        dropSelf(ModBlocks.FOUNDRY_FAUCET.get());
+
         // blocks
         dropSelf(ModBlocks.STEEL_BLOCK.get());
         dropSelf(ModBlocks.STEEL_BARS.get());
@@ -39,10 +47,16 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
         dropSelf(ModBlocks.STEEL_LEVER.get());
         dropSelf(ModBlocks.STEEL_DOOR.get());
         dropSelf(ModBlocks.STEEL_TRAPDOOR.get());
+        dropSelf(ModBlocks.STEEL_LADDER.get());
 
         dropSelf(ModBlocks.PLATINUM_BLOCK.get());
 
         dropSelf(ModBlocks.MYTHRIL_BLOCK.get());
+
+        // Cut steel building blocks
+        dropSelf(ModBlocks.CUT_STEEL_BLOCK.get());
+        dropSelf(ModBlocks.CUT_STEEL_STAIRS.get());
+        add(ModBlocks.CUT_STEEL_SLAB.get(), block -> createSlabItemTable(block));
 
         // simple raw ore drop + gemstone bonus chance
         add(ModBlocks.PLATINUM_ORE.get(),
@@ -175,13 +189,24 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
                 ModBlocks.END_MYTHRIL_ORE.get(),
 
                 ModBlocks.STEEL_BLOCK.get(),
+                ModBlocks.CUT_STEEL_BLOCK.get(),
                 ModBlocks.STEEL_BARS.get(),
                 ModBlocks.STEEL_CHAIN.get(),
                 ModBlocks.STEEL_PRESSURE_PLATE.get(),
                 ModBlocks.STEEL_BUTTON.get(),
                 ModBlocks.STEEL_LEVER.get(),
                 ModBlocks.STEEL_DOOR.get(),
-                ModBlocks.STEEL_TRAPDOOR.get()
+                ModBlocks.STEEL_TRAPDOOR.get(),
+                ModBlocks.CUT_STEEL_STAIRS.get(),
+                ModBlocks.CUT_STEEL_SLAB.get(),
+                ModBlocks.STEEL_LADDER.get(),
+
+                ModBlocks.CRUSHER.get(),
+                ModBlocks.FUEL_CHAMBER.get(),
+                ModBlocks.FOUNDRY_CONTROLLER.get(),
+                ModBlocks.FOUNDRY_TANK.get(),
+                ModBlocks.CASTING_CAULDRON.get(),
+                ModBlocks.FOUNDRY_FAUCET.get()
         );
     }
 }

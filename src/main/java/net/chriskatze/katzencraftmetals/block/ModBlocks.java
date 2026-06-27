@@ -1,11 +1,12 @@
 package net.chriskatze.katzencraftmetals.block;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
-import net.chriskatze.katzencraftmetals.block.custom.CrusherBlock;
+import net.chriskatze.katzencraftmetals.block.custom.*;
 import net.minecraft.util.valueproviders.UniformInt;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.level.block.*;
+import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.properties.BlockSetType;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredBlock;
@@ -26,52 +27,109 @@ public class ModBlocks {
     // STEEL
     // =========================
 
-    public static final DeferredBlock<Block> STEEL_BLOCK = registerBlock("steel_block",
-            () -> new Block(Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
-                    .requiresCorrectToolForDrops()));
+    public static final DeferredBlock<Block> STEEL_BLOCK =
+            registerBlock(
+                    "steel_block",
+                    () -> new Block(
+                            Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                                    .sound(SoundType.COPPER)
+                                    .requiresCorrectToolForDrops()
+                    )
+            );
+
+    // =========================
+    // CUT STEEL BUILDING BLOCKS
+    // =========================
+
+    public static final DeferredBlock<Block> CUT_STEEL_BLOCK =
+            registerBlock(
+                    "cut_steel_block",
+                    () -> new Block(
+                            Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                                    .sound(SoundType.COPPER)
+                                    .requiresCorrectToolForDrops()
+                    )
+            );
+
+    public static final DeferredBlock<StairBlock> CUT_STEEL_STAIRS =
+            registerBlock(
+                    "cut_steel_stairs",
+                    () -> new StairBlock(
+                            CUT_STEEL_BLOCK.get().defaultBlockState(),
+                            Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                                    .sound(SoundType.COPPER)
+                                    .requiresCorrectToolForDrops()
+                    )
+            );
+
+    public static final DeferredBlock<SlabBlock> CUT_STEEL_SLAB =
+            registerBlock(
+                    "cut_steel_slab",
+                    () -> new SlabBlock(
+                            Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                                    .sound(SoundType.COPPER)
+                                    .requiresCorrectToolForDrops()
+                    )
+            );
 
     // =========================
     // STEEL BUILDING BLOCKS
     // =========================
 
     public static final DeferredBlock<Block> STEEL_BARS =
-            BLOCKS.register("steel_bars",
+            BLOCKS.register(
+                    "steel_bars",
                     () -> new IronBarsBlock(
                             Block.Properties.ofFullCopy(Blocks.IRON_BARS)
-                    ));
+                                    .sound(SoundType.COPPER)
+                    )
+            );
 
     public static final DeferredBlock<Block> STEEL_CHAIN =
-            BLOCKS.register("steel_chain",
+            BLOCKS.register(
+                    "steel_chain",
                     () -> new ChainBlock(
                             Block.Properties.ofFullCopy(Blocks.CHAIN)
-                    ));
+                                    .sound(SoundType.COPPER)
+                    )
+            );
 
     public static final DeferredBlock<Block> STEEL_PRESSURE_PLATE =
-            BLOCKS.register("steel_pressure_plate",
+            BLOCKS.register(
+                    "steel_pressure_plate",
                     () -> new PressurePlateBlock(
                             BlockSetType.IRON,
                             Block.Properties.ofFullCopy(Blocks.STONE_PRESSURE_PLATE)
-                    ));
+                                    .sound(SoundType.COPPER)
+                    )
+            );
 
     public static final DeferredBlock<Block> STEEL_BUTTON =
-            BLOCKS.register("steel_button",
+            BLOCKS.register(
+                    "steel_button",
                     () -> new ButtonBlock(
-                            BlockSetType.STONE,
+                            BlockSetType.IRON,
                             20,
                             Block.Properties.ofFullCopy(Blocks.STONE_BUTTON)
-                    ));
+                                    .sound(SoundType.COPPER)
+                    )
+            );
 
     public static final DeferredBlock<Block> STEEL_LEVER =
-            BLOCKS.register("steel_lever",
+            BLOCKS.register(
+                    "steel_lever",
                     () -> new LeverBlock(
                             Block.Properties.ofFullCopy(Blocks.LEVER)
-                    ));
+                                    .sound(SoundType.COPPER)
+                    )
+            );
 
     public static final DeferredBlock<Block> STEEL_DOOR =
             BLOCKS.register("steel_door",
                     () -> new DoorBlock(
                             BlockSetType.COPPER,
                             Block.Properties.ofFullCopy(Blocks.IRON_DOOR)
+                                    .sound(SoundType.COPPER)
                     ));
 
     public static final DeferredBlock<Block> STEEL_TRAPDOOR =
@@ -79,7 +137,18 @@ public class ModBlocks {
                     () -> new TrapDoorBlock(
                             BlockSetType.COPPER,
                             Block.Properties.ofFullCopy(Blocks.IRON_TRAPDOOR)
+                                    .sound(SoundType.COPPER)
                     ));
+
+    public static final DeferredBlock<LadderBlock> STEEL_LADDER =
+            BLOCKS.register(
+                    "steel_ladder",
+                    () -> new LadderBlock(
+                            BlockBehaviour.Properties.ofFullCopy(Blocks.LADDER)
+                                    .sound(SoundType.COPPER)
+                                    .requiresCorrectToolForDrops()
+                    )
+            );
 
     // =========================
     // PLATINUM
@@ -145,6 +214,61 @@ public class ModBlocks {
             () -> new CrusherBlock(Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
                     .strength(3.5f)
                     .requiresCorrectToolForDrops()));
+
+    public static final DeferredBlock<FuelChamberBlock> FUEL_CHAMBER =
+            registerBlock(
+                    "fuel_chamber",
+                    () -> new FuelChamberBlock(
+                            BlockBehaviour.Properties.of()
+                                    .strength(3.5f, 6.0f)
+                                    .requiresCorrectToolForDrops()
+                                    .sound(SoundType.METAL)
+                    )
+            );
+
+    public static final DeferredBlock<FoundryControllerBlock> FOUNDRY_CONTROLLER =
+            registerBlock(
+                    "foundry_controller",
+                    () -> new FoundryControllerBlock(
+                            BlockBehaviour.Properties.of()
+                                    .strength(3.5f, 6.0f)
+                                    .requiresCorrectToolForDrops()
+                                    .sound(SoundType.METAL)
+                    )
+            );
+
+    public static final DeferredBlock<FoundryTankBlock> FOUNDRY_TANK =
+            registerBlock(
+                    "foundry_tank",
+                    () -> new FoundryTankBlock(
+                            BlockBehaviour.Properties.of()
+                                    .strength(3.5f, 6.0f)
+                                    .requiresCorrectToolForDrops()
+                                    .sound(SoundType.METAL)
+                    )
+            );
+
+    public static final DeferredBlock<CastingCauldronBlock> CASTING_CAULDRON =
+            registerBlock(
+                    "casting_cauldron",
+                    () -> new CastingCauldronBlock(
+                            BlockBehaviour.Properties.of()
+                                    .strength(3.5f, 6.0f)
+                                    .requiresCorrectToolForDrops()
+                                    .sound(SoundType.METAL)
+                    )
+            );
+
+    public static final DeferredBlock<FoundryFaucetBlock> FOUNDRY_FAUCET =
+            registerBlock(
+                    "foundry_faucet",
+                    () -> new FoundryFaucetBlock(
+                            BlockBehaviour.Properties.of()
+                                    .strength(2.5f, 4.0f)
+                                    .requiresCorrectToolForDrops()
+                                    .sound(SoundType.METAL)
+                    )
+            );
 
     // =========================
     // HELPERS

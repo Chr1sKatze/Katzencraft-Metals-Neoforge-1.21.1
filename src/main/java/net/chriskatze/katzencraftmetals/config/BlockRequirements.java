@@ -13,6 +13,7 @@ public class BlockRequirements {
     static {
 
         REQUIREMENTS.put(ModBlocks.STEEL_BLOCK.get(), MiningLevels.IRON);
+        REQUIREMENTS.put(ModBlocks.CUT_STEEL_BLOCK.get(), MiningLevels.IRON);
         REQUIREMENTS.put(ModBlocks.STEEL_BARS.get(), MiningLevels.IRON);
         REQUIREMENTS.put(ModBlocks.STEEL_CHAIN.get(), MiningLevels.IRON);
         REQUIREMENTS.put(ModBlocks.STEEL_PRESSURE_PLATE.get(), MiningLevels.IRON);
@@ -20,6 +21,11 @@ public class BlockRequirements {
         REQUIREMENTS.put(ModBlocks.STEEL_LEVER.get(), MiningLevels.IRON);
         REQUIREMENTS.put(ModBlocks.STEEL_DOOR.get(), MiningLevels.IRON);
         REQUIREMENTS.put(ModBlocks.STEEL_TRAPDOOR.get(), MiningLevels.WOOD);
+        REQUIREMENTS.put(ModBlocks.STEEL_BARS.get(), MiningLevels.IRON);
+        REQUIREMENTS.put(ModBlocks.STEEL_CHAIN.get(), MiningLevels.IRON);
+        REQUIREMENTS.put(ModBlocks.CUT_STEEL_STAIRS.get(), MiningLevels.IRON);
+        REQUIREMENTS.put(ModBlocks.CUT_STEEL_SLAB.get(), MiningLevels.IRON);
+        REQUIREMENTS.put(ModBlocks.STEEL_LADDER.get(), MiningLevels.IRON);
 
         // Platinum
 

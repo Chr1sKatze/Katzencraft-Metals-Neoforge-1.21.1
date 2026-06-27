@@ -16,6 +16,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.BlastingRecipe;
+import net.minecraft.data.recipes.SingleItemRecipeBuilder;
+import net.minecraft.world.level.block.Block;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -60,16 +62,16 @@ public class ModRecipeProvider extends RecipeProvider {
                         KatzencraftMetalsMod.MODID + ":coal_from_crushed_coal"
                 );
 
-        // Iron Powder + Crushed Coal -> Steel Powder
+        // Crushed Iron Ore + Crushed Coal -> Steel Charge
         ShapelessRecipeBuilder.shapeless(
                         RecipeCategory.MISC,
-                        ModItems.STEEL_POWDER.get()
+                        ModItems.STEEL_CHARGE.get()
                 )
-                .requires(ModItems.IRON_POWDER.get())
+                .requires(ModItems.CRUSHED_IRON_ORE.get())
                 .requires(ModItems.CRUSHED_COAL.get())
                 .unlockedBy(
-                        "has_iron_powder",
-                        has(ModItems.IRON_POWDER.get())
+                        "has_crushed_iron_ore",
+                        has(ModItems.CRUSHED_IRON_ORE.get())
                 )
                 .unlockedBy(
                         "has_crushed_coal",
@@ -81,10 +83,10 @@ public class ModRecipeProvider extends RecipeProvider {
         // BLAST FURNACE
         // =========================
 
-        // Platinum Powder -> Platinum Nugget
+        // Crushed Platinum Ore -> Platinum Nugget
         oreBlasting(
                 recipeOutput,
-                ModItems.PLATINUM_POWDER.get(),
+                ModItems.CRUSHED_PLATINUM_ORE.get(),
                 RecipeCategory.MISC,
                 ModItems.PLATINUM_NUGGET.get(),
                 0.0f,
@@ -92,10 +94,10 @@ public class ModRecipeProvider extends RecipeProvider {
                 "platinum"
         );
 
-        // Mythril Powder -> Mythril Nugget
+        // Crushed Mythril Ore -> Mythril Nugget
         oreBlasting(
                 recipeOutput,
-                ModItems.MYTHRIL_POWDER.get(),
+                ModItems.CRUSHED_MYTHRIL_ORE.get(),
                 RecipeCategory.MISC,
                 ModItems.MYTHRIL_NUGGET.get(),
                 0.0f,
@@ -103,37 +105,15 @@ public class ModRecipeProvider extends RecipeProvider {
                 "mythril"
         );
 
-        // Steel Powder -> Steel Nugget
+        // Steel Charge -> Steel Nugget
         oreBlasting(
                 recipeOutput,
-                ModItems.STEEL_POWDER.get(),
+                ModItems.STEEL_CHARGE.get(),
                 RecipeCategory.MISC,
                 ModItems.STEEL_NUGGET.get(),
                 0.0f,
                 100,
                 "steel"
-        );
-
-        // Raw Platinum -> Platinum Ingot
-        oreBlasting(
-                recipeOutput,
-                ModItems.RAW_PLATINUM.get(),
-                RecipeCategory.MISC,
-                ModItems.PLATINUM_INGOT.get(),
-                0.7f,
-                100,
-                "platinum"
-        );
-
-        // Raw Mythril -> Mythril Ingot
-        oreBlasting(
-                recipeOutput,
-                ModItems.RAW_MYTHRIL.get(),
-                RecipeCategory.MISC,
-                ModItems.MYTHRIL_INGOT.get(),
-                0.7f,
-                100,
-                "mythril"
         );
 
         // =========================
@@ -271,7 +251,7 @@ public class ModRecipeProvider extends RecipeProvider {
 
         ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, ModItems.STEEL_INGOT.get(), 9)
                 .requires(ModBlocks.STEEL_BLOCK.get())
-                .unlockedBy("has_platinum_block", has(ModBlocks.STEEL_BLOCK.get()))
+                .unlockedBy("has_steel_block", has(ModBlocks.STEEL_BLOCK.get()))
                 .save(recipeOutput, KatzencraftMetalsMod.MODID + ":steel_ingot_from_block");
 
         // Platinum
@@ -301,6 +281,19 @@ public class ModRecipeProvider extends RecipeProvider {
                 .requires(ModBlocks.MYTHRIL_BLOCK.get())
                 .unlockedBy("has_mythril_block", has(ModBlocks.MYTHRIL_BLOCK.get()))
                 .save(recipeOutput, KatzencraftMetalsMod.MODID + ":mythril_ingot_from_block");
+
+        // =========================
+        // CUT BUILDING BLOCK FAMILIES
+        // =========================
+
+        cutBlockFamily(
+                recipeOutput,
+                ModBlocks.STEEL_BLOCK.get(),
+                ModBlocks.CUT_STEEL_BLOCK.get(),
+                ModBlocks.CUT_STEEL_STAIRS.get(),
+                ModBlocks.CUT_STEEL_SLAB.get(),
+                "steel"
+        );
 
         // =========================
         // STEEL TOOLS
@@ -501,25 +494,26 @@ public class ModRecipeProvider extends RecipeProvider {
         // Iron
         CrusherRecipeBuilder.crushing(
                         Items.RAW_IRON,
-                        ModItems.IRON_POWDER.get(), 1)
+                        ModItems.CRUSHED_IRON_ORE.get(), 1)
                 .processingTime((300))
                 .save(recipeOutput, ResourceLocation.fromNamespaceAndPath(KatzencraftMetalsMod.MODID, "crusher/raw_iron")
                 );
 
-        // Platinum
+// Platinum
         CrusherRecipeBuilder.crushing(
-                ModItems.RAW_PLATINUM.get(),
-                ModItems.PLATINUM_POWDER.get(), 1)
-                    .processingTime((300))
-                    .secondOutput(Items.GOLD_NUGGET, 1, 0.25f)
-                    .thirdOutput(Items.DIAMOND, 1, 0.10f)
-                    .save(recipeOutput, ResourceLocation.fromNamespaceAndPath(KatzencraftMetalsMod.MODID, "crusher/raw_platinum")
-        );
+                        ModItems.RAW_PLATINUM.get(),
+                        ModItems.CRUSHED_PLATINUM_ORE.get(),
+                        1)
+                .processingTime(300)
+                .secondOutput(Items.GOLD_NUGGET, 1, 0.25f)
+                .thirdOutput(Items.DIAMOND, 1, 0.10f)
+                .save(recipeOutput, ResourceLocation.fromNamespaceAndPath(KatzencraftMetalsMod.MODID, "crusher/raw_platinum")
+                );
 
         // Mythril
         CrusherRecipeBuilder.crushing(
                 ModItems.RAW_MYTHRIL.get(),
-                ModItems.MYTHRIL_POWDER.get(), 1)
+                ModItems.CRUSHED_MYTHRIL_ORE.get(), 1)
                     .processingTime(300)
                     .save(recipeOutput, ResourceLocation.fromNamespaceAndPath(KatzencraftMetalsMod.MODID, "crusher/raw_mythril")
         );
@@ -574,5 +568,179 @@ public class ModRecipeProvider extends RecipeProvider {
                 .group(group)
                 .unlockedBy("has_" + input.builtInRegistryHolder().key().location().getPath(), has(input))
                 .save(recipeOutput, KatzencraftMetalsMod.MODID + ":" + result.builtInRegistryHolder().key().location().getPath() + "_from_blasting_" + input.builtInRegistryHolder().key().location().getPath());
+    }
+
+    // =========================
+    // CUT BLOCK FAMILY
+    // =========================
+    private void cutBlockFamily(
+            RecipeOutput recipeOutput,
+            Block baseBlock,
+            Block cutBlock,
+            Block stairs,
+            Block slab,
+            String materialName
+    ) {
+        String baseName = materialName + "_block";
+        String cutName = "cut_" + materialName + "_block";
+        String stairsName = "cut_" + materialName + "_stairs";
+        String slabName = "cut_" + materialName + "_slab";
+
+        // 4 base blocks -> 4 cut blocks
+        ShapedRecipeBuilder.shaped(
+                        RecipeCategory.BUILDING_BLOCKS,
+                        cutBlock,
+                        4
+                )
+                .pattern("BB")
+                .pattern("BB")
+                .define('B', baseBlock)
+                .unlockedBy(
+                        "has_" + baseName,
+                        has(baseBlock)
+                )
+                .save(recipeOutput);
+
+        // 6 cut blocks -> 4 stairs
+        ShapedRecipeBuilder.shaped(
+                        RecipeCategory.BUILDING_BLOCKS,
+                        stairs,
+                        4
+                )
+                .pattern("C  ")
+                .pattern("CC ")
+                .pattern("CCC")
+                .define('C', cutBlock)
+                .unlockedBy(
+                        "has_" + cutName,
+                        has(cutBlock)
+                )
+                .save(recipeOutput);
+
+        // 3 cut blocks -> 6 slabs
+        ShapedRecipeBuilder.shaped(
+                        RecipeCategory.BUILDING_BLOCKS,
+                        slab,
+                        6
+                )
+                .pattern("CCC")
+                .define('C', cutBlock)
+                .unlockedBy(
+                        "has_" + cutName,
+                        has(cutBlock)
+                )
+                .save(recipeOutput);
+
+        // =========================
+        // STONECUTTER: BASE BLOCK
+        // =========================
+
+        // 1 base block -> 4 cut blocks
+        SingleItemRecipeBuilder.stonecutting(
+                        Ingredient.of(baseBlock),
+                        RecipeCategory.BUILDING_BLOCKS,
+                        cutBlock,
+                        4
+                )
+                .unlockedBy(
+                        "has_" + baseName,
+                        has(baseBlock)
+                )
+                .save(
+                        recipeOutput,
+                        KatzencraftMetalsMod.MODID
+                                + ":"
+                                + cutName
+                                + "_from_"
+                                + baseName
+                                + "_stonecutting"
+                );
+
+        // 1 base block -> 4 cut stairs
+        SingleItemRecipeBuilder.stonecutting(
+                        Ingredient.of(baseBlock),
+                        RecipeCategory.BUILDING_BLOCKS,
+                        stairs,
+                        4
+                )
+                .unlockedBy(
+                        "has_" + baseName,
+                        has(baseBlock)
+                )
+                .save(
+                        recipeOutput,
+                        KatzencraftMetalsMod.MODID
+                                + ":"
+                                + stairsName
+                                + "_from_"
+                                + baseName
+                                + "_stonecutting"
+                );
+
+        // 1 base block -> 8 cut slabs
+        SingleItemRecipeBuilder.stonecutting(
+                        Ingredient.of(baseBlock),
+                        RecipeCategory.BUILDING_BLOCKS,
+                        slab,
+                        8
+                )
+                .unlockedBy(
+                        "has_" + baseName,
+                        has(baseBlock)
+                )
+                .save(
+                        recipeOutput,
+                        KatzencraftMetalsMod.MODID
+                                + ":"
+                                + slabName
+                                + "_from_"
+                                + baseName
+                                + "_stonecutting"
+                );
+
+        // =========================
+        // STONECUTTER: CUT BLOCK
+        // =========================
+
+        // 1 cut block -> 1 stair
+        SingleItemRecipeBuilder.stonecutting(
+                        Ingredient.of(cutBlock),
+                        RecipeCategory.BUILDING_BLOCKS,
+                        stairs
+                )
+                .unlockedBy(
+                        "has_" + cutName,
+                        has(cutBlock)
+                )
+                .save(
+                        recipeOutput,
+                        KatzencraftMetalsMod.MODID
+                                + ":"
+                                + stairsName
+                                + "_from_"
+                                + cutName
+                                + "_stonecutting"
+                );
+
+        // 1 cut block -> 2 slabs
+        SingleItemRecipeBuilder.stonecutting(
+                        Ingredient.of(cutBlock),
+                        RecipeCategory.BUILDING_BLOCKS,
+                        slab,
+                        2
+                )
+                .unlockedBy(
+                        "has_" + cutName,
+                        has(cutBlock)
+                )
+                .save(
+                        recipeOutput,
+                        KatzencraftMetalsMod.MODID
+                                + ":"
+                                + slabName
+                                + "_from_"
+                                + cutName
+                                + "_stonecutting"
+                );
     }
 }

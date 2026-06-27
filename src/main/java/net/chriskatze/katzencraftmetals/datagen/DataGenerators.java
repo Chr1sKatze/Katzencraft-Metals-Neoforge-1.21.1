@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-@EventBusSubscriber(modid = KatzencraftMetalsMod.MODID, bus = EventBusSubscriber.Bus.MOD)
+@EventBusSubscriber(modid = KatzencraftMetalsMod.MODID)
 public class DataGenerators {
 
     private static final RegistrySetBuilder BUILDER = new RegistrySetBuilder()

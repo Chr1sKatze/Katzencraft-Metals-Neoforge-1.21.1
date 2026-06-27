@@ -3,6 +3,7 @@ package net.chriskatze.katzencraftmetals.datagen;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.minecraft.core.Direction;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.state.properties.AttachFace;
@@ -10,6 +11,7 @@ import net.neoforged.neoforge.client.model.generators.BlockStateProvider;
 import net.neoforged.neoforge.client.model.generators.ConfiguredModel;
 import net.neoforged.neoforge.client.model.generators.ModelFile;
 import net.neoforged.neoforge.common.data.ExistingFileHelper;
+import net.chriskatze.katzencraftmetals.block.custom.CastingCauldronBlock;
 
 public class ModBlockStateProvider extends BlockStateProvider {
 
@@ -20,11 +22,17 @@ public class ModBlockStateProvider extends BlockStateProvider {
     @Override
     protected void registerStatesAndModels() {
         blockWithItem(ModBlocks.STEEL_BLOCK.get());
+        blockWithItem(ModBlocks.CUT_STEEL_BLOCK.get());
         customLever(ModBlocks.STEEL_LEVER.get(), "steel");
-        customButton(ModBlocks.STEEL_BUTTON.get(), "steel");
-        customPressurePlate(ModBlocks.STEEL_PRESSURE_PLATE.get(), "steel");
-        customTrapdoor((TrapDoorBlock) ModBlocks.STEEL_TRAPDOOR.get(), "steel");
-        customDoor((DoorBlock) ModBlocks.STEEL_DOOR.get(), "steel");
+        vanillaPressurePlate((PressurePlateBlock) ModBlocks.STEEL_PRESSURE_PLATE.get(), ModBlocks.STEEL_BLOCK.get());
+        vanillaDoor((DoorBlock) ModBlocks.STEEL_DOOR.get(), "steel");
+        vanillaChain((ChainBlock) ModBlocks.STEEL_CHAIN.get(), "steel");
+        vanillaBars((IronBarsBlock) ModBlocks.STEEL_BARS.get(), "steel");
+        vanillaStairs(ModBlocks.CUT_STEEL_STAIRS.get(), ModBlocks.CUT_STEEL_BLOCK.get());
+        vanillaSlab(ModBlocks.CUT_STEEL_SLAB.get(), ModBlocks.CUT_STEEL_BLOCK.get());
+        vanillaButton((ButtonBlock) ModBlocks.STEEL_BUTTON.get(), ModBlocks.STEEL_BLOCK.get());
+        vanillaTrapdoor((TrapDoorBlock) ModBlocks.STEEL_TRAPDOOR.get(), "steel");
+        vanillaLadder((LadderBlock) ModBlocks.STEEL_LADDER.get(), "steel");
 
         blockWithItem(ModBlocks.PLATINUM_BLOCK.get());
         blockWithItem(ModBlocks.PLATINUM_ORE.get());
@@ -39,6 +47,42 @@ public class ModBlockStateProvider extends BlockStateProvider {
         blockWithItem(ModBlocks.END_MYTHRIL_ORE.get());
 
         blockWithItem(ModBlocks.CRUSHER.get());
+        blockWithItem(ModBlocks.FUEL_CHAMBER.get());
+        ModelFile controllerModel = cubeAll(ModBlocks.FOUNDRY_CONTROLLER.get());
+        horizontalBlock(ModBlocks.FOUNDRY_CONTROLLER.get(), controllerModel);
+        simpleBlockItem(ModBlocks.FOUNDRY_CONTROLLER.get(), controllerModel);
+        blockWithItem(ModBlocks.FOUNDRY_TANK.get());
+        ModelFile castingCauldronModel =
+                new ModelFile.UncheckedModelFile(
+                        modLoc("block/casting_cauldron")
+                );
+
+        getVariantBuilder(
+                ModBlocks.CASTING_CAULDRON.get()
+        ).forAllStates(state ->
+                ConfiguredModel.builder()
+                        .modelFile(castingCauldronModel)
+                        .build()
+        );
+
+        simpleBlockItem(
+                ModBlocks.CASTING_CAULDRON.get(),
+                castingCauldronModel
+        );
+        ModelFile faucetModel =
+                new ModelFile.UncheckedModelFile(
+                        modLoc("block/foundry_faucet")
+                );
+
+        horizontalBlock(
+                ModBlocks.FOUNDRY_FAUCET.get(),
+                faucetModel
+        );
+
+        simpleBlockItem(
+                ModBlocks.FOUNDRY_FAUCET.get(),
+                faucetModel
+        );
     }
 
 
@@ -112,133 +156,57 @@ public class ModBlockStateProvider extends BlockStateProvider {
     }
 
     // =========================
-    // BUTTON
+    // VANILLA-STYLE PRESSURE PLATE
     // =========================
-    private void customButton(Block block, String textureName) {
-
-        ModelFile button =
-                models().withExistingParent(
-                                textureName + "_button",
-                                modLoc("block/custom_button")
-                        )
-                        .texture("button",
-                                modLoc("block/" + textureName + "_button"));
-
-        ModelFile buttonPressed =
-                models().withExistingParent(
-                                textureName + "_button_pressed",
-                                modLoc("block/custom_button_pressed")
-                        )
-                        .texture("button",
-                                modLoc("block/" + textureName + "_button"));
-
-        buttonBlockCustom(
-                (ButtonBlock) block,
-                button,
-                buttonPressed
-        );
-        itemModels().withExistingParent(
-                textureName + "_button",
-                modLoc("block/custom_button")
-        ).texture(
-                "button",
-                modLoc("block/" + textureName + "_button")
-        );
-    }
-
-    // fix for rotating UV
-    private void buttonBlockCustom(ButtonBlock block,
-                                   ModelFile button,
-                                   ModelFile buttonPressed) {
-
-        getVariantBuilder(block).forAllStates(state -> {
-
-            Direction facing = state.getValue(ButtonBlock.FACING);
-            AttachFace face = state.getValue(ButtonBlock.FACE);
-            boolean powered = state.getValue(ButtonBlock.POWERED);
-
-            return ConfiguredModel.builder()
-                    .modelFile(powered ? buttonPressed : button)
-                    .rotationX(
-                            face == AttachFace.FLOOR ? 0 :
-                                    face == AttachFace.WALL ? 90 :
-                                            180
-                    )
-                    .rotationY(
-                            (int)(
-                                    face == AttachFace.CEILING
-                                            ? facing
-                                            : facing.getOpposite()
-                            ).toYRot()
-                    )
-                    .uvLock(false)
-                    .build();
-        });
-    }
-
-    // =========================
-    // PRESSURE PLATE
-    // =========================
-    private void customPressurePlate(Block block, String textureName) {
-
-        ModelFile pressurePlateUp =
-                models().withExistingParent(
-                                textureName + "_pressure_plate",
-                                modLoc("block/custom_pressure_plate_up")
-                        )
-                        .texture("plate",
-                                modLoc("block/" + textureName + "_pressure_plate"));
-
-        ModelFile pressurePlateDown =
-                models().withExistingParent(
-                                textureName + "_pressure_plate_down",
-                                modLoc("block/custom_pressure_plate_down")
-                        )
-                        .texture("plate",
-                                modLoc("block/" + textureName + "_pressure_plate"));
-
+    private void vanillaPressurePlate(
+            PressurePlateBlock pressurePlate,
+            Block baseBlock
+    ) {
         pressurePlateBlock(
-                (PressurePlateBlock) block,
-                pressurePlateUp,
-                pressurePlateDown
+                pressurePlate,
+                blockTexture(baseBlock)
         );
+
         itemModels().withExistingParent(
-                textureName + "_pressure_plate",
-                modLoc("block/custom_pressure_plate_up")
-        ).texture(
-                "plate",
-                modLoc("block/" + textureName + "_pressure_plate")
+                blockName(pressurePlate),
+                modLoc("block/" + blockName(pressurePlate))
         );
     }
 
     // =========================
-    // TRAP DOOR
+    // VANILLA-STYLE TRAP DOOR
     // =========================
-    private void customTrapdoor(TrapDoorBlock block, String textureName) {
+    private void vanillaTrapdoor(TrapDoorBlock block, String textureName) {
 
         ModelFile bottom =
                 models().withExistingParent(
                                 textureName + "_trapdoor_bottom",
                                 mcLoc("block/template_trapdoor_bottom")
                         )
-                        .texture("texture",
-                                modLoc("block/" + textureName + "_trapdoor"));
+                        .texture(
+                                "texture",
+                                modLoc("block/" + textureName + "_trapdoor")
+                        );
 
         ModelFile top =
                 models().withExistingParent(
                                 textureName + "_trapdoor_top",
                                 mcLoc("block/template_trapdoor_top")
                         )
-                        .texture("texture",
-                                modLoc("block/" + textureName + "_trapdoor"));
+                        .texture(
+                                "texture",
+                                modLoc("block/" + textureName + "_trapdoor")
+                        );
 
         ModelFile open =
                 models().withExistingParent(
                                 textureName + "_trapdoor_open",
                                 mcLoc("block/template_trapdoor_open")
                         )
-                        .texture("texture",
-                                modLoc("block/" + textureName + "_trapdoor"));
+                        .texture(
+                                "texture",
+                                modLoc("block/" + textureName + "_trapdoor")
+                        );
 
         trapdoorBlock(
                 block,
@@ -255,9 +223,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
     }
 
     // =========================
-    // DOOR
+    // VANILLA-STYLE DOOR
     // =========================
-    private void customDoor(DoorBlock block, String textureName) {
+    private void vanillaDoor(DoorBlock block, String textureName) {
 
         doorBlockWithRenderType(
                 block,
@@ -267,6 +235,150 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 "cutout"
         );
         simpleItemTexture(textureName + "_door");
+    }
+
+    // =========================
+    // VANILLA-STYLE CHAINS
+    // =========================
+    private void vanillaChain(ChainBlock block, String textureName) {
+
+        ModelFile chain =
+                models().withExistingParent(
+                                textureName + "_chain",
+                                mcLoc("block/chain")
+                        )
+                        .texture(
+                                "all",
+                                modLoc("block/" + textureName + "_chain")
+                        );
+
+        axisBlock(
+                block,
+                chain,
+                chain
+        );
+
+        simpleBlockItem(
+                block,
+                chain
+        );
+    }
+
+    // =========================
+    // VANILLA-STYLE BARS
+    // =========================
+    private void vanillaBars(IronBarsBlock block, String textureName) {
+
+        paneBlock(
+                block,
+                modLoc("block/" + textureName + "_bars"),
+                modLoc("block/" + textureName + "_bars")
+        );
+
+        itemModels().withExistingParent(
+                textureName + "_bars",
+                mcLoc("item/generated")
+        ).texture(
+                "layer0",
+                modLoc("block/" + textureName + "_bars")
+        );
+    }
+
+    // =========================
+    // VANILLA-STYLE STAIRS
+    // =========================
+    private void vanillaStairs(StairBlock stairs, Block baseBlock) {
+
+        String stairsName = blockName(stairs);
+
+        stairsBlock(
+                stairs,
+                blockTexture(baseBlock)
+        );
+
+        itemModels().withExistingParent(
+                stairsName,
+                modLoc("block/" + stairsName)
+        );
+    }
+
+    // =========================
+    // VANILLA-STYLE SLABS
+    // =========================
+    private void vanillaSlab(SlabBlock slab, Block baseBlock) {
+
+        String slabName = blockName(slab);
+        String baseBlockName = blockName(baseBlock);
+
+        slabBlock(
+                slab,
+                modLoc("block/" + baseBlockName),
+                blockTexture(baseBlock)
+        );
+
+        itemModels().withExistingParent(
+                slabName,
+                modLoc("block/" + slabName)
+        );
+    }
+
+    // =========================
+    // VANILLA-STYLE BUTTON
+    // =========================
+    private void vanillaButton(ButtonBlock button, Block baseBlock) {
+
+        buttonBlock(
+                button,
+                blockTexture(baseBlock)
+        );
+
+        itemModels().buttonInventory(
+                blockName(button),
+                blockTexture(baseBlock)
+        );
+    }
+
+    // =========================
+    // VANILLA-STYLE LADDER
+    // =========================
+    private void vanillaLadder(
+            LadderBlock ladder,
+            String textureName
+    ) {
+        String ladderName = blockName(ladder);
+
+        ModelFile ladderModel =
+                models().withExistingParent(
+                                ladderName,
+                                mcLoc("block/ladder")
+                        )
+                        .texture(
+                                "texture",
+                                modLoc("block/" + textureName + "_ladder")
+                        )
+                        .renderType("cutout");
+
+        horizontalBlock(
+                ladder,
+                ladderModel
+        );
+
+        itemModels().singleTexture(
+                ladderName,
+                mcLoc("item/generated"),
+                "layer0",
+                modLoc("block/" + textureName + "_ladder")
+        );
+    }
+
+    // =========================
+    // BLOCK NAME HELPER
+    // =========================
+    private String blockName(Block block) {
+
+        return BuiltInRegistries.BLOCK
+                .getKey(block)
+                .getPath();
     }
 
     // =========================

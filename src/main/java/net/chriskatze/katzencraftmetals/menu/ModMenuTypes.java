@@ -17,6 +17,21 @@ public class ModMenuTypes {
             MENUS.register("crusher_menu",
                     () -> IMenuTypeExtension.create(CrusherMenu::new));
 
+    public static final Supplier<MenuType<FuelChamberMenu>> FUEL_CHAMBER_MENU =
+            MENUS.register(
+                    "fuel_chamber_menu",
+                    () -> IMenuTypeExtension.create(FuelChamberMenu::new)
+            );
+
+    public static final Supplier<MenuType<FoundryControllerMenu>>
+            FOUNDRY_CONTROLLER_MENU =
+            MENUS.register(
+                    "foundry_controller_menu",
+                    () -> IMenuTypeExtension.create(
+                            FoundryControllerMenu::new
+                    )
+            );
+
     public static final Supplier<MenuType<KatzencraftAnvilMenu>> KATZENCRAFT_ANVIL_MENU =
             MENUS.register("katzencraft_anvil_menu",
                     () -> IMenuTypeExtension.create((containerId, inventory, extraData) ->

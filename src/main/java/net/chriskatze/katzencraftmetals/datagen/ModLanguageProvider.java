@@ -17,21 +17,21 @@ public class ModLanguageProvider extends LanguageProvider {
         // Items
         add(ModItems.CRUSHED_COAL.get(), "Crushed Coal");
 
-        add(ModItems.IRON_POWDER.get(), "Iron Powder");
+        add(ModItems.CRUSHED_IRON_ORE.get(), "Crushed Iron Ore");
 
         add(ModItems.STEEL_NUGGET.get(), "Steel Nugget");
         add(ModItems.STEEL_INGOT.get(), "Steel Ingot");
-        add(ModItems.STEEL_POWDER.get(), "Steel Powder");
+        add(ModItems.STEEL_CHARGE.get(), "Steel Charge");
 
         add(ModItems.PLATINUM_NUGGET.get(), "Platinum Nugget");
         add(ModItems.RAW_PLATINUM.get(), "Raw Platinum");
         add(ModItems.PLATINUM_INGOT.get(), "Platinum Ingot");
-        add(ModItems.PLATINUM_POWDER.get(), "Platinum Powder");
+        add(ModItems.CRUSHED_PLATINUM_ORE.get(), "Crushed Platinum Ore");
 
         add(ModItems.MYTHRIL_NUGGET.get(), "Mythril Nugget");
         add(ModItems.RAW_MYTHRIL.get(), "Raw Mythril");
         add(ModItems.MYTHRIL_INGOT.get(), "Mythril Ingot");
-        add(ModItems.MYTHRIL_POWDER.get(), "Mythril Powder");
+        add(ModItems.CRUSHED_MYTHRIL_ORE.get(), "Crushed mythril Ore");
 
         add(ModItems.SAPPHIRE_GEM.get(), "Sapphire");
         add(ModItems.AMETHYST_GEM.get(), "Amethyst");
@@ -45,6 +45,7 @@ public class ModLanguageProvider extends LanguageProvider {
         add(ModItems.STEEL_CHESTPLATE.get(), "Steel Chestplate");
         add(ModItems.STEEL_LEGGINGS.get(), "Steel Leggings");
         add(ModItems.STEEL_BOOTS.get(), "Steel Boots");
+        add(ModItems.STEEL_HORSE_ARMOR.get(), "Steel Horse Armor");
 
         add(ModItems.MYTHRIL_SWORD.get(), "Mythril Sword");
         add(ModItems.MYTHRIL_PICKAXE.get(), "Mythril Pickaxe");
@@ -58,6 +59,17 @@ public class ModLanguageProvider extends LanguageProvider {
 
         // Blocks
         add(ModBlocks.STEEL_BLOCK.get(), "Steel Block");
+        add(ModBlocks.CUT_STEEL_BLOCK.get(), "Cut Steel Block");
+        add(ModBlocks.STEEL_TRAPDOOR.get(), "Steel Trapdoor");
+        add(ModBlocks.STEEL_DOOR.get(), "Steel Door");
+        add(ModBlocks.STEEL_CHAIN.get(), "Steel Chain");
+        add(ModBlocks.STEEL_BARS.get(), "Steel Bars");
+        add(ModBlocks.STEEL_BUTTON.get(), "Steel Button");
+        add(ModBlocks.STEEL_LEVER.get(), "Steel Lever");
+        add(ModBlocks.STEEL_PRESSURE_PLATE.get(), "Steel Pressure Plate");
+        add(ModBlocks.CUT_STEEL_STAIRS.get(), "Cut Steel Stairs");
+        add(ModBlocks.CUT_STEEL_SLAB.get(), "Cut Steel Slab");
+        add(ModBlocks.STEEL_LADDER.get(), "Steel Ladder");
 
         add(ModBlocks.PLATINUM_BLOCK.get(), "Platinum Block");
         add(ModBlocks.PLATINUM_ORE.get(), "Platinum Ore");
@@ -72,5 +84,10 @@ public class ModLanguageProvider extends LanguageProvider {
         add(ModBlocks.END_MYTHRIL_ORE.get(), "End Mythril Ore");
 
         add(ModBlocks.CRUSHER.get(), "Crusher");
+        add(ModBlocks.FUEL_CHAMBER.get(), "Fuel Chamber");
+        add(ModBlocks.FOUNDRY_CONTROLLER.get(), "Foundry Controller");
+        add(ModBlocks.FOUNDRY_TANK.get(), "Foundry Tank");
+        add(ModBlocks.CASTING_CAULDRON.get(), "Casting Cauldron");
+        add(ModBlocks.FOUNDRY_FAUCET.get(), "Foundry Faucet");
     }
 }

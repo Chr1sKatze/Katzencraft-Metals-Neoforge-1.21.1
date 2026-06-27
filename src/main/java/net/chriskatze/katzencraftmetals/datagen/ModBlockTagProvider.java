@@ -38,13 +38,25 @@ public class ModBlockTagProvider extends BlockTagsProvider {
                         ModBlocks.END_MYTHRIL_ORE.get(),
 
                         ModBlocks.STEEL_BLOCK.get(),
+                        ModBlocks.CUT_STEEL_BLOCK.get(),
+                        ModBlocks.CUT_STEEL_SLAB.get(),
+                        ModBlocks.CUT_STEEL_STAIRS.get(),
                         ModBlocks.STEEL_BARS.get(),
                         ModBlocks.STEEL_CHAIN.get(),
                         ModBlocks.STEEL_PRESSURE_PLATE.get(),
                         ModBlocks.STEEL_BUTTON.get(),
                         ModBlocks.STEEL_LEVER.get(),
                         ModBlocks.STEEL_DOOR.get(),
-                        ModBlocks.STEEL_TRAPDOOR.get()
+                        ModBlocks.STEEL_TRAPDOOR.get(),
+
+                        ModBlocks.FUEL_CHAMBER.get(),
+                        ModBlocks.FOUNDRY_CONTROLLER.get(),
+                        ModBlocks.FOUNDRY_TANK.get(),
+                        ModBlocks.CASTING_CAULDRON.get(),
+                        ModBlocks.FOUNDRY_FAUCET.get()
                 );
+
+        tag(BlockTags.CLIMBABLE)
+                .add(ModBlocks.STEEL_LADDER.get());
     }
 }

@@ -17,21 +17,21 @@ public class ModItemModelProvider extends ItemModelProvider {
 
         basicItem(ModItems.CRUSHED_COAL.get());
 
-        basicItem(ModItems.IRON_POWDER.get());
+        basicItem(ModItems.CRUSHED_IRON_ORE.get());
 
         basicItem(ModItems.STEEL_NUGGET.get());
         basicItem(ModItems.STEEL_INGOT.get());
-        basicItem(ModItems.STEEL_POWDER.get());
+        basicItem(ModItems.STEEL_CHARGE.get());
 
         basicItem(ModItems.PLATINUM_NUGGET.get());
         basicItem(ModItems.RAW_PLATINUM.get());
         basicItem(ModItems.PLATINUM_INGOT.get());
-        basicItem(ModItems.PLATINUM_POWDER.get());
+        basicItem(ModItems.CRUSHED_PLATINUM_ORE.get());
 
         basicItem(ModItems.MYTHRIL_NUGGET.get());
         basicItem(ModItems.RAW_MYTHRIL.get());
         basicItem(ModItems.MYTHRIL_INGOT.get());
-        basicItem(ModItems.MYTHRIL_POWDER.get());
+        basicItem(ModItems.CRUSHED_MYTHRIL_ORE.get());
 
         basicItem(ModItems.SAPPHIRE_GEM.get());
         basicItem(ModItems.AMETHYST_GEM.get());
@@ -45,6 +45,7 @@ public class ModItemModelProvider extends ItemModelProvider {
         basicItem(ModItems.STEEL_CHESTPLATE.get());
         basicItem(ModItems.STEEL_LEGGINGS.get());
         basicItem(ModItems.STEEL_BOOTS.get());
+        basicItem(ModItems.STEEL_HORSE_ARMOR.get());
 
         handheldItem(ModItems.MYTHRIL_PICKAXE);
         handheldItem(ModItems.MYTHRIL_AXE);

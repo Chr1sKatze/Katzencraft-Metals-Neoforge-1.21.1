@@ -6,9 +6,6 @@ import net.minecraft.world.item.*;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
-import net.neoforged.neoforge.common.SimpleTier;
-
-import java.util.function.Supplier;
 
 public class ModItems {
 
@@ -26,8 +23,8 @@ public class ModItems {
     // IRON
     // =========================
 
-    public static final DeferredItem<Item> IRON_POWDER =
-            ITEMS.registerSimpleItem("iron_powder");
+    public static final DeferredItem<Item> CRUSHED_IRON_ORE =
+            ITEMS.registerSimpleItem("crushed_iron_ore");
 
     // =========================
     // STEEL
@@ -39,29 +36,32 @@ public class ModItems {
     public static final DeferredItem<Item> STEEL_INGOT =
             ITEMS.registerSimpleItem("steel_ingot");
 
-    public static final DeferredItem<Item> STEEL_POWDER =
-            ITEMS.registerSimpleItem("steel_powder");
+    public static final DeferredItem<Item> STEEL_CHARGE =
+            ITEMS.registerSimpleItem("steel_charge");
 
-    public static final DeferredItem<BlockItem> STEEL_BARS =
-            ITEMS.registerSimpleBlockItem("steel_bars", ModBlocks.STEEL_BARS);
+    public static final DeferredItem<BlockItem> STEEL_DOOR_ITEM =
+            ITEMS.registerSimpleBlockItem(ModBlocks.STEEL_DOOR);
 
-    public static final DeferredItem<BlockItem> STEEL_CHAIN =
-            ITEMS.registerSimpleBlockItem("steel_chain", ModBlocks.STEEL_CHAIN);
+    public static final DeferredItem<BlockItem> STEEL_TRAPDOOR_ITEM =
+            ITEMS.registerSimpleBlockItem(ModBlocks.STEEL_TRAPDOOR);
 
-    public static final DeferredItem<BlockItem> STEEL_PRESSURE_PLATE =
-            ITEMS.registerSimpleBlockItem("steel_pressure_plate", ModBlocks.STEEL_PRESSURE_PLATE);
+    public static final DeferredItem<BlockItem> STEEL_LEVER_ITEM =
+            ITEMS.registerSimpleBlockItem(ModBlocks.STEEL_LEVER);
 
-    public static final DeferredItem<BlockItem> STEEL_BUTTON =
-            ITEMS.registerSimpleBlockItem("steel_button", ModBlocks.STEEL_BUTTON);
+    public static final DeferredItem<BlockItem> STEEL_BARS_ITEM =
+            ITEMS.registerSimpleBlockItem(ModBlocks.STEEL_BARS);
 
-    public static final DeferredItem<BlockItem> STEEL_LEVER =
-            ITEMS.registerSimpleBlockItem("steel_lever", ModBlocks.STEEL_LEVER);
+    public static final DeferredItem<BlockItem> STEEL_CHAIN_ITEM =
+            ITEMS.registerSimpleBlockItem(ModBlocks.STEEL_CHAIN);
 
-    public static final DeferredItem<BlockItem> STEEL_DOOR =
-            ITEMS.registerSimpleBlockItem("steel_door", ModBlocks.STEEL_DOOR);
+    public static final DeferredItem<BlockItem> STEEL_PRESSURE_PLATE_ITEM =
+            ITEMS.registerSimpleBlockItem(ModBlocks.STEEL_PRESSURE_PLATE);
 
-    public static final DeferredItem<BlockItem> STEEL_TRAPDOOR =
-            ITEMS.registerSimpleBlockItem("steel_trapdoor", ModBlocks.STEEL_TRAPDOOR);
+    public static final DeferredItem<BlockItem> STEEL_BUTTON_ITEM =
+            ITEMS.registerSimpleBlockItem(ModBlocks.STEEL_BUTTON);
+
+    public static final DeferredItem<BlockItem> STEEL_LADDER_ITEM =
+            ITEMS.registerSimpleBlockItem(ModBlocks.STEEL_LADDER);
 
     // =========================
     // PLATINUM
@@ -76,8 +76,8 @@ public class ModItems {
     public static final DeferredItem<Item> PLATINUM_INGOT =
             ITEMS.registerSimpleItem("platinum_ingot");
 
-    public static final DeferredItem<Item> PLATINUM_POWDER =
-            ITEMS.registerSimpleItem("platinum_powder");
+    public static final DeferredItem<Item> CRUSHED_PLATINUM_ORE =
+            ITEMS.registerSimpleItem("crushed_platinum_ore");
 
     // =========================
     // MYTHRIL
@@ -92,8 +92,8 @@ public class ModItems {
     public static final DeferredItem<Item> MYTHRIL_INGOT =
             ITEMS.registerSimpleItem("mythril_ingot");
 
-    public static final DeferredItem<Item> MYTHRIL_POWDER =
-            ITEMS.registerSimpleItem("mythril_powder");
+    public static final DeferredItem<Item> CRUSHED_MYTHRIL_ORE =
+            ITEMS.registerSimpleItem("crushed_mythril_ore");
 
     // =========================
     // GEMS
@@ -226,6 +226,18 @@ public class ModItems {
                                             ArmorItem.Type.HELMET.getDurability(24)
                                     )
                     ));
+
+    public static final DeferredItem<AnimalArmorItem> STEEL_HORSE_ARMOR =
+            ITEMS.register(
+                    "steel_horse_armor",
+                    () -> new AnimalArmorItem(
+                            ModArmorMaterials.STEEL,
+                            AnimalArmorItem.BodyType.EQUESTRIAN,
+                            false,
+                            new Item.Properties().stacksTo(1)
+                    )
+            );
+
 
     // =========================
     // MYTHRIL TOOLS

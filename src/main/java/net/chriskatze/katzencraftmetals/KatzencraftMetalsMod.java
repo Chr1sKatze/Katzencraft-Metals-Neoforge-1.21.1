@@ -7,23 +7,16 @@ import net.chriskatze.katzencraftmetals.config.CatoToolTierConfig;
 import net.chriskatze.katzencraftmetals.item.ModItems;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
 import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
-import net.chriskatze.katzencraftmetals.screen.CrusherScreen;
-import net.chriskatze.katzencraftmetals.screen.KatzencraftAnvilScreen;
 import net.chriskatze.katzencraftmetals.world.KatzencraftWorldRulesData;
-import net.minecraft.client.Minecraft;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
-import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.config.ModConfig;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.BuildCreativeModeTabContentsEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
@@ -68,21 +61,21 @@ public class KatzencraftMetalsMod {
 
             event.accept(ModItems.CRUSHED_COAL);
 
-            event.accept(ModItems.IRON_POWDER);
+            event.accept(ModItems.CRUSHED_IRON_ORE);
 
             event.accept(ModItems.STEEL_NUGGET);
             event.accept(ModItems.STEEL_INGOT);
-            event.accept(ModItems.STEEL_POWDER);
+            event.accept(ModItems.STEEL_CHARGE);
 
             event.accept(ModItems.PLATINUM_NUGGET);
             event.accept(ModItems.RAW_PLATINUM);
             event.accept(ModItems.PLATINUM_INGOT);
-            event.accept(ModItems.PLATINUM_POWDER);
+            event.accept(ModItems.CRUSHED_PLATINUM_ORE);
 
             event.accept(ModItems.MYTHRIL_NUGGET);
             event.accept(ModItems.RAW_MYTHRIL);
             event.accept(ModItems.MYTHRIL_INGOT);
-            event.accept(ModItems.MYTHRIL_POWDER);
+            event.accept(ModItems.CRUSHED_MYTHRIL_ORE);
 
             event.accept(ModItems.SAPPHIRE_GEM);
             event.accept(ModItems.AMETHYST_GEM);
@@ -96,6 +89,9 @@ public class KatzencraftMetalsMod {
             event.accept(ModBlocks.MYTHRIL_BLOCK);
 
             event.accept(ModBlocks.STEEL_BLOCK);
+            event.accept(ModBlocks.CUT_STEEL_BLOCK);
+            event.accept(ModBlocks.CUT_STEEL_SLAB);
+            event.accept(ModBlocks.CUT_STEEL_STAIRS);
             event.accept(ModBlocks.STEEL_DOOR);
             event.accept(ModBlocks.STEEL_TRAPDOOR);
             event.accept(ModBlocks.STEEL_LEVER);
@@ -103,6 +99,7 @@ public class KatzencraftMetalsMod {
             event.accept(ModBlocks.STEEL_CHAIN);
             event.accept(ModBlocks.STEEL_PRESSURE_PLATE);
             event.accept(ModBlocks.STEEL_BUTTON);
+            event.accept(ModBlocks.STEEL_LADDER);
         }
 
         // NATURAL BLOCKS
@@ -122,6 +119,11 @@ public class KatzencraftMetalsMod {
         // FUNCTIONAL BLOCKS
         if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
             event.accept(ModBlocks.CRUSHER);
+            event.accept(ModBlocks.FUEL_CHAMBER);
+            event.accept(ModBlocks.FOUNDRY_CONTROLLER);
+            event.accept(ModBlocks.FOUNDRY_TANK);
+            event.accept(ModBlocks.CASTING_CAULDRON);
+            event.accept(ModBlocks.FOUNDRY_FAUCET);
         }
 
         // COMBAT
@@ -132,6 +134,7 @@ public class KatzencraftMetalsMod {
             event.accept(ModItems.STEEL_CHESTPLATE);
             event.accept(ModItems.STEEL_LEGGINGS);
             event.accept(ModItems.STEEL_BOOTS);
+            event.accept(ModItems.STEEL_HORSE_ARMOR);
 
             event.accept(ModItems.MYTHRIL_SWORD);
             event.accept(ModItems.MYTHRIL_HELMET);
