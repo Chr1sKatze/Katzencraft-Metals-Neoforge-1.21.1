@@ -9,16 +9,23 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
+import java.util.UUID;
 
 /**
  * Client-side visual connection rules for Foundry Tanks.
  *
- * Two directly adjacent Tanks connect visually when their persistent
- * Controller owner IDs are equal. This includes null IDs, so one physically
- * connected orphan section still renders as one visual multiblock.
+ * Two directly adjacent Tanks connect visually when they belong to the same
+ * logical Tank layout:
  *
- * Touching Tanks owned by different Controllers retain separate faces.
+ * - active Tanks compare their persistent Controller owner UUID
+ * - unassigned Tanks compare their persistent orphan-layout UUID
+ *
+ * This allows two physically touching orphan layouts to retain separate
+ * exterior frames.
+ *
+ * Older saved orphan Tanks that do not yet have an orphan-layout UUID keep
+ * the previous null-to-null connection behavior until a newly placed Tank
+ * causes that legacy section to be migrated.
  */
 public final class FoundryTankVisualConnections {
 
@@ -175,9 +182,48 @@ public final class FoundryTankVisualConnections {
             return null;
         }
 
-        return Objects.equals(
-                originTank.getNetworkId(),
-                otherTank.getNetworkId()
+        UUID originNetworkId =
+                originTank.getNetworkId();
+
+        UUID otherNetworkId =
+                otherTank.getNetworkId();
+
+        /*
+         * If either Tank belongs to an active/owned network, only the
+         * Controller UUID determines the connection.
+         */
+        if (
+                originNetworkId != null
+                        || otherNetworkId != null
+        ) {
+            return originNetworkId != null
+                    && originNetworkId.equals(
+                    otherNetworkId
+            )
+                    ? otherTank
+                    : null;
+        }
+
+        UUID originOrphanLayoutId =
+                originTank.getOrphanLayoutId();
+
+        UUID otherOrphanLayoutId =
+                otherTank.getOrphanLayoutId();
+
+        /*
+         * Backward compatibility for old worlds: two legacy orphan Tanks with
+         * no layout UUID still connect exactly as before.
+         */
+        if (
+                originOrphanLayoutId == null
+                        && otherOrphanLayoutId == null
+        ) {
+            return otherTank;
+        }
+
+        return originOrphanLayoutId != null
+                && originOrphanLayoutId.equals(
+                otherOrphanLayoutId
         )
                 ? otherTank
                 : null;

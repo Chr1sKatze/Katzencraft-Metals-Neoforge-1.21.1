@@ -37,6 +37,20 @@ public class FoundryTankBlockEntity extends BlockEntity {
     @Nullable
     private UUID networkId;
 
+    /*
+     * Persistent identity of an unassigned Tank layout.
+     *
+     * This is deliberately separate from networkId:
+     *
+     * - networkId belongs to an active Foundry Controller
+     * - orphanLayoutId belongs to a free-standing Tank layout
+     *
+     * Two touching orphan layouts can therefore remain visually and
+     * structurally separate.
+     */
+    @Nullable
+    private UUID orphanLayoutId;
+
     @Nullable
     private ResourceLocation storedMetal;
 
@@ -112,6 +126,29 @@ public class FoundryTankBlockEntity extends BlockEntity {
 
         this.networkId =
                 networkId;
+
+        invalidateNetworkCache();
+        setChanged();
+        syncToClient();
+    }
+
+    @Nullable
+    public UUID getOrphanLayoutId() {
+        return orphanLayoutId;
+    }
+
+    public void setOrphanLayoutId(
+            @Nullable UUID orphanLayoutId
+    ) {
+        if (Objects.equals(
+                this.orphanLayoutId,
+                orphanLayoutId
+        )) {
+            return;
+        }
+
+        this.orphanLayoutId =
+                orphanLayoutId;
 
         invalidateNetworkCache();
         setChanged();
@@ -352,6 +389,13 @@ public class FoundryTankBlockEntity extends BlockEntity {
             );
         }
 
+        if (orphanLayoutId != null) {
+            tag.putString(
+                    "TankOrphanLayoutId",
+                    orphanLayoutId.toString()
+            );
+        }
+
         if (storedMetal != null) {
             tag.putString(
                     "StoredMetal",
@@ -376,6 +420,7 @@ public class FoundryTankBlockEntity extends BlockEntity {
         );
 
         networkId = null;
+        orphanLayoutId = null;
         storedMetal = null;
         moltenAmount = 0;
 
@@ -389,6 +434,19 @@ public class FoundryTankBlockEntity extends BlockEntity {
                         );
             } catch (IllegalArgumentException ignored) {
                 networkId = null;
+            }
+        }
+
+        if (tag.contains("TankOrphanLayoutId")) {
+            try {
+                orphanLayoutId =
+                        UUID.fromString(
+                                tag.getString(
+                                        "TankOrphanLayoutId"
+                                )
+                        );
+            } catch (IllegalArgumentException ignored) {
+                orphanLayoutId = null;
             }
         }
 

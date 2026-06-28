@@ -13,7 +13,6 @@ import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import org.jetbrains.annotations.Nullable;
 
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -44,10 +43,10 @@ public class FoundryTankBlockEntityRenderer
                     "textures/block/foundry_tank_top.png"
             );
 
-    private static final ResourceLocation FAUCET_ARCH_TEXTURE =
+    private static final ResourceLocation FAUCET_OVERLAY_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(
                     KatzencraftMetalsMod.MODID,
-                    "textures/block/foundry_tank_faucet_arch.png"
+                    "textures/block/foundry_tank_faucet_overlay.png"
             );
 
     private static final ResourceLocation MOLTEN_IRON_TEXTURE =
@@ -277,7 +276,7 @@ public class FoundryTankBlockEntityRenderer
         VertexConsumer archConsumer =
                 bufferSource.getBuffer(
                         RenderType.entityCutoutNoCull(
-                                FAUCET_ARCH_TEXTURE
+                                FAUCET_OVERLAY_TEXTURE
                         )
                 );
 
