@@ -49,12 +49,44 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
                     12, 6, 16
             ),
             Block.box(
-                    4, 6, 10,
-                    6, 10, 16
+                    10, 6, 12,
+                    12, 10, 16
             ),
             Block.box(
                     10, 6, 10,
-                    12, 10, 16
+                    12, 8, 12
+            ),
+            Block.box(
+                    4, 6, 10,
+                    6, 8, 12
+            ),
+            Block.box(
+                    4, 6, 12,
+                    6, 10, 16
+            ),
+            Block.box(
+                    4, 10, 15,
+                    6, 11, 16
+            ),
+            Block.box(
+                    5, 12, 15,
+                    11, 13, 16
+            ),
+            Block.box(
+                    6, 13, 15,
+                    10, 14, 16
+            ),
+            Block.box(
+                    9, 11, 15,
+                    12, 12, 16
+            ),
+            Block.box(
+                    4, 11, 15,
+                    7, 12, 16
+            ),
+            Block.box(
+                    10, 10, 15,
+                    12, 11, 16
             )
     );
 
@@ -64,12 +96,44 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
                     12, 6, 6
             ),
             Block.box(
-                    4, 6, 0,
-                    6, 10, 6
+                    10, 6, 0,
+                    12, 10, 4
             ),
             Block.box(
-                    10, 6, 0,
-                    12, 10, 6
+                    10, 6, 4,
+                    12, 8, 6
+            ),
+            Block.box(
+                    4, 6, 4,
+                    6, 8, 6
+            ),
+            Block.box(
+                    4, 6, 0,
+                    6, 10, 4
+            ),
+            Block.box(
+                    4, 10, 0,
+                    6, 11, 1
+            ),
+            Block.box(
+                    5, 12, 0,
+                    11, 13, 1
+            ),
+            Block.box(
+                    6, 13, 0,
+                    10, 14, 1
+            ),
+            Block.box(
+                    9, 11, 0,
+                    12, 12, 1
+            ),
+            Block.box(
+                    4, 11, 0,
+                    7, 12, 1
+            ),
+            Block.box(
+                    10, 10, 0,
+                    12, 11, 1
             )
     );
 
@@ -79,12 +143,44 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
                     6, 6, 12
             ),
             Block.box(
-                    0, 6, 4,
-                    6, 10, 6
+                    0, 6, 10,
+                    4, 10, 12
             ),
             Block.box(
-                    0, 6, 10,
-                    6, 10, 12
+                    4, 6, 10,
+                    6, 8, 12
+            ),
+            Block.box(
+                    4, 6, 4,
+                    6, 8, 6
+            ),
+            Block.box(
+                    0, 6, 4,
+                    4, 10, 6
+            ),
+            Block.box(
+                    0, 10, 4,
+                    1, 11, 6
+            ),
+            Block.box(
+                    0, 12, 5,
+                    1, 13, 11
+            ),
+            Block.box(
+                    0, 13, 6,
+                    1, 14, 10
+            ),
+            Block.box(
+                    0, 11, 9,
+                    1, 12, 12
+            ),
+            Block.box(
+                    0, 11, 4,
+                    1, 12, 7
+            ),
+            Block.box(
+                    0, 10, 10,
+                    1, 11, 12
             )
     );
 
@@ -94,12 +190,44 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
                     16, 6, 12
             ),
             Block.box(
-                    10, 6, 4,
+                    12, 6, 4,
                     16, 10, 6
             ),
             Block.box(
+                    10, 6, 4,
+                    12, 8, 6
+            ),
+            Block.box(
                     10, 6, 10,
+                    12, 8, 12
+            ),
+            Block.box(
+                    12, 6, 10,
                     16, 10, 12
+            ),
+            Block.box(
+                    15, 10, 10,
+                    16, 11, 12
+            ),
+            Block.box(
+                    15, 12, 5,
+                    16, 13, 11
+            ),
+            Block.box(
+                    15, 13, 6,
+                    16, 14, 10
+            ),
+            Block.box(
+                    15, 11, 4,
+                    16, 12, 7
+            ),
+            Block.box(
+                    15, 11, 9,
+                    16, 12, 12
+            ),
+            Block.box(
+                    15, 10, 4,
+                    16, 11, 6
             )
     );
 
