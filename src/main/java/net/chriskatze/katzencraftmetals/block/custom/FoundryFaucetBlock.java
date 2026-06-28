@@ -231,6 +231,36 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             )
     );
 
+    /*
+     * Larger targeting shapes make the complete visible Faucet area clickable,
+     * including the empty space inside its arch.
+     *
+     * Physical collision continues to use the detailed SHAPE_* definitions.
+     */
+    private static final VoxelShape SELECTION_SHAPE_NORTH =
+            Block.box(
+                    4, 4, 10,
+                    12, 14, 16
+            );
+
+    private static final VoxelShape SELECTION_SHAPE_SOUTH =
+            Block.box(
+                    4, 4, 0,
+                    12, 14, 6
+            );
+
+    private static final VoxelShape SELECTION_SHAPE_EAST =
+            Block.box(
+                    0, 4, 4,
+                    6, 14, 12
+            );
+
+    private static final VoxelShape SELECTION_SHAPE_WEST =
+            Block.box(
+                    10, 4, 4,
+                    16, 14, 12
+            );
+
     public FoundryFaucetBlock(Properties properties) {
         super(properties);
 
@@ -485,11 +515,11 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             CollisionContext context
     ) {
         return switch (state.getValue(FACING)) {
-            case NORTH -> SHAPE_NORTH;
-            case SOUTH -> SHAPE_SOUTH;
-            case EAST -> SHAPE_EAST;
-            case WEST -> SHAPE_WEST;
-            default -> SHAPE_NORTH;
+            case NORTH -> SELECTION_SHAPE_NORTH;
+            case SOUTH -> SELECTION_SHAPE_SOUTH;
+            case EAST -> SELECTION_SHAPE_EAST;
+            case WEST -> SELECTION_SHAPE_WEST;
+            default -> SELECTION_SHAPE_NORTH;
         };
     }
 
@@ -500,11 +530,12 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             BlockPos pos,
             CollisionContext context
     ) {
-        return getShape(
-                state,
-                level,
-                pos,
-                context
-        );
+        return switch (state.getValue(FACING)) {
+            case NORTH -> SHAPE_NORTH;
+            case SOUTH -> SHAPE_SOUTH;
+            case EAST -> SHAPE_EAST;
+            case WEST -> SHAPE_WEST;
+            default -> SHAPE_NORTH;
+        };
     }
 }
