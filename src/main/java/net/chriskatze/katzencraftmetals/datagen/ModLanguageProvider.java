@@ -89,5 +89,9 @@ public class ModLanguageProvider extends LanguageProvider {
         add(ModBlocks.FOUNDRY_TANK.get(), "Foundry Tank");
         add(ModBlocks.CASTING_CAULDRON.get(), "Casting Cauldron");
         add(ModBlocks.FOUNDRY_FAUCET.get(), "Foundry Faucet");
+
+        // Molten metals
+        add("metal.katzencraftmetals.iron", "Iron");
+        add("metal.katzencraftmetals.copper", "Copper");
     }
 }

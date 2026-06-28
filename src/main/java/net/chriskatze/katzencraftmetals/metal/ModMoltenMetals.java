@@ -48,6 +48,31 @@ public final class ModMoltenMetals {
                     )
             );
 
+    /*
+     * Copper is denser than Iron, so the future multi-metal distributor
+     * will place Copper below Iron.
+     *
+     * The current Iron sheet is intentionally used as a safe temporary
+     * texture placeholder. A dedicated animated molten_copper.png sheet
+     * will replace it when the renderer becomes metal-aware.
+     */
+    public static final MoltenMetalDefinition COPPER =
+            register(
+                    new MoltenMetalDefinition(
+                            ResourceLocation.fromNamespaceAndPath(
+                                    "minecraft",
+                                    "copper"
+                            ),
+                            "metal.katzencraftmetals.copper",
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "textures/block/molten_iron.png"
+                            ),
+                            8_960,
+                            6
+                    )
+            );
+
     private ModMoltenMetals() {
     }
 

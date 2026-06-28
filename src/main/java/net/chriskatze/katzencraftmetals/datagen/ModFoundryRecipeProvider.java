@@ -36,18 +36,11 @@ public class ModFoundryRecipeProvider
     protected void buildRecipes(
             RecipeOutput recipeOutput
     ) {
-        /*
-         * This reproduces the Controller's current behavior:
-         *
-         * one Raw Iron -> six molten Iron units in twenty ticks.
-         *
-         * The Controller itself remains hardcoded to Iron during Step 1.
-         * Step 2 will make it consume these recipes directly.
-         */
+        // Raw Iron -> 6 molten Iron
         FoundryMeltingRecipeBuilder.melting(
                         Items.RAW_IRON,
                         ModMoltenMetals.IRON.id(),
-                        6
+                        ModMoltenMetals.IRON.unitsPerOre()
                 )
                 .processingTime(20)
                 .save(
@@ -55,6 +48,21 @@ public class ModFoundryRecipeProvider
                         ResourceLocation.fromNamespaceAndPath(
                                 KatzencraftMetalsMod.MODID,
                                 "foundry_melting/raw_iron"
+                        )
+                );
+
+        // Raw Copper -> 6 molten Copper
+        FoundryMeltingRecipeBuilder.melting(
+                        Items.RAW_COPPER,
+                        ModMoltenMetals.COPPER.id(),
+                        ModMoltenMetals.COPPER.unitsPerOre()
+                )
+                .processingTime(20)
+                .save(
+                        recipeOutput,
+                        ResourceLocation.fromNamespaceAndPath(
+                                KatzencraftMetalsMod.MODID,
+                                "foundry_melting/raw_copper"
                         )
                 );
     }
