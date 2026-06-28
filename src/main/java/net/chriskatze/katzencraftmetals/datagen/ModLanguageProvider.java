@@ -97,5 +97,7 @@ public class ModLanguageProvider extends LanguageProvider {
         // Foundry Controller GUI
         add("gui.katzencraftmetals.foundry.empty", "Empty");
         add("gui.katzencraftmetals.foundry.ore_amount", "%s ore");
+        add("gui.katzencraftmetals.foundry.select_output", "Click to select output");
+        add("gui.katzencraftmetals.foundry.selected_output", "Selected output");
     }
 }

@@ -23,7 +23,8 @@ public class FoundryControllerMenu
     private static final int CONTROLLER_SLOT_COUNT =
             FoundryControllerBlockEntity.SLOT_COUNT;
 
-    private static final int DATA_COUNT = 4;
+    private static final int DATA_COUNT =
+            FoundryControllerBlockEntity.DATA_COUNT;
 
     /*
      * Menu slot indices:
@@ -199,13 +200,57 @@ public class FoundryControllerMenu
                 / maxProgress;
     }
 
-    public int getMoltenAmount() {
-        return data.get(2);
+    public int getMetalAmount(
+            MoltenMetalDefinition definition
+    ) {
+        int syncId =
+                ModMoltenMetals.getSyncId(
+                        definition.id()
+                );
+
+        if (syncId < 0) {
+            return 0;
+        }
+
+        return data.get(
+                FoundryControllerBlockEntity.METAL_DATA_START
+                        + syncId
+        );
     }
 
-    public Optional<MoltenMetalDefinition> getStoredMetalDefinition() {
+    public Optional<MoltenMetalDefinition> getSelectedMetalDefinition() {
         return ModMoltenMetals.bySyncId(
-                data.get(3)
+                data.get(
+                        FoundryControllerBlockEntity.SELECTED_METAL_DATA_INDEX
+                )
+        );
+    }
+
+    public int getTotalMoltenAmount() {
+        return data.get(
+                FoundryControllerBlockEntity.TOTAL_AMOUNT_DATA_INDEX
+        );
+    }
+
+    public int getTankCapacity() {
+        return data.get(
+                FoundryControllerBlockEntity.CAPACITY_DATA_INDEX
+        );
+    }
+
+    @Override
+    public boolean clickMenuButton(
+            Player player,
+            int buttonId
+    ) {
+        Optional<MoltenMetalDefinition> definition =
+                ModMoltenMetals.bySyncId(
+                        buttonId
+                );
+
+        return definition.isPresent()
+                && blockEntity.setSelectedOutputMetal(
+                definition.get().id()
         );
     }
 

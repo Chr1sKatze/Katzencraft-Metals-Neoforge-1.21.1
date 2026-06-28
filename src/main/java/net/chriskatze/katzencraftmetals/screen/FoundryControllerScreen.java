@@ -3,6 +3,7 @@ package net.chriskatze.katzencraftmetals.screen;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.client.renderer.MoltenIronAnimation;
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -10,8 +11,8 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 
+import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 
 public class FoundryControllerScreen
         extends AbstractContainerScreen<FoundryControllerMenu> {
@@ -25,20 +26,21 @@ public class FoundryControllerScreen
     private static final int PROGRESS_WIDTH = 52;
     private static final int PROGRESS_HEIGHT = 6;
 
-    /*
-     * Every current molten-metal sheet contains twenty vertically stacked
-     * 16x16 frames, matching MoltenIronAnimation.
-     */
     private static final int MOLTEN_TEXTURE_WIDTH = 16;
     private static final int MOLTEN_FRAME_HEIGHT = 16;
     private static final int MOLTEN_TEXTURE_HEIGHT =
             MOLTEN_FRAME_HEIGHT
                     * MoltenIronAnimation.TEXTURE_FRAME_COUNT;
 
-    private static final int CONTENT_PANEL_X = 95;
-    private static final int CONTENT_PANEL_Y = 17;
-    private static final int CONTENT_PANEL_WIDTH = 73;
-    private static final int CONTENT_PANEL_HEIGHT = 36;
+    private static final int CONTENT_PANEL_X = 94;
+    private static final int CONTENT_PANEL_Y = 15;
+    private static final int CONTENT_PANEL_WIDTH = 76;
+    private static final int CONTENT_PANEL_HEIGHT = 38;
+
+    private static final int ROW_HEIGHT = 18;
+
+    private final List<MoltenMetalDefinition> displayedMetals =
+            ModMoltenMetals.lightestFirst();
 
     public FoundryControllerScreen(
             FoundryControllerMenu menu,
@@ -80,10 +82,10 @@ public class FoundryControllerScreen
         );
 
         renderProgressBar(graphics);
-        renderStoredMetal(graphics);
+        renderMetalList(graphics);
     }
 
-    private void renderStoredMetal(
+    private void renderMetalList(
             GuiGraphics graphics
     ) {
         int panelX =
@@ -92,10 +94,6 @@ public class FoundryControllerScreen
         int panelY =
                 topPos + CONTENT_PANEL_Y;
 
-        /*
-         * A subtle self-contained contents card. It does not require changing
-         * the existing foundry_controller.png GUI texture.
-         */
         graphics.fill(
                 panelX,
                 panelY,
@@ -109,67 +107,131 @@ public class FoundryControllerScreen
                 panelY + 1,
                 panelX + CONTENT_PANEL_WIDTH - 1,
                 panelY + CONTENT_PANEL_HEIGHT - 1,
-                0xFFB8B8B8
+                0xFF8F8F8F
         );
 
-        Optional<MoltenMetalDefinition> definitionOptional =
-                menu.getStoredMetalDefinition();
-
-        int moltenAmount =
-                menu.getMoltenAmount();
-
-        if (
-                definitionOptional.isEmpty()
-                        || moltenAmount <= 0
-        ) {
+        if (menu.getTotalMoltenAmount() <= 0) {
             graphics.drawCenteredString(
                     font,
                     Component.translatable(
                             "gui.katzencraftmetals.foundry.empty"
                     ),
                     panelX + CONTENT_PANEL_WIDTH / 2,
-                    panelY + 14,
-                    0x404040
+                    panelY + 15,
+                    0x303030
             );
 
             return;
         }
 
-        MoltenMetalDefinition definition =
-                definitionOptional.get();
+        MoltenMetalDefinition selected =
+                menu.getSelectedMetalDefinition()
+                        .orElse(null);
 
-        graphics.drawCenteredString(
-                font,
-                Component.translatable(
-                        definition.translationKey()
-                ),
-                panelX + CONTENT_PANEL_WIDTH / 2,
-                panelY + 3,
-                0x303030
+        int visibleRow =
+                0;
+
+        for (MoltenMetalDefinition definition : displayedMetals) {
+            int amount =
+                    menu.getMetalAmount(
+                            definition
+                    );
+
+            if (amount <= 0) {
+                continue;
+            }
+
+            int rowY =
+                    panelY + 1
+                            + visibleRow * ROW_HEIGHT;
+
+            boolean isSelected =
+                    selected != null
+                            && selected.id().equals(
+                            definition.id()
+                    );
+
+            renderMetalRow(
+                    graphics,
+                    definition,
+                    amount,
+                    panelX + 1,
+                    rowY,
+                    isSelected
+            );
+
+            visibleRow++;
+
+            if (
+                    visibleRow * ROW_HEIGHT
+                            >= CONTENT_PANEL_HEIGHT - 2
+            ) {
+                break;
+            }
+        }
+    }
+
+    private void renderMetalRow(
+            GuiGraphics graphics,
+            MoltenMetalDefinition definition,
+            int amount,
+            int rowX,
+            int rowY,
+            boolean selected
+    ) {
+        int rowWidth =
+                CONTENT_PANEL_WIDTH - 2;
+
+        graphics.fill(
+                rowX,
+                rowY,
+                rowX + rowWidth,
+                rowY + ROW_HEIGHT,
+                selected
+                        ? 0xFFD0D0D0
+                        : 0xFFA8A8A8
         );
+
+        if (selected) {
+            graphics.fill(
+                    rowX,
+                    rowY,
+                    rowX + 2,
+                    rowY + ROW_HEIGHT,
+                    0xFFFFA32B
+            );
+        }
 
         renderAnimatedMoltenTexture(
                 graphics,
                 definition.animatedTexture(),
-                panelX + 6,
-                panelY + 16
+                rowX + 3,
+                rowY + 1
         );
 
-        String oreAmount =
-                formatOreAmount(
-                        moltenAmount,
-                        definition.unitsPerOre()
-                );
+        graphics.drawString(
+                font,
+                Component.translatable(
+                        definition.translationKey()
+                ),
+                rowX + 22,
+                rowY + 1,
+                0x303030,
+                false
+        );
 
         graphics.drawString(
                 font,
                 Component.translatable(
                         "gui.katzencraftmetals.foundry.ore_amount",
-                        oreAmount
+                        formatOreAmount(
+                                amount,
+                                definition.unitsPerOre()
+                        )
                 ),
-                panelX + 27,
-                panelY + 16,
-                0x303030,
+                rowX + 22,
+                rowY + 10,
+                0x484848,
                 false
         );
     }
@@ -254,11 +316,10 @@ public class FoundryControllerScreen
         int y = topPos + 56;
 
         int progress =
-                menu.getScaledProgress(PROGRESS_WIDTH);
+                menu.getScaledProgress(
+                        PROGRESS_WIDTH
+                );
 
-        /*
-         * Border
-         */
         graphics.fill(
                 x - 1,
                 y - 1,
@@ -267,9 +328,6 @@ public class FoundryControllerScreen
                 0xFF202020
         );
 
-        /*
-         * Empty bar
-         */
         graphics.fill(
                 x,
                 y,
@@ -278,9 +336,6 @@ public class FoundryControllerScreen
                 0xFF555555
         );
 
-        /*
-         * Melting progress
-         */
         if (progress > 0) {
             graphics.fill(
                     x,
@@ -289,6 +344,137 @@ public class FoundryControllerScreen
                     y + PROGRESS_HEIGHT,
                     0xFFFF8C22
             );
+        }
+    }
+
+    @Override
+    public boolean mouseClicked(
+            double mouseX,
+            double mouseY,
+            int button
+    ) {
+        if (button == 0) {
+            int panelX =
+                    leftPos + CONTENT_PANEL_X + 1;
+
+            int panelY =
+                    topPos + CONTENT_PANEL_Y + 1;
+
+            int visibleRow =
+                    0;
+
+            for (MoltenMetalDefinition definition : displayedMetals) {
+                int amount =
+                        menu.getMetalAmount(
+                                definition
+                        );
+
+                if (amount <= 0) {
+                    continue;
+                }
+
+                int rowY =
+                        panelY
+                                + visibleRow * ROW_HEIGHT;
+
+                if (
+                        mouseX >= panelX
+                                && mouseX < panelX
+                                + CONTENT_PANEL_WIDTH - 2
+                                && mouseY >= rowY
+                                && mouseY < rowY + ROW_HEIGHT
+                ) {
+                    int syncId =
+                            ModMoltenMetals.getSyncId(
+                                    definition.id()
+                            );
+
+                    if (
+                            syncId >= 0
+                                    && minecraft != null
+                                    && minecraft.gameMode != null
+                    ) {
+                        minecraft.gameMode
+                                .handleInventoryButtonClick(
+                                        menu.containerId,
+                                        syncId
+                                );
+
+                        return true;
+                    }
+                }
+
+                visibleRow++;
+            }
+        }
+
+        return super.mouseClicked(
+                mouseX,
+                mouseY,
+                button
+        );
+    }
+
+    private void renderMetalSelectionTooltip(
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY
+    ) {
+        int panelX =
+                leftPos + CONTENT_PANEL_X + 1;
+
+        int panelY =
+                topPos + CONTENT_PANEL_Y + 1;
+
+        int visibleRow =
+                0;
+
+        MoltenMetalDefinition selected =
+                menu.getSelectedMetalDefinition()
+                        .orElse(null);
+
+        for (MoltenMetalDefinition definition : displayedMetals) {
+            int amount =
+                    menu.getMetalAmount(
+                            definition
+                    );
+
+            if (amount <= 0) {
+                continue;
+            }
+
+            int rowY =
+                    panelY
+                            + visibleRow * ROW_HEIGHT;
+
+            if (
+                    mouseX >= panelX
+                            && mouseX < panelX
+                            + CONTENT_PANEL_WIDTH - 2
+                            && mouseY >= rowY
+                            && mouseY < rowY + ROW_HEIGHT
+            ) {
+                boolean isSelected =
+                        selected != null
+                                && selected.id().equals(
+                                definition.id()
+                        );
+
+                graphics.renderTooltip(
+                        font,
+                        Component.translatable(
+                                isSelected
+                                        ? "gui.katzencraftmetals.foundry.selected_output"
+                                        : "gui.katzencraftmetals.foundry.select_output"
+                        ),
+                        mouseX,
+                        mouseY
+                );
+
+                return;
+            }
+
+            visibleRow++;
         }
     }
 
@@ -314,6 +500,12 @@ public class FoundryControllerScreen
         );
 
         renderTooltip(
+                graphics,
+                mouseX,
+                mouseY
+        );
+
+        renderMetalSelectionTooltip(
                 graphics,
                 mouseX,
                 mouseY

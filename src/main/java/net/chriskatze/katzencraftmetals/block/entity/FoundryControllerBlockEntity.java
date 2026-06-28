@@ -94,6 +94,25 @@ public class FoundryControllerBlockEntity
 
     private int activeMoltenAmount;
 
+    /*
+     * Global output selection shared by every Faucet attached to this Foundry.
+     * A Faucet locks this value when pouring begins.
+     */
+    @Nullable
+    private ResourceLocation selectedOutputMetal;
+
+    public static final int METAL_DATA_START = 2;
+    public static final int METAL_DATA_COUNT =
+            ModMoltenMetals.values().size();
+    public static final int SELECTED_METAL_DATA_INDEX =
+            METAL_DATA_START + METAL_DATA_COUNT;
+    public static final int TOTAL_AMOUNT_DATA_INDEX =
+            SELECTED_METAL_DATA_INDEX + 1;
+    public static final int CAPACITY_DATA_INDEX =
+            TOTAL_AMOUNT_DATA_INDEX + 1;
+    public static final int DATA_COUNT =
+            CAPACITY_DATA_INDEX + 1;
+
     private final ContainerData data =
             new ContainerData() {
 
@@ -101,35 +120,77 @@ public class FoundryControllerBlockEntity
                 public int get(
                         int index
                 ) {
-                    return switch (index) {
-                        case 0 -> progress;
-                        case 1 -> maxProgress;
-                        case 2 -> {
-                            FoundryTankNetwork network =
-                                    getOwnedTankNetwork();
+                    if (index == 0) {
+                        return progress;
+                    }
 
-                            yield network != null
-                                    ? network.getMoltenAmount()
-                                    : 0;
-                        }
+                    if (index == 1) {
+                        return maxProgress;
+                    }
 
-                        case 3 -> {
-                            FoundryTankNetwork network =
-                                    getOwnedTankNetwork();
+                    FoundryTankNetwork network =
+                            getOwnedTankNetwork();
 
-                            ResourceLocation storedMetal =
-                                    network != null
-                                            ? network.getStoredMetal()
-                                            : null;
+                    if (
+                            index >= METAL_DATA_START
+                                    && index < SELECTED_METAL_DATA_INDEX
+                    ) {
+                        int syncId =
+                                index - METAL_DATA_START;
 
-                            yield storedMetal != null
-                                    ? ModMoltenMetals.getSyncId(
-                                    storedMetal
-                            )
-                                    : -1;
-                        }
-                        default -> 0;
-                    };
+                        ResourceLocation metal =
+                                ModMoltenMetals.bySyncId(
+                                                syncId
+                                        )
+                                        .map(
+                                                definition ->
+                                                        definition.id()
+                                        )
+                                        .orElse(null);
+
+                        return level != null
+                                && network != null
+                                && metal != null
+                                ? FoundryMultiMetalStorage.getAmount(
+                                level,
+                                network,
+                                metal
+                        )
+                                : 0;
+                    }
+
+                    if (index == SELECTED_METAL_DATA_INDEX) {
+                        ResourceLocation selected =
+                                network != null
+                                        ? getSelectedOutputMetalOrDefault(
+                                        network
+                                )
+                                        : null;
+
+                        return selected != null
+                                ? ModMoltenMetals.getSyncId(
+                                selected
+                        )
+                                : -1;
+                    }
+
+                    if (index == TOTAL_AMOUNT_DATA_INDEX) {
+                        return level != null
+                                && network != null
+                                ? FoundryMultiMetalStorage.getTotalAmount(
+                                level,
+                                network
+                        )
+                                : 0;
+                    }
+
+                    if (index == CAPACITY_DATA_INDEX) {
+                        return network != null
+                                ? network.getCapacity()
+                                : 0;
+                    }
+
+                    return 0;
                 }
 
                 @Override
@@ -137,26 +198,25 @@ public class FoundryControllerBlockEntity
                         int index,
                         int value
                 ) {
-                    switch (index) {
-                        case 0 ->
-                                progress =
-                                        value;
+                    if (index == 0) {
+                        progress =
+                                value;
 
-                        case 1 ->
-                                maxProgress =
-                                        Math.max(
-                                                1,
-                                                value
-                                        );
+                        return;
+                    }
 
-                        default -> {
-                        }
+                    if (index == 1) {
+                        maxProgress =
+                                Math.max(
+                                        1,
+                                        value
+                                );
                     }
                 }
 
                 @Override
                 public int getCount() {
-                    return 4;
+                    return DATA_COUNT;
                 }
             };
 
@@ -501,6 +561,111 @@ public class FoundryControllerBlockEntity
     }
 
     // =========================
+    // OUTPUT METAL SELECTION
+    // =========================
+
+    @Nullable
+    public ResourceLocation getSelectedOutputMetal() {
+        return selectedOutputMetal;
+    }
+
+    public boolean setSelectedOutputMetal(
+            ResourceLocation metal
+    ) {
+        if (
+                metal == null
+                        || !ModMoltenMetals.contains(metal)
+        ) {
+            return false;
+        }
+
+        FoundryTankNetwork network =
+                getOwnedTankNetwork();
+
+        if (
+                level == null
+                        || network == null
+                        || FoundryMultiMetalStorage.getAmount(
+                        level,
+                        network,
+                        metal
+                ) <= 0
+        ) {
+            return false;
+        }
+
+        if (Objects.equals(
+                selectedOutputMetal,
+                metal
+        )) {
+            return true;
+        }
+
+        selectedOutputMetal =
+                metal;
+
+        setChanged();
+        return true;
+    }
+
+    @Nullable
+    public ResourceLocation getSelectedOutputMetalOrDefault(
+            FoundryTankNetwork network
+    ) {
+        if (
+                level == null
+                        || network == null
+        ) {
+            return null;
+        }
+
+        if (
+                selectedOutputMetal != null
+                        && FoundryMultiMetalStorage.getAmount(
+                        level,
+                        network,
+                        selectedOutputMetal
+                ) > 0
+        ) {
+            return selectedOutputMetal;
+        }
+
+        for (
+                var definition :
+                ModMoltenMetals.lightestFirst()
+        ) {
+            if (FoundryMultiMetalStorage.getAmount(
+                    level,
+                    network,
+                    definition.id()
+            ) > 0) {
+                return definition.id();
+            }
+        }
+
+        return null;
+    }
+
+    private void normalizeSelectedOutputMetal(
+            FoundryTankNetwork network
+    ) {
+        ResourceLocation normalized =
+                getSelectedOutputMetalOrDefault(
+                        network
+                );
+
+        if (!Objects.equals(
+                selectedOutputMetal,
+                normalized
+        )) {
+            selectedOutputMetal =
+                    normalized;
+
+            setChanged();
+        }
+    }
+
+    // =========================
     // FUEL CHAMBER
     // =========================
 
@@ -662,6 +827,15 @@ public class FoundryControllerBlockEntity
             return;
         }
 
+        FoundryMultiMetalStorage.ensureMigrated(
+                level,
+                network
+        );
+
+        controller.normalizeSelectedOutputMetal(
+                network
+        );
+
         ItemStack inputStack =
                 controller.inputInventory.getItem(
                         INPUT_SLOT
@@ -692,22 +866,14 @@ public class FoundryControllerBlockEntity
             return;
         }
 
-        FoundryTankBlockEntity tank =
-                controller.getAnyTank(
-                        network
-                );
-
-        if (tank == null) {
-            controller.resetProgress();
-            return;
-        }
-
         /*
-         * A full Tank or incompatible stored metal pauses the Controller
-         * without wasting fuel or losing its current progress.
+         * A full network pauses the Controller without wasting fuel or losing
+         * progress. Different registered metals may now coexist.
          */
         if (
-                !tank.canAccept(
+                !FoundryMultiMetalStorage.canAccept(
+                        level,
+                        network,
                         recipe.moltenMetal(),
                         recipe.moltenAmount()
                 )
@@ -726,7 +892,7 @@ public class FoundryControllerBlockEntity
                         >= controller.maxProgress
         ) {
             controller.finishMelting(
-                    tank,
+                    network,
                     recipe
             );
         }
@@ -734,54 +900,8 @@ public class FoundryControllerBlockEntity
         controller.setChanged();
     }
 
-    @Nullable
-    private FoundryTankBlockEntity getAnyTank(
-            FoundryTankNetwork network
-    ) {
-        if (level == null) {
-            return null;
-        }
-
-        List<BlockPos> positions =
-                new ArrayList<>(
-                        network.getTankPositions()
-                );
-
-        positions.sort(
-                Comparator
-                        .comparingInt(
-                                (BlockPos tankPos) ->
-                                        tankPos.getY()
-                        )
-                        .thenComparingInt(
-                                tankPos ->
-                                        tankPos.getX()
-                        )
-                        .thenComparingInt(
-                                tankPos ->
-                                        tankPos.getZ()
-                        )
-        );
-
-        for (BlockPos tankPos : positions) {
-            BlockEntity blockEntity =
-                    level.getBlockEntity(
-                            tankPos
-                    );
-
-            if (
-                    blockEntity
-                            instanceof FoundryTankBlockEntity tank
-            ) {
-                return tank;
-            }
-        }
-
-        return null;
-    }
-
     private void finishMelting(
-            FoundryTankBlockEntity tank,
+            FoundryTankNetwork network,
             FoundryMeltingRecipe expectedRecipe
     ) {
         ItemStack inputStack =
@@ -814,7 +934,10 @@ public class FoundryControllerBlockEntity
         }
 
         if (
-                !tank.canAccept(
+                level == null
+                        || !FoundryMultiMetalStorage.canAccept(
+                        level,
+                        network,
                         currentRecipe.moltenMetal(),
                         currentRecipe.moltenAmount()
                 )
@@ -823,7 +946,9 @@ public class FoundryControllerBlockEntity
         }
 
         int inserted =
-                tank.insert(
+                FoundryMultiMetalStorage.insert(
+                        level,
+                        network,
                         currentRecipe.moltenMetal(),
                         currentRecipe.moltenAmount()
                 );
@@ -833,6 +958,11 @@ public class FoundryControllerBlockEntity
                         != currentRecipe.moltenAmount()
         ) {
             return;
+        }
+
+        if (selectedOutputMetal == null) {
+            selectedOutputMetal =
+                    currentRecipe.moltenMetal();
         }
 
         inputStack.shrink(1);
@@ -987,6 +1117,13 @@ public class FoundryControllerBlockEntity
                 "ActiveMoltenAmount",
                 activeMoltenAmount
         );
+
+        if (selectedOutputMetal != null) {
+            tag.putString(
+                    "SelectedOutputMetal",
+                    selectedOutputMetal.toString()
+            );
+        }
     }
 
     @Override
@@ -1071,6 +1208,28 @@ public class FoundryControllerBlockEntity
                                 "ActiveMoltenAmount"
                         )
                 );
+
+        selectedOutputMetal =
+                null;
+
+        if (tag.contains("SelectedOutputMetal")) {
+            ResourceLocation parsedSelection =
+                    ResourceLocation.tryParse(
+                            tag.getString(
+                                    "SelectedOutputMetal"
+                            )
+                    );
+
+            if (
+                    parsedSelection != null
+                            && ModMoltenMetals.contains(
+                            parsedSelection
+                    )
+            ) {
+                selectedOutputMetal =
+                        parsedSelection;
+            }
+        }
 
         if (
                 activeMoltenMetal == null

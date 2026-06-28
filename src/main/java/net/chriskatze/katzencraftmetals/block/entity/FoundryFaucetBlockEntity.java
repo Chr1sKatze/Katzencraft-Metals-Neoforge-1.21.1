@@ -1,6 +1,7 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
 import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -20,13 +21,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     public static final int TRANSFER_INTERVAL = 2;
     public static final int TRANSFER_AMOUNT = 1;
 
-    /*
-     * A Casting Cauldron may be one, two, or three blocks below the Faucet.
-     */
     public static final int MAX_CAULDRON_DISTANCE = 3;
-
-    private static final float MIN_SOURCE_AMOUNT =
-            0.0001f;
 
     public static final int STREAM_ANIMATION_INTERVAL = 2;
     public static final int STREAM_ANIMATION_STEPS = 8;
@@ -35,6 +30,13 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     private int transferTimer;
     private int streamAnimationStep;
     private int streamAnimationTimer;
+
+    /*
+     * Locked when pouring starts. The Faucet never silently changes to another
+     * metal while its channel or stream is active.
+     */
+    @Nullable
+    private ResourceLocation pouringMetal;
 
     public FoundryFaucetBlockEntity(
             BlockPos pos,
@@ -65,28 +67,36 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             if (faucet.streamAnimationStep > 0) {
                 faucet.streamAnimationTimer++;
 
-                if (faucet.streamAnimationTimer >= STREAM_ANIMATION_INTERVAL) {
+                if (
+                        faucet.streamAnimationTimer
+                                >= STREAM_ANIMATION_INTERVAL
+                ) {
                     faucet.streamAnimationTimer = 0;
                     faucet.streamAnimationStep--;
+
+                    if (faucet.streamAnimationStep <= 0) {
+                        faucet.streamAnimationStep = 0;
+                        faucet.pouringMetal = null;
+                    }
 
                     faucet.setChanged();
                     faucet.syncToClient();
                 }
+            } else if (faucet.pouringMetal != null) {
+                faucet.pouringMetal = null;
+                faucet.setChanged();
+                faucet.syncToClient();
             }
 
             return;
         }
 
-        /*
-         * Validate the complete pouring route every tick, including while the
-         * stream is extending. This prevents a Faucet from visually continuing
-         * when its source layer becomes empty or its Cauldron is removed.
-         */
         PouringContext context =
                 resolvePouringContext(
                         level,
                         pos,
-                        state
+                        state,
+                        faucet.pouringMetal
                 );
 
         if (context == null) {
@@ -94,10 +104,25 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             return;
         }
 
+        /*
+         * The first valid server tick after activation permanently locks the
+         * output metal for this pour.
+         */
+        if (faucet.pouringMetal == null) {
+            faucet.pouringMetal =
+                    context.metal();
+
+            faucet.setChanged();
+            faucet.syncToClient();
+        }
+
         if (faucet.streamAnimationStep < STREAM_ANIMATION_STEPS) {
             faucet.streamAnimationTimer++;
 
-            if (faucet.streamAnimationTimer >= STREAM_ANIMATION_INTERVAL) {
+            if (
+                    faucet.streamAnimationTimer
+                            >= STREAM_ANIMATION_INTERVAL
+            ) {
                 faucet.streamAnimationTimer = 0;
                 faucet.streamAnimationStep++;
 
@@ -117,10 +142,12 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         faucet.transferTimer = 0;
 
         int extracted =
-                context.tank()
-                        .extract(
-                                TRANSFER_AMOUNT
-                        );
+                FoundryMultiMetalStorage.extract(
+                        level,
+                        context.network(),
+                        context.metal(),
+                        TRANSFER_AMOUNT
+                );
 
         if (extracted != TRANSFER_AMOUNT) {
             faucet.stopPouring();
@@ -135,25 +162,24 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                         );
 
         if (inserted != extracted) {
-            context.tank()
-                    .insert(
-                            context.metal(),
-                            extracted
-                    );
+            FoundryMultiMetalStorage.insert(
+                    level,
+                    context.network(),
+                    context.metal(),
+                    extracted
+            );
 
             faucet.stopPouring();
             return;
         }
 
-        /*
-         * The network may still contain molten metal below this Faucet.
-         * Stop specifically when the liquid surface has fallen below the
-         * attached Tank layer.
-         */
         if (
                 context.cauldron().isFull()
-                        || !hasMoltenAtFaucetHeight(
-                        context.tank()
+                        || !FoundryMultiMetalStorage.hasMetalAtHeight(
+                        level,
+                        context.network(),
+                        context.tank().getBlockPos().getY(),
+                        context.metal()
                 )
         ) {
             faucet.stopPouring();
@@ -164,31 +190,45 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     // SMART SOURCE / TARGET LOOKUP
     // =========================
 
-    /**
-     * Returns true when molten metal currently occupies the horizontal Tank
-     * layer to which this Faucet is attached.
-     *
-     * The Tank network distributes liquid from its lowest layer upward, so
-     * this naturally gives the desired behavior:
-     *
-     * - bottom Faucet works while the bottom layer contains liquid
-     * - middle Faucet works only after liquid reaches the middle layer
-     * - top Faucet works only after liquid reaches the top layer
-     */
     public static boolean hasMoltenAtFaucetHeight(
             FoundryTankBlockEntity tank
     ) {
-        return tank.getStoredMetal() != null
-                && tank.getLocalVisualMoltenAmount()
-                > MIN_SOURCE_AMOUNT;
+        if (
+                tank == null
+                        || tank.getLevel() == null
+        ) {
+            return false;
+        }
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (
+                network == null
+                        || !network.isActive()
+        ) {
+            return false;
+        }
+
+        FoundryControllerBlockEntity controller =
+                network.getAttachedController();
+
+        ResourceLocation selectedMetal =
+                controller != null
+                        ? controller.getSelectedOutputMetalOrDefault(
+                        network
+                )
+                        : tank.getTopLocalMetal();
+
+        return selectedMetal != null
+                && FoundryMultiMetalStorage.hasMetalAtHeight(
+                tank.getLevel(),
+                network,
+                tank.getBlockPos().getY(),
+                selectedMetal
+        );
     }
 
-    /**
-     * Finds the first Casting Cauldron in the vertical column below a Faucet.
-     *
-     * Valid distances are one through three blocks. Every intermediate block
-     * must have an empty collision shape so the molten stream is unobstructed.
-     */
     @Nullable
     public static CauldronTarget findCauldronTarget(
             Level level,
@@ -217,10 +257,6 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                 );
             }
 
-            /*
-             * A solid block terminates the search. A Cauldron farther below
-             * it cannot receive a stream through the obstruction.
-             */
             if (!level.getBlockState(
                     checkedPos
             ).getCollisionShape(
@@ -238,7 +274,8 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     private static PouringContext resolvePouringContext(
             Level level,
             BlockPos faucetPos,
-            BlockState faucetState
+            BlockState faucetState,
+            @Nullable ResourceLocation lockedMetal
     ) {
         Direction facing =
                 faucetState.getValue(
@@ -259,19 +296,47 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             return null;
         }
 
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
         if (
-                !tank.hasActiveController()
-                        || !hasMoltenAtFaucetHeight(
-                        tank
-                )
+                network == null
+                        || !network.isActive()
         ) {
             return null;
         }
 
-        ResourceLocation storedMetal =
-                tank.getStoredMetal();
+        FoundryMultiMetalStorage.ensureMigrated(
+                level,
+                network
+        );
 
-        if (storedMetal == null) {
+        FoundryControllerBlockEntity controller =
+                network.getAttachedController();
+
+        ResourceLocation outputMetal =
+                lockedMetal != null
+                        ? lockedMetal
+                        : controller != null
+                        ? controller.getSelectedOutputMetalOrDefault(
+                        network
+                )
+                        : null;
+
+        if (
+                outputMetal == null
+                        || FoundryMultiMetalStorage.getAmount(
+                        level,
+                        network,
+                        outputMetal
+                ) < TRANSFER_AMOUNT
+                        || !FoundryMultiMetalStorage.hasMetalAtHeight(
+                        level,
+                        network,
+                        tank.getBlockPos().getY(),
+                        outputMetal
+                )
+        ) {
             return null;
         }
 
@@ -291,7 +356,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         if (
                 cauldron.isFull()
                         || !cauldron.canAccept(
-                        storedMetal,
+                        outputMetal,
                         TRANSFER_AMOUNT
                 )
         ) {
@@ -299,9 +364,10 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         }
 
         return new PouringContext(
+                network,
                 tank,
                 cauldron,
-                storedMetal
+                outputMetal
         );
     }
 
@@ -312,6 +378,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     }
 
     private record PouringContext(
+            FoundryTankNetwork network,
             FoundryTankBlockEntity tank,
             CastingCauldronBlockEntity cauldron,
             ResourceLocation metal
@@ -323,6 +390,28 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     // =========================
 
     public void startPouring() {
+        if (
+                level == null
+                        || level.isClientSide()
+        ) {
+            return;
+        }
+
+        PouringContext context =
+                resolvePouringContext(
+                        level,
+                        worldPosition,
+                        getBlockState(),
+                        null
+                );
+
+        if (context == null) {
+            return;
+        }
+
+        pouringMetal =
+                context.metal();
+
         setPouring(true);
     }
 
@@ -330,7 +419,9 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         setPouring(false);
     }
 
-    public void setPouring(boolean pouring) {
+    public void setPouring(
+            boolean pouring
+    ) {
         if (this.pouring == pouring) {
             return;
         }
@@ -354,6 +445,11 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
 
     public int getStreamAnimationStep() {
         return streamAnimationStep;
+    }
+
+    @Nullable
+    public ResourceLocation getPouringMetal() {
+        return pouringMetal;
     }
 
     // =========================
@@ -422,6 +518,13 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                 "StreamAnimationStep",
                 streamAnimationStep
         );
+
+        if (pouringMetal != null) {
+            tag.putString(
+                    "PouringMetal",
+                    pouringMetal.toString()
+            );
+        }
     }
 
     @Override
@@ -435,7 +538,9 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         );
 
         pouring =
-                tag.getBoolean("Pouring");
+                tag.getBoolean(
+                        "Pouring"
+                );
 
         transferTimer = 0;
 
@@ -451,5 +556,33 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                 );
 
         streamAnimationTimer = 0;
+
+        pouringMetal =
+                null;
+
+        if (tag.contains("PouringMetal")) {
+            pouringMetal =
+                    ResourceLocation.tryParse(
+                            tag.getString(
+                                    "PouringMetal"
+                            )
+                    );
+        }
+
+        if (
+                pouringMetal != null
+                        && !ModMoltenMetals.contains(
+                        pouringMetal
+                )
+        ) {
+            pouringMetal = null;
+        }
+
+        if (
+                pouringMetal == null
+                        && streamAnimationStep <= 0
+        ) {
+            pouring = false;
+        }
     }
 }

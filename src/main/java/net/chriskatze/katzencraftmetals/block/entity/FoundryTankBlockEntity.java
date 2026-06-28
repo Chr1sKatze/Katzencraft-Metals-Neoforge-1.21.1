@@ -1,8 +1,12 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
+import net.chriskatze.katzencraftmetals.metal.FoundryMetalLayer;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
@@ -13,6 +17,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -20,44 +26,39 @@ public class FoundryTankBlockEntity extends BlockEntity {
 
     public static final int CAPACITY = 108;
 
-    /*
-     * Allows older saves from the previous master-Tank prototype to
-     * load one temporarily oversized local value. The next successful
-     * network claim redistributes it into normal 0-108 local shares.
-     */
     private static final int MAX_LEGACY_NETWORK_CAPACITY =
             CAPACITY
                     * FoundryTankNetwork.MAX_TANK_COUNT;
 
-    /*
-     * This is the persistent UUID of the owning Controller.
-     *
-     * null means that the Tank belongs to an unassigned/orphan section.
-     */
     @Nullable
     private UUID networkId;
 
-    /*
-     * Persistent identity of an unassigned Tank layout.
-     *
-     * This is deliberately separate from networkId:
-     *
-     * - networkId belongs to an active Foundry Controller
-     * - orphanLayoutId belongs to a free-standing Tank layout
-     *
-     * Two touching orphan layouts can therefore remain visually and
-     * structurally separate.
-     */
     @Nullable
     private UUID orphanLayoutId;
 
+    /*
+     * Compatibility shadow used by the existing structural Tank-network code.
+     * Actual gameplay storage lives in localMetalLayers.
+     */
     @Nullable
     private ResourceLocation storedMetal;
 
-    /*
-     * Every Tank stores an integer local share.
-     */
     private int moltenAmount;
+
+    private boolean multiMetalStorageInitialized;
+
+    /*
+     * True only when an old pre-multi-metal local amount was actually loaded
+     * from disk. A newly placed Tank can therefore remain empty even if the
+     * structural compatibility shadow temporarily assigns units to it.
+     */
+    private boolean legacyStorageCandidate;
+
+    /*
+     * Bottom-to-top physical segments inside this individual Tank.
+     */
+    private List<FoundryMetalLayer> localMetalLayers =
+            List.of();
 
     @Nullable
     private FoundryTankNetwork cachedNetwork;
@@ -164,6 +165,239 @@ public class FoundryTankBlockEntity extends BlockEntity {
     }
 
     // =========================
+    // MULTI-METAL STORAGE
+    // =========================
+
+    public boolean isMultiMetalStorageInitialized() {
+        return multiMetalStorageInitialized;
+    }
+
+    boolean hasLegacyStorageCandidate() {
+        return legacyStorageCandidate;
+    }
+
+    /**
+     * Converts one old single-metal local share into the new local layer list.
+     */
+    public void initializeMultiMetalStorage() {
+        initializeMultiMetalStorage(
+                true
+        );
+    }
+
+    void initializeMultiMetalStorage(
+            boolean migrateLegacyShadow
+    ) {
+        if (multiMetalStorageInitialized) {
+            return;
+        }
+
+        List<FoundryMetalLayer> migrated =
+                new ArrayList<>();
+
+        if (
+                migrateLegacyShadow
+                        && legacyStorageCandidate
+                        && storedMetal != null
+                        && moltenAmount > 0
+                        && ModMoltenMetals.contains(
+                        storedMetal
+                )
+        ) {
+            migrated.add(
+                    new FoundryMetalLayer(
+                            storedMetal,
+                            Math.min(
+                                    moltenAmount,
+                                    CAPACITY
+                            )
+                    )
+            );
+        }
+
+        localMetalLayers =
+                List.copyOf(migrated);
+
+        multiMetalStorageInitialized =
+                true;
+
+        legacyStorageCandidate =
+                false;
+
+        setChanged();
+        syncToClient();
+    }
+
+    /**
+     * Returns bottom-to-top local physical layers.
+     *
+     * Before an old save is migrated, a temporary one-layer view is returned
+     * from the legacy fields so rendering and storage reads remain correct.
+     */
+    public List<FoundryMetalLayer> getLocalMetalLayers() {
+        if (multiMetalStorageInitialized) {
+            return localMetalLayers;
+        }
+
+        if (
+                storedMetal == null
+                        || moltenAmount <= 0
+                        || !ModMoltenMetals.contains(
+                        storedMetal
+                )
+        ) {
+            return List.of();
+        }
+
+        return List.of(
+                new FoundryMetalLayer(
+                        storedMetal,
+                        Math.min(
+                                moltenAmount,
+                                CAPACITY
+                        )
+                )
+        );
+    }
+
+    public int getLocalActualMoltenAmount() {
+        int total =
+                0;
+
+        for (FoundryMetalLayer layer : getLocalMetalLayers()) {
+            total += layer.amount();
+        }
+
+        return Mth.clamp(
+                total,
+                0,
+                CAPACITY
+        );
+    }
+
+    public int getLocalMetalAmount(
+            ResourceLocation metal
+    ) {
+        if (metal == null) {
+            return 0;
+        }
+
+        int total =
+                0;
+
+        for (FoundryMetalLayer layer : getLocalMetalLayers()) {
+            if (layer.metal().equals(metal)) {
+                total += layer.amount();
+            }
+        }
+
+        return total;
+    }
+
+    void setLocalMetalLayers(
+            List<FoundryMetalLayer> requestedLayers
+    ) {
+        List<FoundryMetalLayer> normalized =
+                normalizeLayers(
+                        requestedLayers
+                );
+
+        if (
+                multiMetalStorageInitialized
+                        && localMetalLayers.equals(
+                        normalized
+                )
+        ) {
+            return;
+        }
+
+        localMetalLayers =
+                normalized;
+
+        multiMetalStorageInitialized =
+                true;
+
+        legacyStorageCandidate =
+                false;
+
+        setChanged();
+        syncToClient();
+    }
+
+    private static List<FoundryMetalLayer> normalizeLayers(
+            List<FoundryMetalLayer> requestedLayers
+    ) {
+        if (
+                requestedLayers == null
+                        || requestedLayers.isEmpty()
+        ) {
+            return List.of();
+        }
+
+        List<FoundryMetalLayer> normalized =
+                new ArrayList<>();
+
+        int remainingCapacity =
+                CAPACITY;
+
+        for (FoundryMetalLayer requestedLayer : requestedLayers) {
+            if (
+                    requestedLayer == null
+                            || requestedLayer.amount() <= 0
+                            || !ModMoltenMetals.contains(
+                            requestedLayer.metal()
+                    )
+                            || remainingCapacity <= 0
+            ) {
+                continue;
+            }
+
+            int accepted =
+                    Math.min(
+                            requestedLayer.amount(),
+                            remainingCapacity
+                    );
+
+            if (!normalized.isEmpty()) {
+                FoundryMetalLayer previous =
+                        normalized.getLast();
+
+                if (previous.metal().equals(
+                        requestedLayer.metal()
+                )) {
+                    normalized.set(
+                            normalized.size() - 1,
+                            new FoundryMetalLayer(
+                                    previous.metal(),
+                                    previous.amount()
+                                            + accepted
+                            )
+                    );
+                } else {
+                    normalized.add(
+                            new FoundryMetalLayer(
+                                    requestedLayer.metal(),
+                                    accepted
+                            )
+                    );
+                }
+            } else {
+                normalized.add(
+                        new FoundryMetalLayer(
+                                requestedLayer.metal(),
+                                accepted
+                        )
+                );
+            }
+
+            remainingCapacity -=
+                    accepted;
+        }
+
+        return List.copyOf(normalized);
+    }
+
+    // =========================
     // INSERTION / EXTRACTION
     // =========================
 
@@ -174,8 +408,11 @@ public class FoundryTankBlockEntity extends BlockEntity {
         FoundryTankNetwork network =
                 getNetwork();
 
-        return network != null
-                && network.canAccept(
+        return level != null
+                && network != null
+                && FoundryMultiMetalStorage.canAccept(
+                level,
+                network,
                 metal,
                 amount
         );
@@ -188,22 +425,67 @@ public class FoundryTankBlockEntity extends BlockEntity {
         FoundryTankNetwork network =
                 getNetwork();
 
-        return network != null
-                ? network.insert(
+        return level != null
+                && network != null
+                ? FoundryMultiMetalStorage.insert(
+                level,
+                network,
                 metal,
                 amount
         )
                 : 0;
     }
 
+    /**
+     * Compatibility extraction uses the Controller's currently selected output
+     * metal. Faucets use the explicit metal overload directly.
+     */
     public int extract(
             int requestedAmount
     ) {
         FoundryTankNetwork network =
                 getNetwork();
 
-        return network != null
-                ? network.extract(
+        if (
+                level == null
+                        || network == null
+        ) {
+            return 0;
+        }
+
+        FoundryControllerBlockEntity controller =
+                network.getAttachedController();
+
+        ResourceLocation selectedMetal =
+                controller != null
+                        ? controller.getSelectedOutputMetalOrDefault(
+                        network
+                )
+                        : getTopLocalMetal();
+
+        return selectedMetal != null
+                ? FoundryMultiMetalStorage.extract(
+                level,
+                network,
+                selectedMetal,
+                requestedAmount
+        )
+                : 0;
+    }
+
+    public int extract(
+            ResourceLocation metal,
+            int requestedAmount
+    ) {
+        FoundryTankNetwork network =
+                getNetwork();
+
+        return level != null
+                && network != null
+                ? FoundryMultiMetalStorage.extract(
+                level,
+                network,
+                metal,
                 requestedAmount
         )
                 : 0;
@@ -217,9 +499,13 @@ public class FoundryTankBlockEntity extends BlockEntity {
         FoundryTankNetwork network =
                 getNetwork();
 
-        return network != null
-                ? network.getMoltenAmount()
-                : moltenAmount;
+        return level != null
+                && network != null
+                ? FoundryMultiMetalStorage.getTotalAmount(
+                level,
+                network
+        )
+                : getLocalActualMoltenAmount();
     }
 
     public int getCapacity() {
@@ -241,20 +527,7 @@ public class FoundryTankBlockEntity extends BlockEntity {
     }
 
     public float getLocalVisualMoltenAmount() {
-        FoundryTankNetwork network =
-                getNetwork();
-
-        if (network != null) {
-            return network.getLocalVisualMoltenAmount(
-                    worldPosition
-            );
-        }
-
-        return Mth.clamp(
-                moltenAmount,
-                0,
-                CAPACITY
-        );
+        return getLocalActualMoltenAmount();
     }
 
     public boolean isEmpty() {
@@ -266,18 +539,48 @@ public class FoundryTankBlockEntity extends BlockEntity {
                 >= getCapacity();
     }
 
+    /**
+     * For existing callers, return the globally selected output metal whenever
+     * this Tank belongs to an active Foundry. Otherwise return the physical
+     * topmost local metal.
+     */
     @Nullable
     public ResourceLocation getStoredMetal() {
         FoundryTankNetwork network =
                 getNetwork();
 
-        return network != null
-                ? network.getStoredMetal()
-                : storedMetal;
+        if (network != null) {
+            FoundryControllerBlockEntity controller =
+                    network.getAttachedController();
+
+            if (controller != null) {
+                ResourceLocation selected =
+                        controller.getSelectedOutputMetalOrDefault(
+                                network
+                        );
+
+                if (selected != null) {
+                    return selected;
+                }
+            }
+        }
+
+        return getTopLocalMetal();
+    }
+
+    @Nullable
+    public ResourceLocation getTopLocalMetal() {
+        List<FoundryMetalLayer> layers =
+                getLocalMetalLayers();
+
+        return layers.isEmpty()
+                ? null
+                : layers.getLast()
+                .metal();
     }
 
     // =========================
-    // LOCAL STORAGE
+    // LEGACY STRUCTURAL SHADOW
     // =========================
 
     int getLocalMoltenAmount() {
@@ -289,6 +592,13 @@ public class FoundryTankBlockEntity extends BlockEntity {
         return storedMetal;
     }
 
+    /**
+     * Used only by the existing structure-management network.
+     *
+     * It deliberately does not overwrite localMetalLayers after the new system
+     * has initialized. The compatibility shadow can therefore be rearranged by
+     * placement/ownership code without losing real multi-metal composition.
+     */
     void setLocalStorage(
             @Nullable ResourceLocation metal,
             int amount
@@ -407,6 +717,36 @@ public class FoundryTankBlockEntity extends BlockEntity {
                 "MoltenAmount",
                 moltenAmount
         );
+
+        tag.putBoolean(
+                "MultiMetalInitialized",
+                multiMetalStorageInitialized
+        );
+
+        ListTag layerTags =
+                new ListTag();
+
+        for (FoundryMetalLayer layer : localMetalLayers) {
+            CompoundTag layerTag =
+                    new CompoundTag();
+
+            layerTag.putString(
+                    "Metal",
+                    layer.metal().toString()
+            );
+
+            layerTag.putInt(
+                    "Amount",
+                    layer.amount()
+            );
+
+            layerTags.add(layerTag);
+        }
+
+        tag.put(
+                "MultiMetalLayers",
+                layerTags
+        );
     }
 
     @Override
@@ -423,6 +763,9 @@ public class FoundryTankBlockEntity extends BlockEntity {
         orphanLayoutId = null;
         storedMetal = null;
         moltenAmount = 0;
+        multiMetalStorageInitialized = false;
+        legacyStorageCandidate = false;
+        localMetalLayers = List.of();
 
         if (tag.contains("TankNetworkId")) {
             try {
@@ -453,13 +796,17 @@ public class FoundryTankBlockEntity extends BlockEntity {
         if (tag.contains("StoredMetal")) {
             storedMetal =
                     ResourceLocation.tryParse(
-                            tag.getString("StoredMetal")
+                            tag.getString(
+                                    "StoredMetal"
+                            )
                     );
         }
 
         moltenAmount =
                 Mth.clamp(
-                        tag.getInt("MoltenAmount"),
+                        tag.getInt(
+                                "MoltenAmount"
+                        ),
                         0,
                         MAX_LEGACY_NETWORK_CAPACITY
                 );
@@ -470,6 +817,79 @@ public class FoundryTankBlockEntity extends BlockEntity {
 
         if (moltenAmount == 0) {
             storedMetal = null;
+        }
+
+        legacyStorageCandidate =
+                storedMetal != null
+                        && moltenAmount > 0
+                        && !tag.contains(
+                        "MultiMetalInitialized"
+                )
+                        && !tag.contains(
+                        "MultiMetalLayers",
+                        Tag.TAG_LIST
+                );
+
+        multiMetalStorageInitialized =
+                tag.getBoolean(
+                        "MultiMetalInitialized"
+                )
+                        || tag.contains(
+                        "MultiMetalLayers",
+                        Tag.TAG_LIST
+                );
+
+        if (
+                tag.contains(
+                        "MultiMetalLayers",
+                        Tag.TAG_LIST
+                )
+        ) {
+            ListTag layerTags =
+                    tag.getList(
+                            "MultiMetalLayers",
+                            Tag.TAG_COMPOUND
+                    );
+
+            List<FoundryMetalLayer> loadedLayers =
+                    new ArrayList<>();
+
+            for (int index = 0; index < layerTags.size(); index++) {
+                CompoundTag layerTag =
+                        layerTags.getCompound(index);
+
+                ResourceLocation metal =
+                        ResourceLocation.tryParse(
+                                layerTag.getString(
+                                        "Metal"
+                                )
+                        );
+
+                int amount =
+                        layerTag.getInt(
+                                "Amount"
+                        );
+
+                if (
+                        metal != null
+                                && amount > 0
+                                && ModMoltenMetals.contains(
+                                metal
+                        )
+                ) {
+                    loadedLayers.add(
+                            new FoundryMetalLayer(
+                                    metal,
+                                    amount
+                            )
+                    );
+                }
+            }
+
+            localMetalLayers =
+                    normalizeLayers(
+                            loadedLayers
+                    );
         }
 
         invalidateNetworkCache();
