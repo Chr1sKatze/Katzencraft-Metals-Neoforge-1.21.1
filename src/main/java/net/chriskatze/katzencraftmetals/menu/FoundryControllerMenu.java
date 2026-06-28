@@ -12,11 +12,13 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 
-public class FoundryControllerMenu extends AbstractContainerMenu {
+public class FoundryControllerMenu
+        extends AbstractContainerMenu {
 
-    private static final int CONTROLLER_SLOT_COUNT = 1;
+    private static final int CONTROLLER_SLOT_COUNT =
+            FoundryControllerBlockEntity.SLOT_COUNT;
+
     private static final int DATA_COUNT = 3;
 
     /*
@@ -48,8 +50,13 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
         this(
                 containerId,
                 playerInventory,
-                getBlockEntity(playerInventory, extraData),
-                new SimpleContainerData(DATA_COUNT)
+                getBlockEntity(
+                        playerInventory,
+                        extraData
+                ),
+                new SimpleContainerData(
+                        DATA_COUNT
+                )
         );
     }
 
@@ -80,13 +87,20 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
                 containerId
         );
 
-        this.blockEntity = blockEntity;
-        this.container = blockEntity.getInputInventory();
-        this.data = data;
-        this.access = ContainerLevelAccess.create(
-                blockEntity.getLevel(),
-                blockEntity.getBlockPos()
-        );
+        this.blockEntity =
+                blockEntity;
+
+        this.container =
+                blockEntity.getInputInventory();
+
+        this.data =
+                data;
+
+        this.access =
+                ContainerLevelAccess.create(
+                        blockEntity.getLevel(),
+                        blockEntity.getBlockPos()
+                );
 
         checkContainerSize(
                 container,
@@ -98,59 +112,106 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
                 DATA_COUNT
         );
 
-        container.startOpen(playerInventory.player);
+        container.startOpen(
+                playerInventory.player
+        );
+
         addDataSlots(data);
 
-        // Raw Iron input
+        /*
+         * Any item with a FoundryMeltingRecipe can use the input slot.
+         */
         this.addSlot(
-                new Slot(container, 0, 80, 35) {
+                new Slot(
+                        container,
+                        FoundryControllerBlockEntity.INPUT_SLOT,
+                        80,
+                        35
+                ) {
 
                     @Override
-                    public boolean mayPlace(ItemStack stack) {
-                        return stack.is(Items.RAW_IRON);
+                    public boolean mayPlace(
+                            ItemStack stack
+                    ) {
+                        return blockEntity.canMelt(
+                                stack
+                        );
                     }
                 }
         );
 
-        addPlayerInventory(playerInventory);
-        addPlayerHotbar(playerInventory);
+        addPlayerInventory(
+                playerInventory
+        );
+
+        addPlayerHotbar(
+                playerInventory
+        );
     }
 
     private static FoundryControllerBlockEntity getBlockEntity(
             Inventory playerInventory,
             FriendlyByteBuf extraData
     ) {
-        var pos = extraData.readBlockPos();
+        var pos =
+                extraData.readBlockPos();
 
         var blockEntity =
-                playerInventory.player.level().getBlockEntity(pos);
+                playerInventory.player
+                        .level()
+                        .getBlockEntity(pos);
 
-        if (blockEntity instanceof FoundryControllerBlockEntity controller) {
+        if (
+                blockEntity
+                        instanceof FoundryControllerBlockEntity controller
+        ) {
             return controller;
         }
 
         throw new IllegalStateException(
-                "FoundryControllerBlockEntity missing at " + pos
+                "FoundryControllerBlockEntity missing at "
+                        + pos
         );
     }
 
-    public int getScaledProgress(int width) {
-        int progress = data.get(0);
-        int maxProgress = data.get(1);
+    public int getScaledProgress(
+            int width
+    ) {
+        int progress =
+                data.get(0);
 
-        if (progress <= 0 || maxProgress <= 0) {
+        int maxProgress =
+                data.get(1);
+
+        if (
+                progress <= 0
+                        || maxProgress <= 0
+        ) {
             return 0;
         }
 
-        return progress * width / maxProgress;
+        return progress
+                * width
+                / maxProgress;
     }
 
-    public int getMoltenIronAmount() {
+    public int getMoltenAmount() {
         return data.get(2);
     }
 
+    /*
+     * Compatibility alias for the current Controller screen.
+     * The screen will be generalized when its multi-metal contents list is
+     * introduced in a later step.
+     */
+    public int getMoltenIronAmount() {
+        return getMoltenAmount();
+    }
+
     @Override
-    public boolean stillValid(Player player) {
+    public boolean stillValid(
+            Player player
+    ) {
         return stillValid(
                 access,
                 player,
@@ -163,37 +224,47 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             Player player,
             int index
     ) {
-        Slot slot = this.slots.get(index);
+        Slot slot =
+                this.slots.get(index);
 
         if (!slot.hasItem()) {
             return ItemStack.EMPTY;
         }
 
-        ItemStack stack = slot.getItem();
-        ItemStack originalStack = stack.copy();
+        ItemStack stack =
+                slot.getItem();
+
+        ItemStack originalStack =
+                stack.copy();
 
         if (index == 0) {
             /*
              * Controller -> player inventory
              */
-            if (!moveItemStackTo(
-                    stack,
-                    PLAYER_INVENTORY_START,
-                    HOTBAR_END,
-                    true
-            )) {
+            if (
+                    !moveItemStackTo(
+                            stack,
+                            PLAYER_INVENTORY_START,
+                            HOTBAR_END,
+                            true
+                    )
+            ) {
                 return ItemStack.EMPTY;
             }
-        } else if (stack.is(Items.RAW_IRON)) {
+        } else if (
+                blockEntity.canMelt(stack)
+        ) {
             /*
-             * Raw Iron -> Controller
+             * Valid Foundry melting input -> Controller
              */
-            if (!moveItemStackTo(
-                    stack,
-                    0,
-                    1,
-                    false
-            )) {
+            if (
+                    !moveItemStackTo(
+                            stack,
+                            0,
+                            1,
+                            false
+                    )
+            ) {
                 return ItemStack.EMPTY;
             }
         } else if (
@@ -203,12 +274,14 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             /*
              * Player inventory -> hotbar
              */
-            if (!moveItemStackTo(
-                    stack,
-                    HOTBAR_START,
-                    HOTBAR_END,
-                    false
-            )) {
+            if (
+                    !moveItemStackTo(
+                            stack,
+                            HOTBAR_START,
+                            HOTBAR_END,
+                            false
+                    )
+            ) {
                 return ItemStack.EMPTY;
             }
         } else if (
@@ -218,12 +291,14 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             /*
              * Hotbar -> player inventory
              */
-            if (!moveItemStackTo(
-                    stack,
-                    PLAYER_INVENTORY_START,
-                    PLAYER_INVENTORY_END,
-                    false
-            )) {
+            if (
+                    !moveItemStackTo(
+                            stack,
+                            PLAYER_INVENTORY_START,
+                            PLAYER_INVENTORY_END,
+                            false
+                    )
+            ) {
                 return ItemStack.EMPTY;
             }
         } else {
@@ -231,22 +306,32 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
         }
 
         if (stack.isEmpty()) {
-            slot.setByPlayer(ItemStack.EMPTY);
+            slot.setByPlayer(
+                    ItemStack.EMPTY
+            );
         } else {
             slot.setChanged();
         }
 
-        if (stack.getCount() == originalStack.getCount()) {
+        if (
+                stack.getCount()
+                        == originalStack.getCount()
+        ) {
             return ItemStack.EMPTY;
         }
 
-        slot.onTake(player, stack);
+        slot.onTake(
+                player,
+                stack
+        );
 
         return originalStack;
     }
 
     @Override
-    public void removed(Player player) {
+    public void removed(
+            Player player
+    ) {
         super.removed(player);
         container.stopOpen(player);
     }
@@ -255,13 +340,21 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             Inventory playerInventory
     ) {
         for (int row = 0; row < 3; row++) {
-            for (int column = 0; column < 9; column++) {
+            for (
+                    int column = 0;
+                    column < 9;
+                    column++
+            ) {
                 this.addSlot(
                         new Slot(
                                 playerInventory,
-                                column + row * 9 + 9,
-                                8 + column * 18,
-                                84 + row * 18
+                                column
+                                        + row * 9
+                                        + 9,
+                                8
+                                        + column * 18,
+                                84
+                                        + row * 18
                         )
                 );
             }
@@ -271,12 +364,17 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
     private void addPlayerHotbar(
             Inventory playerInventory
     ) {
-        for (int column = 0; column < 9; column++) {
+        for (
+                int column = 0;
+                column < 9;
+                column++
+        ) {
             this.addSlot(
                     new Slot(
                             playerInventory,
                             column,
-                            8 + column * 18,
+                            8
+                                    + column * 18,
                             142
                     )
             );

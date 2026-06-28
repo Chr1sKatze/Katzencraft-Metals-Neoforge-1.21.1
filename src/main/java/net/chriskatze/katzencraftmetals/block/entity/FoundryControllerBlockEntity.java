@@ -2,6 +2,9 @@ package net.chriskatze.katzencraftmetals.block.entity;
 
 import net.chriskatze.katzencraftmetals.block.custom.FoundryControllerBlock;
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
+import net.chriskatze.katzencraftmetals.recipe.FoundryMeltingRecipe;
+import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -16,7 +19,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -26,6 +29,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -33,17 +38,21 @@ public class FoundryControllerBlockEntity
         extends BlockEntity
         implements MenuProvider {
 
+    /*
+     * Compatibility constants retained for existing callers.
+     *
+     * The Controller no longer uses these values to decide what can melt.
+     * That information now comes from FoundryMeltingRecipe.
+     */
     public static final ResourceLocation MOLTEN_IRON =
-            ResourceLocation.fromNamespaceAndPath(
-                    "minecraft",
-                    "iron"
-            );
+            ModMoltenMetals.IRON.id();
 
     public static final int INPUT_SLOT = 0;
     public static final int SLOT_COUNT = 1;
 
     public static final int MAX_PROGRESS = 20;
-    public static final int MOLTEN_IRON_PER_RAW_IRON = 6;
+    public static final int MOLTEN_IRON_PER_RAW_IRON =
+            ModMoltenMetals.IRON.unitsPerOre();
 
     /*
      * Every Controller owns one persistent UUID.
@@ -61,7 +70,8 @@ public class FoundryControllerBlockEntity
                         int slot,
                         ItemStack stack
                 ) {
-                    return stack.is(Items.RAW_IRON);
+                    return slot == INPUT_SLOT
+                            && canMelt(stack);
                 }
 
                 @Override
@@ -72,15 +82,28 @@ public class FoundryControllerBlockEntity
             };
 
     private int progress;
+    private int maxProgress =
+            MAX_PROGRESS;
+
+    /*
+     * The active recipe signature prevents progress from carrying across
+     * two different Foundry recipes when the input is changed midway.
+     */
+    @Nullable
+    private ResourceLocation activeMoltenMetal;
+
+    private int activeMoltenAmount;
 
     private final ContainerData data =
             new ContainerData() {
 
                 @Override
-                public int get(int index) {
+                public int get(
+                        int index
+                ) {
                     return switch (index) {
                         case 0 -> progress;
-                        case 1 -> MAX_PROGRESS;
+                        case 1 -> maxProgress;
                         case 2 -> {
                             FoundryTankNetwork network =
                                     getOwnedTankNetwork();
@@ -98,8 +121,20 @@ public class FoundryControllerBlockEntity
                         int index,
                         int value
                 ) {
-                    if (index == 0) {
-                        progress = value;
+                    switch (index) {
+                        case 0 ->
+                                progress =
+                                        value;
+
+                        case 1 ->
+                                maxProgress =
+                                        Math.max(
+                                                1,
+                                                value
+                                        );
+
+                        default -> {
+                        }
                     }
                 }
 
@@ -240,13 +275,19 @@ public class FoundryControllerBlockEntity
         Set<BlockPos> alreadyChecked =
                 new HashSet<>();
 
-        for (BlockPos attachmentPos : getValidTankAttachmentPositions()) {
+        for (
+                BlockPos attachmentPos :
+                getValidTankAttachmentPositions()
+        ) {
             BlockEntity blockEntity =
                     level.getBlockEntity(
                             attachmentPos
                     );
 
-            if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
+            if (
+                    !(blockEntity
+                            instanceof FoundryTankBlockEntity tank)
+            ) {
                 continue;
             }
 
@@ -339,15 +380,107 @@ public class FoundryControllerBlockEntity
                 FuelChamberBlockEntity fuelChamber :
                 collectNearbyFuelChambers(network)
         ) {
-            if (controllerId.equals(
-                    fuelChamber.getControllerId()
-            )) {
+            if (
+                    controllerId.equals(
+                            fuelChamber.getControllerId()
+                    )
+            ) {
                 fuelChamber.setControllerId(null);
             }
         }
 
         if (network != null) {
             network.releaseOwnership();
+        }
+    }
+
+    // =========================
+    // FOUNDRY RECIPES
+    // =========================
+
+    public boolean canMelt(
+            ItemStack stack
+    ) {
+        return findMeltingRecipe(stack)
+                .isPresent();
+    }
+
+    private Optional<FoundryMeltingRecipe> findMeltingRecipe(
+            ItemStack stack
+    ) {
+        if (
+                level == null
+                        || stack.isEmpty()
+        ) {
+            return Optional.empty();
+        }
+
+        return level.getRecipeManager()
+                .getRecipeFor(
+                        ModRecipes.FOUNDRY_MELTING_TYPE.get(),
+                        new SingleRecipeInput(stack),
+                        level
+                )
+                .map(
+                        holder ->
+                                holder.value()
+                )
+                .filter(
+                        recipe ->
+                                ModMoltenMetals.contains(
+                                        recipe.moltenMetal()
+                                )
+                );
+    }
+
+    private boolean matchesActiveRecipe(
+            FoundryMeltingRecipe recipe
+    ) {
+        return Objects.equals(
+                activeMoltenMetal,
+                recipe.moltenMetal()
+        )
+                && activeMoltenAmount
+                == recipe.moltenAmount()
+                && maxProgress
+                == recipe.processingTime();
+    }
+
+    private void selectActiveRecipe(
+            FoundryMeltingRecipe recipe
+    ) {
+        if (matchesActiveRecipe(recipe)) {
+            return;
+        }
+
+        progress = 0;
+
+        activeMoltenMetal =
+                recipe.moltenMetal();
+
+        activeMoltenAmount =
+                recipe.moltenAmount();
+
+        maxProgress =
+                recipe.processingTime();
+
+        setChanged();
+    }
+
+    private void clearActiveRecipe() {
+        boolean changed =
+                progress != 0
+                        || maxProgress != MAX_PROGRESS
+                        || activeMoltenMetal != null
+                        || activeMoltenAmount != 0;
+
+        progress = 0;
+        maxProgress = MAX_PROGRESS;
+        activeMoltenMetal = null;
+        activeMoltenAmount = 0;
+
+        if (changed) {
+            setChanged();
         }
     }
 
@@ -373,25 +506,33 @@ public class FoundryControllerBlockEntity
                         )
                         .thenComparingInt(
                                 fuelChamber ->
-                                        fuelChamber.getBlockPos().getY()
+                                        fuelChamber.getBlockPos()
+                                                .getY()
                         )
                         .thenComparingInt(
                                 fuelChamber ->
-                                        fuelChamber.getBlockPos().getX()
+                                        fuelChamber.getBlockPos()
+                                                .getX()
                         )
                         .thenComparingInt(
                                 fuelChamber ->
-                                        fuelChamber.getBlockPos().getZ()
+                                        fuelChamber.getBlockPos()
+                                                .getZ()
                         )
         );
 
         /*
          * Preserve an existing valid assignment first.
          */
-        for (FuelChamberBlockEntity fuelChamber : fuelChambers) {
-            if (controllerId.equals(
-                    fuelChamber.getControllerId()
-            )) {
+        for (
+                FuelChamberBlockEntity fuelChamber :
+                fuelChambers
+        ) {
+            if (
+                    controllerId.equals(
+                            fuelChamber.getControllerId()
+                    )
+            ) {
                 return fuelChamber;
             }
         }
@@ -400,12 +541,17 @@ public class FoundryControllerBlockEntity
          * Unassigned or stale Fuel Chambers resolve their surrounding
          * Controllers automatically. Ambiguous chambers remain unused.
          */
-        for (FuelChamberBlockEntity fuelChamber : fuelChambers) {
+        for (
+                FuelChamberBlockEntity fuelChamber :
+                fuelChambers
+        ) {
             fuelChamber.tryAutoAssign(null);
 
-            if (controllerId.equals(
-                    fuelChamber.getControllerId()
-            )) {
+            if (
+                    controllerId.equals(
+                            fuelChamber.getControllerId()
+                    )
+            ) {
                 return fuelChamber;
             }
         }
@@ -438,8 +584,14 @@ public class FoundryControllerBlockEntity
          * again on any of the six faces.
          */
         if (network != null) {
-            for (BlockPos tankPos : network.getTankPositions()) {
-                for (Direction direction : Direction.values()) {
+            for (
+                    BlockPos tankPos :
+                    network.getTankPositions()
+            ) {
+                for (
+                        Direction direction :
+                        Direction.values()
+                ) {
                     candidatePositions.add(
                             tankPos.relative(direction)
                     );
@@ -452,7 +604,9 @@ public class FoundryControllerBlockEntity
 
         for (BlockPos candidatePos : candidatePositions) {
             BlockEntity blockEntity =
-                    level.getBlockEntity(candidatePos);
+                    level.getBlockEntity(
+                            candidatePos
+                    );
 
             if (
                     blockEntity
@@ -497,10 +651,20 @@ public class FoundryControllerBlockEntity
                         INPUT_SLOT
                 );
 
-        if (!inputStack.is(Items.RAW_IRON)) {
-            controller.resetProgress();
+        Optional<FoundryMeltingRecipe> recipeOptional =
+                controller.findMeltingRecipe(
+                        inputStack
+                );
+
+        if (recipeOptional.isEmpty()) {
+            controller.clearActiveRecipe();
             return;
         }
+
+        FoundryMeltingRecipe recipe =
+                recipeOptional.get();
+
+        controller.selectActiveRecipe(recipe);
 
         FuelChamberBlockEntity fuelChamber =
                 controller.getConnectedFuelChamber(
@@ -522,10 +686,16 @@ public class FoundryControllerBlockEntity
             return;
         }
 
-        if (!tank.canAccept(
-                MOLTEN_IRON,
-                MOLTEN_IRON_PER_RAW_IRON
-        )) {
+        /*
+         * A full Tank or incompatible stored metal pauses the Controller
+         * without wasting fuel or losing its current progress.
+         */
+        if (
+                !tank.canAccept(
+                        recipe.moltenMetal(),
+                        recipe.moltenAmount()
+                )
+        ) {
             return;
         }
 
@@ -535,8 +705,14 @@ public class FoundryControllerBlockEntity
 
         controller.progress++;
 
-        if (controller.progress >= MAX_PROGRESS) {
-            controller.finishMelting(tank);
+        if (
+                controller.progress
+                        >= controller.maxProgress
+        ) {
+            controller.finishMelting(
+                    tank,
+                    recipe
+            );
         }
 
         controller.setChanged();
@@ -573,7 +749,9 @@ public class FoundryControllerBlockEntity
 
         for (BlockPos tankPos : positions) {
             BlockEntity blockEntity =
-                    level.getBlockEntity(tankPos);
+                    level.getBlockEntity(
+                            tankPos
+                    );
 
             if (
                     blockEntity
@@ -587,32 +765,57 @@ public class FoundryControllerBlockEntity
     }
 
     private void finishMelting(
-            FoundryTankBlockEntity tank
+            FoundryTankBlockEntity tank,
+            FoundryMeltingRecipe expectedRecipe
     ) {
         ItemStack inputStack =
                 inputInventory.getItem(
                         INPUT_SLOT
                 );
 
-        if (!inputStack.is(Items.RAW_IRON)) {
-            resetProgress();
+        Optional<FoundryMeltingRecipe> currentRecipeOptional =
+                findMeltingRecipe(
+                        inputStack
+                );
+
+        if (currentRecipeOptional.isEmpty()) {
+            clearActiveRecipe();
             return;
         }
 
-        if (!tank.canAccept(
-                MOLTEN_IRON,
-                MOLTEN_IRON_PER_RAW_IRON
-        )) {
+        FoundryMeltingRecipe currentRecipe =
+                currentRecipeOptional.get();
+
+        if (
+                !matchesActiveRecipe(currentRecipe)
+                        || !sameRecipeResult(
+                        expectedRecipe,
+                        currentRecipe
+                )
+        ) {
+            selectActiveRecipe(currentRecipe);
+            return;
+        }
+
+        if (
+                !tank.canAccept(
+                        currentRecipe.moltenMetal(),
+                        currentRecipe.moltenAmount()
+                )
+        ) {
             return;
         }
 
         int inserted =
                 tank.insert(
-                        MOLTEN_IRON,
-                        MOLTEN_IRON_PER_RAW_IRON
+                        currentRecipe.moltenMetal(),
+                        currentRecipe.moltenAmount()
                 );
 
-        if (inserted != MOLTEN_IRON_PER_RAW_IRON) {
+        if (
+                inserted
+                        != currentRecipe.moltenAmount()
+        ) {
             return;
         }
 
@@ -621,6 +824,20 @@ public class FoundryControllerBlockEntity
 
         inputInventory.setChanged();
         setChanged();
+    }
+
+    private static boolean sameRecipeResult(
+            FoundryMeltingRecipe first,
+            FoundryMeltingRecipe second
+    ) {
+        return first.moltenAmount()
+                == second.moltenAmount()
+                && first.processingTime()
+                == second.processingTime()
+                && first.moltenMetal()
+                .equals(
+                        second.moltenMetal()
+                );
     }
 
     private void resetProgress() {
@@ -695,7 +912,16 @@ public class FoundryControllerBlockEntity
     }
 
     public int getMaxProgress() {
-        return MAX_PROGRESS;
+        return maxProgress;
+    }
+
+    @Nullable
+    public ResourceLocation getActiveMoltenMetal() {
+        return activeMoltenMetal;
+    }
+
+    public int getActiveMoltenAmount() {
+        return activeMoltenAmount;
     }
 
     // =========================
@@ -719,12 +945,31 @@ public class FoundryControllerBlockEntity
 
         tag.put(
                 "InputInventory",
-                inputInventory.createTag(registries)
+                inputInventory.createTag(
+                        registries
+                )
         );
 
         tag.putInt(
                 "Progress",
                 progress
+        );
+
+        tag.putInt(
+                "MaxProgress",
+                maxProgress
+        );
+
+        if (activeMoltenMetal != null) {
+            tag.putString(
+                    "ActiveMoltenMetal",
+                    activeMoltenMetal.toString()
+            );
+        }
+
+        tag.putInt(
+                "ActiveMoltenAmount",
+                activeMoltenAmount
         );
     }
 
@@ -757,10 +1002,12 @@ public class FoundryControllerBlockEntity
 
         inputInventory.removeAllItems();
 
-        if (tag.contains(
-                "InputInventory",
-                Tag.TAG_LIST
-        )) {
+        if (
+                tag.contains(
+                        "InputInventory",
+                        Tag.TAG_LIST
+                )
+        ) {
             inputInventory.fromTag(
                     tag.getList(
                             "InputInventory",
@@ -770,10 +1017,56 @@ public class FoundryControllerBlockEntity
             );
         }
 
+        maxProgress =
+                tag.contains("MaxProgress")
+                        ? Math.max(
+                        1,
+                        tag.getInt(
+                                "MaxProgress"
+                        )
+                )
+                        : MAX_PROGRESS;
+
         progress =
                 Math.max(
                         0,
-                        tag.getInt("Progress")
+                        Math.min(
+                                tag.getInt("Progress"),
+                                maxProgress
+                        )
                 );
+
+        activeMoltenMetal =
+                null;
+
+        if (tag.contains("ActiveMoltenMetal")) {
+            activeMoltenMetal =
+                    ResourceLocation.tryParse(
+                            tag.getString(
+                                    "ActiveMoltenMetal"
+                            )
+                    );
+        }
+
+        activeMoltenAmount =
+                Math.max(
+                        0,
+                        tag.getInt(
+                                "ActiveMoltenAmount"
+                        )
+                );
+
+        if (
+                activeMoltenMetal == null
+                        || activeMoltenAmount <= 0
+                        || !ModMoltenMetals.contains(
+                        activeMoltenMetal
+                )
+        ) {
+            progress = 0;
+            maxProgress = MAX_PROGRESS;
+            activeMoltenMetal = null;
+            activeMoltenAmount = 0;
+        }
     }
 }

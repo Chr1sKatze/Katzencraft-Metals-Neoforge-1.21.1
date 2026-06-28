@@ -24,68 +24,149 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
-@EventBusSubscriber(modid = KatzencraftMetalsMod.MODID)
+@EventBusSubscriber(
+        modid = KatzencraftMetalsMod.MODID
+)
 public class DataGenerators {
 
-    private static final RegistrySetBuilder BUILDER = new RegistrySetBuilder()
-            .add(Registries.CONFIGURED_FEATURE, ModConfiguredFeatures::bootstrap)
-            .add(Registries.PLACED_FEATURE, ModPlacedFeatures::bootstrap)
-            .add(NeoForgeRegistries.Keys.BIOME_MODIFIERS, ModBiomeModifiers::bootstrap);
+    private static final RegistrySetBuilder BUILDER =
+            new RegistrySetBuilder()
+                    .add(
+                            Registries.CONFIGURED_FEATURE,
+                            ModConfiguredFeatures::bootstrap
+                    )
+                    .add(
+                            Registries.PLACED_FEATURE,
+                            ModPlacedFeatures::bootstrap
+                    )
+                    .add(
+                            NeoForgeRegistries.Keys.BIOME_MODIFIERS,
+                            ModBiomeModifiers::bootstrap
+                    );
 
     @SubscribeEvent
-    public static void gatherData(GatherDataEvent event) {
-        DataGenerator generator = event.getGenerator();
-        PackOutput output = generator.getPackOutput();
-        ExistingFileHelper existingFileHelper = event.getExistingFileHelper();
-        CompletableFuture<HolderLookup.Provider> lookupProvider = event.getLookupProvider();
+    public static void gatherData(
+            GatherDataEvent event
+    ) {
+        DataGenerator generator =
+                event.getGenerator();
 
-        generator.addProvider(event.includeClient(), new ModItemModelProvider(output, existingFileHelper));
-        generator.addProvider(event.includeClient(), new ModBlockStateProvider(output, existingFileHelper));
-        generator.addProvider(event.includeClient(), new ModLanguageProvider(output));
+        PackOutput output =
+                generator.getPackOutput();
 
-        generator.addProvider(event.includeServer(), new ModRecipeProvider(output, lookupProvider));
+        ExistingFileHelper existingFileHelper =
+                event.getExistingFileHelper();
+
+        CompletableFuture<HolderLookup.Provider> lookupProvider =
+                event.getLookupProvider();
+
+        generator.addProvider(
+                event.includeClient(),
+                new ModItemModelProvider(
+                        output,
+                        existingFileHelper
+                )
+        );
+
+        generator.addProvider(
+                event.includeClient(),
+                new ModBlockStateProvider(
+                        output,
+                        existingFileHelper
+                )
+        );
+
+        generator.addProvider(
+                event.includeClient(),
+                new ModLanguageProvider(output)
+        );
+
+        generator.addProvider(
+                event.includeServer(),
+                new ModRecipeProvider(
+                        output,
+                        lookupProvider
+                )
+        );
+
+        /*
+         * RecipeProvider#getName() is final and always reports "Recipes".
+         * The project now has two RecipeProvider subclasses, so the
+         * Foundry provider is wrapped with a unique DataProvider name.
+         */
+        generator.addProvider(
+                event.includeServer(),
+                new NamedDataProvider(
+                        "Katzencraft Foundry Recipes",
+                        new ModFoundryRecipeProvider(
+                                output,
+                                lookupProvider
+                        )
+                )
+        );
 
         BlockTagsProvider blockTagsProvider =
-                new ModBlockTagProvider(output, lookupProvider, existingFileHelper);
-        generator.addProvider(event.includeServer(), blockTagsProvider);
+                new ModBlockTagProvider(
+                        output,
+                        lookupProvider,
+                        existingFileHelper
+                );
 
-        generator.addProvider(event.includeServer(), new LootTableProvider(
-                output,
-                Collections.emptySet(),
-                List.of(
-                        new LootTableProvider.SubProviderEntry(
-                                ModBlockLootTableProvider::new,
-                                LootContextParamSets.BLOCK
+        generator.addProvider(
+                event.includeServer(),
+                blockTagsProvider
+        );
+
+        generator.addProvider(
+                event.includeServer(),
+                new LootTableProvider(
+                        output,
+                        Collections.emptySet(),
+                        List.of(
+                                new LootTableProvider.SubProviderEntry(
+                                        ModBlockLootTableProvider::new,
+                                        LootContextParamSets.BLOCK
+                                ),
+                                new LootTableProvider.SubProviderEntry(
+                                        registries ->
+                                                new ModVanillaLootTableProvider(),
+                                        LootContextParamSets.CHEST
+                                ),
+                                new LootTableProvider.SubProviderEntry(
+                                        registries ->
+                                                new ModVanillaEntityLootTableProvider(),
+                                        LootContextParamSets.ENTITY
+                                ),
+                                new LootTableProvider.SubProviderEntry(
+                                        registries ->
+                                                new ModVanillaFishingLootTableProvider(),
+                                        LootContextParamSets.FISHING
+                                ),
+                                new LootTableProvider.SubProviderEntry(
+                                        registries ->
+                                                new ModVanillaGameplayLootTableProvider(),
+                                        LootContextParamSets.GIFT
+                                ),
+                                new LootTableProvider.SubProviderEntry(
+                                        registries ->
+                                                new ModVanillaArchaeologyLootTableProvider(),
+                                        LootContextParamSets.ARCHAEOLOGY
+                                )
                         ),
-                        new LootTableProvider.SubProviderEntry(
-                                registries -> new ModVanillaLootTableProvider(),
-                                LootContextParamSets.CHEST
-                        ),
-                        new LootTableProvider.SubProviderEntry(
-                                registries -> new ModVanillaEntityLootTableProvider(),
-                                LootContextParamSets.ENTITY
-                        ),
-                        new LootTableProvider.SubProviderEntry(
-                                registries -> new ModVanillaFishingLootTableProvider(),
-                                LootContextParamSets.FISHING
-                        ),
-                        new LootTableProvider.SubProviderEntry(
-                                registries -> new ModVanillaGameplayLootTableProvider(),
-                                LootContextParamSets.GIFT
-                        ),
-                        new LootTableProvider.SubProviderEntry(
-                                registries -> new ModVanillaArchaeologyLootTableProvider(),
-                                LootContextParamSets.ARCHAEOLOGY
+                        lookupProvider
+                )
+        );
+
+        generator.addProvider(
+                event.includeServer(),
+                new DatapackBuiltinEntriesProvider(
+                        output,
+                        lookupProvider,
+                        BUILDER,
+                        Set.of(
+                                KatzencraftMetalsMod.MODID
                         )
-                ),
-                lookupProvider
-        ));
-
-        generator.addProvider(event.includeServer(), new DatapackBuiltinEntriesProvider(
-                output,
-                lookupProvider,
-                BUILDER,
-                Set.of(KatzencraftMetalsMod.MODID)
-        ));
+                )
+        );
     }
 }
