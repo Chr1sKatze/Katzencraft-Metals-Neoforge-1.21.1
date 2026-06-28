@@ -2,6 +2,8 @@ package net.chriskatze.katzencraftmetals.menu;
 
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
+import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
@@ -13,13 +15,15 @@ import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.Optional;
+
 public class FoundryControllerMenu
         extends AbstractContainerMenu {
 
     private static final int CONTROLLER_SLOT_COUNT =
             FoundryControllerBlockEntity.SLOT_COUNT;
 
-    private static final int DATA_COUNT = 3;
+    private static final int DATA_COUNT = 4;
 
     /*
      * Menu slot indices:
@@ -199,13 +203,10 @@ public class FoundryControllerMenu
         return data.get(2);
     }
 
-    /*
-     * Compatibility alias for the current Controller screen.
-     * The screen will be generalized when its multi-metal contents list is
-     * introduced in a later step.
-     */
-    public int getMoltenIronAmount() {
-        return getMoltenAmount();
+    public Optional<MoltenMetalDefinition> getStoredMetalDefinition() {
+        return ModMoltenMetals.bySyncId(
+                data.get(3)
+        );
     }
 
     @Override

@@ -52,9 +52,7 @@ public final class ModMoltenMetals {
      * Copper is denser than Iron, so the future multi-metal distributor
      * will place Copper below Iron.
      *
-     * The current Iron sheet is intentionally used as a safe temporary
-     * texture placeholder. A dedicated animated molten_copper.png sheet
-     * will replace it when the renderer becomes metal-aware.
+     * Copper uses its own 20-frame animated texture sheet.
      */
     public static final MoltenMetalDefinition COPPER =
             register(
@@ -66,7 +64,7 @@ public final class ModMoltenMetals {
                             "metal.katzencraftmetals.copper",
                             ResourceLocation.fromNamespaceAndPath(
                                     KatzencraftMetalsMod.MODID,
-                                    "textures/block/molten_iron.png"
+                                    "textures/block/molten_copper.png"
                             ),
                             8_960,
                             6
@@ -107,6 +105,45 @@ public final class ModMoltenMetals {
             ResourceLocation id
     ) {
         return DEFINITIONS.containsKey(id);
+    }
+
+    /**
+     * Compact integer id used only for menu synchronization.
+     *
+     * The order follows the insertion order of DEFINITIONS, which is stable
+     * for one running mod version. Persistent saves continue to use the full
+     * ResourceLocation and never depend on this number.
+     */
+    public static int getSyncId(
+            ResourceLocation id
+    ) {
+        int index = 0;
+
+        for (ResourceLocation registeredId : DEFINITIONS.keySet()) {
+            if (registeredId.equals(id)) {
+                return index;
+            }
+
+            index++;
+        }
+
+        return -1;
+    }
+
+    public static Optional<MoltenMetalDefinition> bySyncId(
+            int syncId
+    ) {
+        if (
+                syncId < 0
+                        || syncId >= DEFINITIONS.size()
+        ) {
+            return Optional.empty();
+        }
+
+        return DEFINITIONS.values()
+                .stream()
+                .skip(syncId)
+                .findFirst();
     }
 
     public static Collection<MoltenMetalDefinition> values() {

@@ -112,6 +112,22 @@ public class FoundryControllerBlockEntity
                                     ? network.getMoltenAmount()
                                     : 0;
                         }
+
+                        case 3 -> {
+                            FoundryTankNetwork network =
+                                    getOwnedTankNetwork();
+
+                            ResourceLocation storedMetal =
+                                    network != null
+                                            ? network.getStoredMetal()
+                                            : null;
+
+                            yield storedMetal != null
+                                    ? ModMoltenMetals.getSyncId(
+                                    storedMetal
+                            )
+                                    : -1;
+                        }
                         default -> 0;
                     };
                 }
@@ -140,7 +156,7 @@ public class FoundryControllerBlockEntity
 
                 @Override
                 public int getCount() {
-                    return 3;
+                    return 4;
                 }
             };
 
