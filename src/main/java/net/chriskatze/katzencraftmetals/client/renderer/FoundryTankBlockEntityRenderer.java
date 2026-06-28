@@ -5,6 +5,8 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryFaucetBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
+import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -47,12 +49,6 @@ public class FoundryTankBlockEntityRenderer
             ResourceLocation.fromNamespaceAndPath(
                     KatzencraftMetalsMod.MODID,
                     "textures/block/foundry_tank_faucet_overlay.png"
-            );
-
-    private static final ResourceLocation MOLTEN_IRON_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(
-                    KatzencraftMetalsMod.MODID,
-                    "textures/block/molten_iron.png"
             );
 
     private static final float PIXEL =
@@ -346,7 +342,6 @@ public class FoundryTankBlockEntityRenderer
             );
         }
     }
-
     private static boolean shouldKeepFaucetOverlayOpen(
             FoundryFaucetBlockEntity faucet,
             float partialTick
@@ -1372,6 +1367,16 @@ public class FoundryTankBlockEntityRenderer
             MultiBufferSource bufferSource,
             int packedOverlay
     ) {
+        MoltenMetalDefinition metal =
+                ModMoltenMetals.get(
+                                tank.getStoredMetal()
+                        )
+                        .orElse(null);
+
+        if (metal == null) {
+            return;
+        }
+
         LiquidGeometry geometry =
                 createLiquidGeometry(
                         tank,
@@ -1387,7 +1392,7 @@ public class FoundryTankBlockEntityRenderer
         VertexConsumer consumer =
                 bufferSource.getBuffer(
                         RenderType.entityTranslucent(
-                                MOLTEN_IRON_TEXTURE
+                                metal.animatedTexture()
                         )
                 );
 

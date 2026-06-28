@@ -3,10 +3,12 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
-import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
 import net.chriskatze.katzencraftmetals.block.entity.CastingCauldronBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryFaucetBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
+import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -24,18 +26,6 @@ import java.util.WeakHashMap;
 
 public class FoundryFaucetBlockEntityRenderer
         implements BlockEntityRenderer<FoundryFaucetBlockEntity> {
-
-    /*
-     * Use the same still molten-iron sheet as the Tank and Cauldron.
-     *
-     * The shared MoltenIronAnimation helper keeps every rendered
-     * surface on the exact same vanilla-style frame and speed.
-     */
-    private static final ResourceLocation MOLTEN_IRON_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(
-                    KatzencraftMetalsMod.MODID,
-                    "textures/block/molten_iron.png"
-            );
 
     /*
      * Interior coordinates of the open Faucet channel.
@@ -356,6 +346,51 @@ public class FoundryFaucetBlockEntityRenderer
         CastingCauldronBlockEntity cauldron =
                 cauldronTarget.cauldron();
 
+        /*
+         * Once the first molten unit reaches the Cauldron, the Cauldron keeps
+         * the stream's metal identity stable for the complete shutdown and
+         * drip animation. During startup the Cauldron can still be empty, so
+         * use the Tank attached behind the Faucet as the source.
+         */
+        ResourceLocation renderedMetalId =
+                cauldron.getStoredMetal();
+
+        if (renderedMetalId == null) {
+            Direction facing =
+                    faucet.getBlockState().getValue(
+                            FoundryFaucetBlock.FACING
+                    );
+
+            BlockPos sourceTankPos =
+                    faucet.getBlockPos().relative(
+                            facing.getOpposite()
+                    );
+
+            BlockEntity sourceBlockEntity =
+                    faucet.getLevel().getBlockEntity(
+                            sourceTankPos
+                    );
+
+            if (
+                    sourceBlockEntity
+                            instanceof FoundryTankBlockEntity sourceTank
+            ) {
+                renderedMetalId =
+                        sourceTank.getStoredMetal();
+            }
+        }
+
+        MoltenMetalDefinition metal =
+                renderedMetalId != null
+                        ? ModMoltenMetals.get(
+                                renderedMetalId
+                        ).orElse(null)
+                        : null;
+
+        if (metal == null) {
+            return;
+        }
+
         int cauldronDistance =
                 cauldronTarget.distance();
 
@@ -530,7 +565,7 @@ public class FoundryFaucetBlockEntityRenderer
         VertexConsumer consumer =
                 bufferSource.getBuffer(
                         RenderType.entityTranslucent(
-                                MOLTEN_IRON_TEXTURE
+                                metal.animatedTexture()
                         )
                 );
 
@@ -1047,7 +1082,6 @@ public class FoundryFaucetBlockEntityRenderer
                 frameMaxV,
                 alpha
         );
-
         /*
          * Top height section.
          */
