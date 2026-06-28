@@ -1,6 +1,7 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
 import net.chriskatze.katzencraftmetals.block.custom.CastingCauldronBlock;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
@@ -10,7 +11,6 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -34,12 +34,6 @@ public class CastingCauldronBlockEntity extends BlockEntity {
      * Cooling begins only once the cauldron is completely full.
      */
     public static final int MAX_COOLING_PROGRESS = 100;
-
-    private static final ResourceLocation IRON =
-            ResourceLocation.fromNamespaceAndPath(
-                    "minecraft",
-                    "iron"
-            );
 
     @Nullable
     private ResourceLocation storedMetal;
@@ -73,16 +67,8 @@ public class CastingCauldronBlockEntity extends BlockEntity {
             return;
         }
 
-        /*
-         * Ensures that the blockstate matches the saved contents
-         * after loading an existing world.
-         */
         cauldron.updateVisualState();
 
-        /*
-         * Empty, partially filled, and already-cooled
-         * cauldrons do not cool.
-         */
         if (
                 cauldron.isEmpty()
                         || !cauldron.isFull()
@@ -91,9 +77,6 @@ public class CastingCauldronBlockEntity extends BlockEntity {
             return;
         }
 
-        /*
-         * Advance the cooling process.
-         */
         cauldron.coolingProgress++;
 
         if (
@@ -104,16 +87,9 @@ public class CastingCauldronBlockEntity extends BlockEntity {
                     MAX_COOLING_PROGRESS;
 
             cauldron.cooled = true;
-
             cauldron.updateVisualState();
         }
 
-        /*
-         * setChanged() saves the new value.
-         *
-         * syncToClient() sends every intermediate cooling value
-         * to the renderer, allowing the cooled texture to fade in.
-         */
         cauldron.setChanged();
         cauldron.syncToClient();
     }
@@ -131,24 +107,20 @@ public class CastingCauldronBlockEntity extends BlockEntity {
         }
 
         /*
-         * Only iron is supported during this prototype.
+         * Every registered molten metal may be cast.
          */
-        if (!IRON.equals(metal)) {
+        if (!ModMoltenMetals.contains(metal)) {
             return false;
         }
 
-        /*
-         * A finished cast cannot accept more molten metal.
-         */
         if (cooled) {
             return false;
         }
 
         /*
-         * An empty cauldron accepts iron.
+         * An empty Cauldron accepts any registered metal.
          *
-         * A partially filled cauldron only accepts more of
-         * the same metal.
+         * A partially filled Cauldron only accepts more of the same metal.
          */
         if (
                 storedMetal != null
@@ -160,9 +132,6 @@ public class CastingCauldronBlockEntity extends BlockEntity {
         int remainingCapacity =
                 REQUIRED_MOLTEN_AMOUNT - moltenAmount;
 
-        /*
-         * The full requested amount must fit.
-         */
         return amount <= remainingCapacity;
     }
 
@@ -180,10 +149,6 @@ public class CastingCauldronBlockEntity extends BlockEntity {
 
         moltenAmount += amount;
 
-        /*
-         * The cauldron cannot be considered cooled while
-         * new molten metal is being inserted.
-         */
         coolingProgress = 0;
         cooled = false;
 
@@ -199,23 +164,24 @@ public class CastingCauldronBlockEntity extends BlockEntity {
     // =========================
 
     public ItemStack getResultCopy() {
-        if (!cooled) {
+        if (
+                !cooled
+                        || !isFull()
+                        || storedMetal == null
+        ) {
             return ItemStack.EMPTY;
         }
 
-        if (!isFull()) {
-            return ItemStack.EMPTY;
-        }
-
-        if (storedMetal == null) {
-            return ItemStack.EMPTY;
-        }
-
-        if (IRON.equals(storedMetal)) {
-            return new ItemStack(Items.IRON_BLOCK);
-        }
-
-        return ItemStack.EMPTY;
+        return ModMoltenMetals.get(
+                        storedMetal
+                )
+                .map(
+                        definition ->
+                                definition.createCastResult()
+                )
+                .orElse(
+                        ItemStack.EMPTY
+                );
     }
 
     public ItemStack takeResult() {
@@ -285,7 +251,10 @@ public class CastingCauldronBlockEntity extends BlockEntity {
     // =========================
 
     private void updateVisualState() {
-        if (level == null || level.isClientSide()) {
+        if (
+                level == null
+                        || level.isClientSide()
+        ) {
             return;
         }
 
@@ -309,10 +278,6 @@ public class CastingCauldronBlockEntity extends BlockEntity {
             desiredState =
                     CastingCauldronBlock.CastState.COOLED;
         } else {
-            /*
-             * Both partially filled and completely filled
-             * hot metal use the molten state.
-             */
             desiredState =
                     CastingCauldronBlock.CastState.MOLTEN;
         }
@@ -361,7 +326,10 @@ public class CastingCauldronBlockEntity extends BlockEntity {
     }
 
     private void syncToClient() {
-        if (level == null || level.isClientSide()) {
+        if (
+                level == null
+                        || level.isClientSide()
+        ) {
             return;
         }
 
@@ -431,31 +399,43 @@ public class CastingCauldronBlockEntity extends BlockEntity {
         if (tag.contains("StoredMetal")) {
             storedMetal =
                     ResourceLocation.tryParse(
-                            tag.getString("StoredMetal")
+                            tag.getString(
+                                    "StoredMetal"
+                            )
                     );
         }
 
-        moltenAmount = Mth.clamp(
-                tag.getInt("MoltenAmount"),
-                0,
-                REQUIRED_MOLTEN_AMOUNT
-        );
+        moltenAmount =
+                Mth.clamp(
+                        tag.getInt(
+                                "MoltenAmount"
+                        ),
+                        0,
+                        REQUIRED_MOLTEN_AMOUNT
+                );
 
-        coolingProgress = Mth.clamp(
-                tag.getInt("CoolingProgress"),
-                0,
-                MAX_COOLING_PROGRESS
-        );
+        coolingProgress =
+                Mth.clamp(
+                        tag.getInt(
+                                "CoolingProgress"
+                        ),
+                        0,
+                        MAX_COOLING_PROGRESS
+                );
 
         cooled =
-                tag.getBoolean("Cooled");
+                tag.getBoolean(
+                        "Cooled"
+                );
 
         /*
-         * Remove invalid or unsupported stored metals.
+         * Remove invalid or no-longer-supported stored metals.
          */
         if (
                 storedMetal == null
-                        || !IRON.equals(storedMetal)
+                        || !ModMoltenMetals.contains(
+                        storedMetal
+                )
                         || moltenAmount <= 0
         ) {
             storedMetal = null;
@@ -466,18 +446,11 @@ public class CastingCauldronBlockEntity extends BlockEntity {
             return;
         }
 
-        /*
-         * A partially filled basin cannot already be cooling
-         * or contain a finished cast.
-         */
         if (!isFull()) {
             coolingProgress = 0;
             cooled = false;
         }
 
-        /*
-         * Normalize a finished cast.
-         */
         if (cooled) {
             coolingProgress =
                     MAX_COOLING_PROGRESS;

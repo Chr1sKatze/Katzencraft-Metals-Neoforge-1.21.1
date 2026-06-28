@@ -1,12 +1,15 @@
 package net.chriskatze.katzencraftmetals.metal;
 
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+
+import java.util.function.Supplier;
 
 /**
  * Shared non-storage information about one molten metal.
  *
  * Storage amounts remain integer molten units. The unitsPerOre value is the
- * canonical conversion used later by the Controller display:
+ * canonical conversion used by the Controller display:
  *
  *     ore equivalent = molten units / unitsPerOre
  *
@@ -17,8 +20,10 @@ public record MoltenMetalDefinition(
         ResourceLocation id,
         String translationKey,
         ResourceLocation animatedTexture,
+        ResourceLocation cooledTexture,
         int density,
-        int unitsPerOre
+        int unitsPerOre,
+        Supplier<ItemStack> castResultFactory
 ) {
 
     public MoltenMetalDefinition {
@@ -39,7 +44,13 @@ public record MoltenMetalDefinition(
 
         if (animatedTexture == null) {
             throw new IllegalArgumentException(
-                    "Molten metal texture cannot be null."
+                    "Molten metal animated texture cannot be null."
+            );
+        }
+
+        if (cooledTexture == null) {
+            throw new IllegalArgumentException(
+                    "Molten metal cooled texture cannot be null."
             );
         }
 
@@ -54,6 +65,12 @@ public record MoltenMetalDefinition(
                     "Molten units per ore must be positive."
             );
         }
+
+        if (castResultFactory == null) {
+            throw new IllegalArgumentException(
+                    "Molten metal cast result factory cannot be null."
+            );
+        }
     }
 
     public double toOreAmount(
@@ -61,5 +78,14 @@ public record MoltenMetalDefinition(
     ) {
         return (double) moltenUnits
                 / unitsPerOre;
+    }
+
+    public ItemStack createCastResult() {
+        ItemStack result =
+                castResultFactory.get();
+
+        return result == null
+                ? ItemStack.EMPTY
+                : result.copy();
     }
 }

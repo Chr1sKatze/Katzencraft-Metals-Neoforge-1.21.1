@@ -2,6 +2,8 @@ package net.chriskatze.katzencraftmetals.metal;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -43,16 +45,21 @@ public final class ModMoltenMetals {
                                     KatzencraftMetalsMod.MODID,
                                     "textures/block/molten_iron.png"
                             ),
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "textures/block/cooled_iron.png"
+                            ),
                             7_874,
-                            6
+                            6,
+                            () -> new ItemStack(
+                                    Items.IRON_BLOCK
+                            )
                     )
             );
 
     /*
      * Copper is denser than Iron, so the future multi-metal distributor
      * will place Copper below Iron.
-     *
-     * Copper uses its own 20-frame animated texture sheet.
      */
     public static final MoltenMetalDefinition COPPER =
             register(
@@ -66,8 +73,19 @@ public final class ModMoltenMetals {
                                     KatzencraftMetalsMod.MODID,
                                     "textures/block/molten_copper.png"
                             ),
+                            /*
+                             * A cooled Copper cast uses Minecraft's normal
+                             * Copper Block texture.
+                             */
+                            ResourceLocation.fromNamespaceAndPath(
+                                    "minecraft",
+                                    "textures/block/copper_block.png"
+                            ),
                             8_960,
-                            6
+                            6,
+                            () -> new ItemStack(
+                                    Items.COPPER_BLOCK
+                            )
                     )
             );
 

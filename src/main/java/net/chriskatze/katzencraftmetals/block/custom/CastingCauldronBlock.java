@@ -3,6 +3,7 @@ package net.chriskatze.katzencraftmetals.block.custom;
 import com.mojang.serialization.MapCodec;
 import net.chriskatze.katzencraftmetals.block.entity.CastingCauldronBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.StringRepresentable;
@@ -10,6 +11,7 @@ import net.minecraft.world.Containers;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
@@ -21,11 +23,10 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
 import net.minecraft.world.phys.BlockHitResult;
-import org.jetbrains.annotations.Nullable;
-import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.Shapes;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import org.jetbrains.annotations.Nullable;
 
 public class CastingCauldronBlock extends BaseEntityBlock {
 
@@ -37,8 +38,11 @@ public class CastingCauldronBlock extends BaseEntityBlock {
 
         private final String serializedName;
 
-        CastState(String serializedName) {
-            this.serializedName = serializedName;
+        CastState(
+                String serializedName
+        ) {
+            this.serializedName =
+                    serializedName;
         }
 
         @Override
@@ -54,9 +58,53 @@ public class CastingCauldronBlock extends BaseEntityBlock {
             );
 
     public static final MapCodec<CastingCauldronBlock> CODEC =
-            simpleCodec(CastingCauldronBlock::new);
+            simpleCodec(
+                    CastingCauldronBlock::new
+            );
 
-    public CastingCauldronBlock(Properties properties) {
+    private static final VoxelShape SHAPE =
+            Shapes.or(
+                    Block.box(
+                            0, 2, 0,
+                            16, 4, 16
+                    ),
+                    Block.box(
+                            0, 4, 0,
+                            16, 16, 2
+                    ),
+                    Block.box(
+                            0, 4, 14,
+                            16, 16, 16
+                    ),
+                    Block.box(
+                            0, 4, 2,
+                            2, 16, 14
+                    ),
+                    Block.box(
+                            14, 4, 2,
+                            16, 16, 14
+                    ),
+                    Block.box(
+                            0, 0, 0,
+                            5, 2, 5
+                    ),
+                    Block.box(
+                            11, 0, 0,
+                            16, 2, 5
+                    ),
+                    Block.box(
+                            0, 0, 11,
+                            5, 2, 16
+                    ),
+                    Block.box(
+                            11, 0, 11,
+                            16, 2, 16
+                    )
+            );
+
+    public CastingCauldronBlock(
+            Properties properties
+    ) {
         super(properties);
 
         registerDefaultState(
@@ -67,56 +115,6 @@ public class CastingCauldronBlock extends BaseEntityBlock {
                         )
         );
     }
-
-    private static final VoxelShape SHAPE = Shapes.or(
-            /*
-             * Basin floor
-             */
-            Block.box(
-                    0, 2, 0,
-                    16, 4, 16
-            ),
-
-            /*
-             * Walls
-             */
-            Block.box(
-                    0, 4, 0,
-                    16, 16, 2
-            ),
-            Block.box(
-                    0, 4, 14,
-                    16, 16, 16
-            ),
-            Block.box(
-                    0, 4, 2,
-                    2, 16, 14
-            ),
-            Block.box(
-                    14, 4, 2,
-                    16, 16, 14
-            ),
-
-            /*
-             * Feet
-             */
-            Block.box(
-                    0, 0, 0,
-                    5, 2, 5
-            ),
-            Block.box(
-                    11, 0, 0,
-                    16, 2, 5
-            ),
-            Block.box(
-                    0, 0, 11,
-                    5, 2, 16
-            ),
-            Block.box(
-                    11, 0, 11,
-                    16, 2, 16
-            )
-    );
 
     @Override
     protected VoxelShape getShape(
@@ -145,13 +143,20 @@ public class CastingCauldronBlock extends BaseEntityBlock {
 
     @Override
     protected void createBlockStateDefinition(
-            StateDefinition.Builder<Block, BlockState> builder
+            StateDefinition.Builder<
+                    Block,
+                    BlockState
+                    > builder
     ) {
-        builder.add(CAST_STATE);
+        builder.add(
+                CAST_STATE
+        );
     }
 
     @Override
-    public RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(
+            BlockState state
+    ) {
         return RenderShape.MODEL;
     }
 
@@ -197,16 +202,21 @@ public class CastingCauldronBlock extends BaseEntityBlock {
         }
 
         BlockEntity blockEntity =
-                level.getBlockEntity(pos);
+                level.getBlockEntity(
+                        pos
+                );
 
-        if (!(blockEntity instanceof CastingCauldronBlockEntity cauldron)) {
+        if (
+                !(blockEntity
+                        instanceof CastingCauldronBlockEntity cauldron)
+        ) {
             return InteractionResult.PASS;
         }
 
         if (cauldron.isEmpty()) {
             player.displayClientMessage(
                     Component.literal(
-                            "The iron block has finished cooling."
+                            "The casting cauldron is empty."
                     ),
                     true
             );
@@ -215,10 +225,32 @@ public class CastingCauldronBlock extends BaseEntityBlock {
         }
 
         if (!cauldron.isCooled()) {
+            Component metalName =
+                    ModMoltenMetals.get(
+                                    cauldron.getStoredMetal()
+                            )
+                            .map(
+                                    definition ->
+                                            Component.translatable(
+                                                    definition.translationKey()
+                                            )
+                            )
+                            .orElse(
+                                    Component.literal(
+                                            "metal"
+                                    )
+                            );
+
             player.displayClientMessage(
                     Component.literal(
-                            "The molten metal is still cooling."
-                    ),
+                                    "The molten "
+                            )
+                            .append(
+                                    metalName
+                            )
+                            .append(
+                                    " is still cooling."
+                            ),
                     true
             );
 
@@ -232,14 +264,28 @@ public class CastingCauldronBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
-        if (!player.getInventory().add(result)) {
-            player.drop(result, false);
+        if (
+                !player.getInventory()
+                        .add(
+                                result
+                        )
+        ) {
+            player.drop(
+                    result,
+                    false
+            );
         }
 
         player.displayClientMessage(
                 Component.literal(
-                        "The iron ingot has finished cooling."
-                ),
+                                "The "
+                        )
+                        .append(
+                                result.getHoverName()
+                        )
+                        .append(
+                                " has finished cooling."
+                        ),
                 true
         );
 
@@ -256,10 +302,13 @@ public class CastingCauldronBlock extends BaseEntityBlock {
     ) {
         if (!state.is(newState.getBlock())) {
             BlockEntity blockEntity =
-                    level.getBlockEntity(pos);
+                    level.getBlockEntity(
+                            pos
+                    );
 
             if (
-                    blockEntity instanceof CastingCauldronBlockEntity cauldron
+                    blockEntity
+                            instanceof CastingCauldronBlockEntity cauldron
                             && cauldron.isCooled()
             ) {
                 ItemStack result =
