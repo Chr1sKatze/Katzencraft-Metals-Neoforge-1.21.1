@@ -26,7 +26,7 @@ import java.util.WeakHashMap;
  * - connected exterior frame textures
  * - hidden internal Tank faces
  * - seamless molten-metal volumes
- * - Faucet attachment arches
+ * - Faucet entrance shadow overlays
  */
 public class FoundryTankBlockEntityRenderer
         implements BlockEntityRenderer<FoundryTankBlockEntity> {
@@ -108,7 +108,7 @@ public class FoundryTankBlockEntityRenderer
             11
     };
 
-    private static final float ARCH_OFFSET =
+    private static final float FAUCET_OVERLAY_OFFSET =
             0.002f;
 
     private static final float LIQUID_INSET =
@@ -176,6 +176,19 @@ public class FoundryTankBlockEntityRenderer
                     packedOverlay
             );
         }
+
+        /*
+         * Render translucent entrance shadows after the molten metal so the
+         * shadow blends over the visible liquid instead of hiding it through
+         * the depth buffer.
+         */
+        renderAttachedFaucetOverlays(
+                tank,
+                pose,
+                bufferSource,
+                packedLight,
+                packedOverlay
+        );
 
         poseStack.popPose();
     }
@@ -272,10 +285,23 @@ public class FoundryTankBlockEntityRenderer
                     packedOverlay
             );
         }
+    }
 
-        VertexConsumer archConsumer =
+
+    // =========================
+    // FAUCET OVERLAY
+    // =========================
+
+    private static void renderAttachedFaucetOverlays(
+            FoundryTankBlockEntity tank,
+            PoseStack.Pose pose,
+            MultiBufferSource bufferSource,
+            int packedLight,
+            int packedOverlay
+    ) {
+        VertexConsumer overlayConsumer =
                 bufferSource.getBuffer(
-                        RenderType.entityCutoutNoCull(
+                        RenderType.entityTranslucent(
                                 FAUCET_OVERLAY_TEXTURE
                         )
                 );
@@ -291,9 +317,9 @@ public class FoundryTankBlockEntityRenderer
                             face
                     )
             ) {
-                renderFaucetArch(
+                renderFaucetOverlay(
                         face,
-                        archConsumer,
+                        overlayConsumer,
                         pose,
                         packedLight,
                         packedOverlay
@@ -1224,7 +1250,7 @@ public class FoundryTankBlockEntityRenderer
         );
     }
 
-    private static void renderFaucetArch(
+    private static void renderFaucetOverlay(
             Direction face,
             VertexConsumer consumer,
             PoseStack.Pose pose,
@@ -1245,7 +1271,7 @@ public class FoundryTankBlockEntityRenderer
                 1.0f,
                 packedLight,
                 packedOverlay,
-                ARCH_OFFSET
+                FAUCET_OVERLAY_OFFSET
         );
     }
 
