@@ -147,10 +147,20 @@ public class FoundryTankBlock extends BaseEntityBlock {
                                     .getOpposite()
                     );
 
+            boolean forceSeparateLayout =
+                    context.getPlayer() != null
+                            && context.getPlayer().isShiftKeyDown()
+                            && !context.getLevel()
+                            .getBlockState(
+                                    clickedAgainstPos
+                            )
+                            .is(this);
+
             PENDING_PLACEMENT.set(
                     new PlacementIntent(
                             placedPos.immutable(),
-                            clickedAgainstPos.immutable()
+                            clickedAgainstPos.immutable(),
+                            forceSeparateLayout
                     )
             );
         }
@@ -188,6 +198,22 @@ public class FoundryTankBlock extends BaseEntityBlock {
                         || !placementIntent.placedPos()
                         .equals(pos)
         ) {
+            return;
+        }
+
+        /*
+         * A deliberate shift-placement against a non-Tank always creates a new
+         * one-Tank layout, even when other Tanks are touching the placed position.
+         */
+        if (
+                placementIntent.forceSeparateLayout()
+                        && level.getBlockEntity(pos)
+                        instanceof FoundryTankBlockEntity placedTank
+        ) {
+            placedTank.setOrphanLayoutId(
+                    UUID.randomUUID()
+            );
+
             return;
         }
 
@@ -882,7 +908,8 @@ public class FoundryTankBlock extends BaseEntityBlock {
 
     private record PlacementIntent(
             BlockPos placedPos,
-            BlockPos clickedAgainstPos
+            BlockPos clickedAgainstPos,
+            boolean forceSeparateLayout
     ) {
     }
 }
