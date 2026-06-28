@@ -184,6 +184,7 @@ public class FoundryTankBlockEntityRenderer
          */
         renderAttachedFaucetOverlays(
                 tank,
+                partialTick,
                 pose,
                 bufferSource,
                 packedLight,
@@ -294,6 +295,7 @@ public class FoundryTankBlockEntityRenderer
 
     private static void renderAttachedFaucetOverlays(
             FoundryTankBlockEntity tank,
+            float partialTick,
             PoseStack.Pose pose,
             MultiBufferSource bufferSource,
             int packedLight,
@@ -308,24 +310,93 @@ public class FoundryTankBlockEntityRenderer
 
         for (Direction face : Direction.Plane.HORIZONTAL) {
             if (
-                    !FoundryTankVisualConnections.isSameComponent(
+                    FoundryTankVisualConnections.isSameComponent(
                             tank,
                             face
                     )
-                            && FoundryTankVisualConnections.hasAttachedFaucet(
+                            || !FoundryTankVisualConnections.hasAttachedFaucet(
                             tank,
                             face
                     )
             ) {
-                renderFaucetOverlay(
-                        face,
-                        overlayConsumer,
-                        pose,
-                        packedLight,
-                        packedOverlay
-                );
+                continue;
             }
+
+            if (
+                    tank.getLevel()
+                            .getBlockEntity(
+                                    tank.getBlockPos()
+                                            .relative(face)
+                            )
+                            instanceof FoundryFaucetBlockEntity faucet
+                            && shouldKeepFaucetOverlayOpen(
+                            faucet,
+                            partialTick
+                    )
+            ) {
+                continue;
+            }
+
+            renderFaucetOverlay(
+                    face,
+                    overlayConsumer,
+                    pose,
+                    packedLight,
+                    packedOverlay
+            );
         }
+    }
+
+    private static boolean shouldKeepFaucetOverlayOpen(
+            FoundryFaucetBlockEntity faucet,
+            float partialTick
+    ) {
+        /*
+         * The door remains open for the complete active pouring period.
+         */
+        if (faucet.isPouring()) {
+            return true;
+        }
+
+        /*
+         * Once the shutdown animation has finished, the door is closed.
+         */
+        if (
+                !faucet.isDraining()
+                        || faucet.getLevel() == null
+        ) {
+            return false;
+        }
+
+        FoundryFaucetBlockEntity.CauldronTarget target =
+                FoundryFaucetBlockEntity.findCauldronTarget(
+                        faucet.getLevel(),
+                        faucet.getBlockPos()
+                );
+
+        if (target == null) {
+            return false;
+        }
+
+        float displayedMoltenAmount =
+                CastingCauldronFillSmoother.getDisplayedMoltenAmount(
+                        target.cauldron(),
+                        partialTick
+                );
+
+        float actualMoltenAmount =
+                target.cauldron()
+                        .getMoltenAmount();
+
+        /*
+         * During shutdown, keep the door open only while the most recently
+         * transferred molten metal is still visibly raising the Cauldron surface.
+         *
+         * As soon as the visual height catches up, the door closes and appears to
+         * cut the remaining stream off at its source.
+         */
+        return displayedMoltenAmount
+                < actualMoltenAmount - 0.0001f;
     }
 
     private static void renderConnectedSideFrame(
