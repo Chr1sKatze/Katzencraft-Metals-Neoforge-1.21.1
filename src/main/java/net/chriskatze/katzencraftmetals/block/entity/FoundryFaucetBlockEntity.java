@@ -171,13 +171,19 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             return;
         }
 
+        /*
+         * A Faucet draws the selected metal from the complete connected Tank
+         * network, not only from the physical liquid layer beside the Faucet.
+         *
+         * The active pour still remains locked to one metal. It stops when that
+         * exact metal is gone rather than silently switching to another metal.
+         */
         if (
                 context.cauldron().isFull()
-                        || !context.network()
-                        .hasMetalAtHeight(
-                                context.tank().getBlockPos().getY(),
+                        || context.network()
+                        .getMoltenAmount(
                                 context.metal()
-                        )
+                        ) < TRANSFER_AMOUNT
         ) {
             faucet.stopPouring();
         }
@@ -187,6 +193,13 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     // SMART SOURCE / TARGET LOOKUP
     // =========================
 
+    /**
+     * Retains the existing method name used by FoundryFaucetBlock, but the
+     * Faucet now checks the complete connected Tank network.
+     *
+     * This allows a Faucet attached to a lower Tank to pour a selected metal
+     * stored in a higher density layer or in a Tank above it.
+     */
     public static boolean hasMoltenAtFaucetHeight(
             FoundryTankBlockEntity tank
     ) {
@@ -218,10 +231,9 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                         : tank.getTopLocalMetal();
 
         return selectedMetal != null
-                && network.hasMetalAtHeight(
-                tank.getBlockPos().getY(),
+                && network.getMoltenAmount(
                 selectedMetal
-        );
+        ) >= TRANSFER_AMOUNT;
     }
 
     @Nullable
@@ -315,15 +327,16 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                 )
                         : null;
 
+        /*
+         * The Controller selects which metal the Faucet draws from the complete
+         * Tank network. Physical density layers remain visual and determine the
+         * Tank contents, but they no longer restrict Faucet placement height.
+         */
         if (
                 outputMetal == null
                         || network.getMoltenAmount(
                         outputMetal
                 ) < TRANSFER_AMOUNT
-                        || !network.hasMetalAtHeight(
-                        tank.getBlockPos().getY(),
-                        outputMetal
-                )
         ) {
             return null;
         }
