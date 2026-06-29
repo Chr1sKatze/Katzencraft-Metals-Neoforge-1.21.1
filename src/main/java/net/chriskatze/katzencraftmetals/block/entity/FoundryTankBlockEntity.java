@@ -408,11 +408,8 @@ public class FoundryTankBlockEntity extends BlockEntity {
         FoundryTankNetwork network =
                 getNetwork();
 
-        return level != null
-                && network != null
-                && FoundryMultiMetalStorage.canAccept(
-                level,
-                network,
+        return network != null
+                && network.canAccept(
                 metal,
                 amount
         );
@@ -425,11 +422,8 @@ public class FoundryTankBlockEntity extends BlockEntity {
         FoundryTankNetwork network =
                 getNetwork();
 
-        return level != null
-                && network != null
-                ? FoundryMultiMetalStorage.insert(
-                level,
-                network,
+        return network != null
+                ? network.insert(
                 metal,
                 amount
         )
@@ -464,9 +458,7 @@ public class FoundryTankBlockEntity extends BlockEntity {
                         : getTopLocalMetal();
 
         return selectedMetal != null
-                ? FoundryMultiMetalStorage.extract(
-                level,
-                network,
+                ? network.extract(
                 selectedMetal,
                 requestedAmount
         )
@@ -480,11 +472,8 @@ public class FoundryTankBlockEntity extends BlockEntity {
         FoundryTankNetwork network =
                 getNetwork();
 
-        return level != null
-                && network != null
-                ? FoundryMultiMetalStorage.extract(
-                level,
-                network,
+        return network != null
+                ? network.extract(
                 metal,
                 requestedAmount
         )
@@ -499,12 +488,8 @@ public class FoundryTankBlockEntity extends BlockEntity {
         FoundryTankNetwork network =
                 getNetwork();
 
-        return level != null
-                && network != null
-                ? FoundryMultiMetalStorage.getTotalAmount(
-                level,
-                network
-        )
+        return network != null
+                ? network.getTotalMoltenAmount()
                 : getLocalActualMoltenAmount();
     }
 

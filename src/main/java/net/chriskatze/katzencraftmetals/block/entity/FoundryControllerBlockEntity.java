@@ -148,12 +148,9 @@ public class FoundryControllerBlockEntity
                                         )
                                         .orElse(null);
 
-                        return level != null
-                                && network != null
+                        return network != null
                                 && metal != null
-                                ? FoundryMultiMetalStorage.getAmount(
-                                level,
-                                network,
+                                ? network.getMoltenAmount(
                                 metal
                         )
                                 : 0;
@@ -175,12 +172,8 @@ public class FoundryControllerBlockEntity
                     }
 
                     if (index == TOTAL_AMOUNT_DATA_INDEX) {
-                        return level != null
-                                && network != null
-                                ? FoundryMultiMetalStorage.getTotalAmount(
-                                level,
-                                network
-                        )
+                        return network != null
+                                ? network.getTotalMoltenAmount()
                                 : 0;
                     }
 
@@ -585,9 +578,7 @@ public class FoundryControllerBlockEntity
         if (
                 level == null
                         || network == null
-                        || FoundryMultiMetalStorage.getAmount(
-                        level,
-                        network,
+                        || network.getMoltenAmount(
                         metal
                 ) <= 0
         ) {
@@ -621,9 +612,7 @@ public class FoundryControllerBlockEntity
 
         if (
                 selectedOutputMetal != null
-                        && FoundryMultiMetalStorage.getAmount(
-                        level,
-                        network,
+                        && network.getMoltenAmount(
                         selectedOutputMetal
                 ) > 0
         ) {
@@ -634,9 +623,7 @@ public class FoundryControllerBlockEntity
                 var definition :
                 ModMoltenMetals.lightestFirst()
         ) {
-            if (FoundryMultiMetalStorage.getAmount(
-                    level,
-                    network,
+            if (network.getMoltenAmount(
                     definition.id()
             ) > 0) {
                 return definition.id();
@@ -827,10 +814,7 @@ public class FoundryControllerBlockEntity
             return;
         }
 
-        FoundryMultiMetalStorage.ensureMigrated(
-                level,
-                network
-        );
+        network.ensureMoltenContentsMigrated();
 
         controller.normalizeSelectedOutputMetal(
                 network
@@ -871,9 +855,7 @@ public class FoundryControllerBlockEntity
          * progress. Different registered metals may now coexist.
          */
         if (
-                !FoundryMultiMetalStorage.canAccept(
-                        level,
-                        network,
+                !network.canAccept(
                         recipe.moltenMetal(),
                         recipe.moltenAmount()
                 )
@@ -935,9 +917,7 @@ public class FoundryControllerBlockEntity
 
         if (
                 level == null
-                        || !FoundryMultiMetalStorage.canAccept(
-                        level,
-                        network,
+                        || !network.canAccept(
                         currentRecipe.moltenMetal(),
                         currentRecipe.moltenAmount()
                 )
@@ -946,9 +926,7 @@ public class FoundryControllerBlockEntity
         }
 
         int inserted =
-                FoundryMultiMetalStorage.insert(
-                        level,
-                        network,
+                network.insert(
                         currentRecipe.moltenMetal(),
                         currentRecipe.moltenAmount()
                 );

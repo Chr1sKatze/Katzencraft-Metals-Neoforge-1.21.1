@@ -1,7 +1,6 @@
 package net.chriskatze.katzencraftmetals.event;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
-import net.chriskatze.katzencraftmetals.block.entity.FoundryMultiMetalStorage;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.minecraft.core.BlockPos;
@@ -74,9 +73,7 @@ public final class FoundryMultiMetalEvents {
             return;
         }
 
-        FoundryMultiMetalStorage.prepareRemoval(
-                level,
-                network,
+        network.prepareMoltenRemoval(
                 removedPositions
         );
     }

@@ -1510,165 +1510,206 @@ public final class FoundryTankNetwork {
     // STORAGE
     // =========================
 
+    /**
+     * Completes one-time migration from the former single-metal Tank fields
+     * into the real density-sorted multi-metal layer storage.
+     *
+     * Step 8A deliberately keeps FoundryMultiMetalStorage as the internal
+     * implementation. The important architectural change is that every
+     * machine now talks only to FoundryTankNetwork.
+     */
+    public void ensureMoltenContentsMigrated() {
+        FoundryMultiMetalStorage.ensureMigrated(
+                level,
+                this
+        );
+    }
+
+    /**
+     * Returns every molten metal currently stored by this complete Tank
+     * network. The returned map is immutable.
+     */
+    public Map<ResourceLocation, Integer> getMoltenContents() {
+        ensureMoltenContentsMigrated();
+
+        return FoundryMultiMetalStorage.getContents(
+                level,
+                this
+        );
+    }
+
+    /**
+     * Returns the amount of one exact molten metal in the complete network.
+     */
+    public int getMoltenAmount(
+            ResourceLocation metal
+    ) {
+        if (metal == null) {
+            return 0;
+        }
+
+        ensureMoltenContentsMigrated();
+
+        return FoundryMultiMetalStorage.getAmount(
+                level,
+                this,
+                metal
+        );
+    }
+
+    /**
+     * Returns the combined amount of every molten metal in the network.
+     */
+    public int getTotalMoltenAmount() {
+        ensureMoltenContentsMigrated();
+
+        return FoundryMultiMetalStorage.getTotalAmount(
+                level,
+                this
+        );
+    }
+
     public boolean canAccept(
             ResourceLocation metal,
             int amount
     ) {
-        if (
-                !isActive()
-                        || amount <= 0
-        ) {
-            return false;
-        }
-
-        StorageSnapshot storage =
-                readStorage(
-                        level,
-                        tankPositions
-                );
-
-        if (storage.mixedMetals()) {
-            return false;
-        }
-
-        if (
-                storage.metal() != null
-                        && !storage.metal().equals(metal)
-        ) {
-            return false;
-        }
-
-        return storage.amount() + amount
-                <= getCapacity();
+        return FoundryMultiMetalStorage.canAccept(
+                level,
+                this,
+                metal,
+                amount
+        );
     }
 
     public int insert(
             ResourceLocation metal,
             int amount
     ) {
-        if (
-                !isActive()
-                        || amount <= 0
-        ) {
-            return 0;
-        }
-
-        StorageSnapshot storage =
-                readStorage(
-                        level,
-                        tankPositions
-                );
-
-        if (storage.mixedMetals()) {
-            return 0;
-        }
-
-        if (
-                storage.metal() != null
-                        && !storage.metal().equals(metal)
-        ) {
-            return 0;
-        }
-
-        int accepted =
-                Math.min(
-                        amount,
-                        getCapacity()
-                                - storage.amount()
-                );
-
-        if (accepted <= 0) {
-            return 0;
-        }
-
-        writeDistributedStorage(
-                tankPositions,
+        return FoundryMultiMetalStorage.insert(
+                level,
+                this,
                 metal,
-                storage.amount()
-                        + accepted
+                amount
         );
-
-        return accepted;
     }
 
+    /**
+     * Extracts only the requested metal. It can never silently fall through
+     * to another stored liquid.
+     */
+    public int extract(
+            ResourceLocation metal,
+            int requestedAmount
+    ) {
+        return FoundryMultiMetalStorage.extract(
+                level,
+                this,
+                metal,
+                requestedAmount
+        );
+    }
+
+    /**
+     * Compatibility overload for older callers.
+     *
+     * Active Foundries use the Controller's selected output. An orphan with
+     * exactly one stored metal can still expose that one unambiguous metal.
+     */
     public int extract(
             int requestedAmount
     ) {
-        if (
-                !isActive()
-                        || requestedAmount <= 0
-        ) {
-            return 0;
-        }
+        ResourceLocation metal =
+                getStoredMetal();
 
-        StorageSnapshot storage =
-                readStorage(
-                        level,
-                        tankPositions
-                );
+        return metal != null
+                ? extract(
+                metal,
+                requestedAmount
+        )
+                : 0;
+    }
 
-        if (
-                storage.mixedMetals()
-                        || storage.metal() == null
-                        || storage.amount() <= 0
-        ) {
-            return 0;
-        }
+    /**
+     * Returns true when one metal physically occupies the requested horizontal
+     * Tank level. Faucets use this to preserve their existing height rules.
+     */
+    public boolean hasMetalAtHeight(
+            int tankY,
+            ResourceLocation metal
+    ) {
+        ensureMoltenContentsMigrated();
 
-        int extracted =
-                Math.min(
-                        requestedAmount,
-                        storage.amount()
-                );
-
-        int remaining =
-                storage.amount()
-                        - extracted;
-
-        writeDistributedStorage(
-                tankPositions,
-                remaining > 0
-                        ? storage.metal()
-                        : null,
-                remaining
+        return FoundryMultiMetalStorage.hasMetalAtHeight(
+                level,
+                this,
+                tankY,
+                metal
         );
-
-        return extracted;
     }
 
+    /**
+     * Moves real multi-metal contents into the surviving Tanks before the old
+     * structural splitting code processes an upward Tank-column removal.
+     */
+    public void prepareMoltenRemoval(
+            Set<BlockPos> removedPositions
+    ) {
+        FoundryMultiMetalStorage.prepareRemoval(
+                level,
+                this,
+                removedPositions
+        );
+    }
+
+    /**
+     * Compatibility name retained for existing callers and renderer helpers.
+     * It now means the total of every stored metal.
+     */
     public int getMoltenAmount() {
-        StorageSnapshot storage =
-                readStorage(
-                        level,
-                        tankPositions
-                );
-
-        return storage.mixedMetals()
-                ? 0
-                : storage.amount();
+        return getTotalMoltenAmount();
     }
 
+    /**
+     * Compatibility view of one output metal.
+     *
+     * An active Foundry reports the Controller's selected output. Without a
+     * Controller, only a network containing exactly one metal is unambiguous.
+     */
     @Nullable
     public ResourceLocation getStoredMetal() {
-        StorageSnapshot storage =
-                readStorage(
-                        level,
-                        tankPositions
-                );
+        FoundryControllerBlockEntity controller =
+                getAttachedController();
 
-        return storage.mixedMetals()
-                ? null
-                : storage.metal();
+        if (controller != null) {
+            ResourceLocation selected =
+                    controller.getSelectedOutputMetalOrDefault(
+                            this
+                    );
+
+            if (selected != null) {
+                return selected;
+            }
+        }
+
+        Map<ResourceLocation, Integer> contents =
+                getMoltenContents();
+
+        return contents.size() == 1
+                ? contents.keySet()
+                .iterator()
+                .next()
+                : null;
     }
 
     public boolean isEmpty() {
-        return getMoltenAmount() <= 0;
+        return getTotalMoltenAmount() <= 0;
     }
 
     public boolean isFull() {
-        return getMoltenAmount()
+        return getTotalMoltenAmount()
                 >= getCapacity();
     }
+
 
     private static StorageSnapshot readStorage(
             Level level,

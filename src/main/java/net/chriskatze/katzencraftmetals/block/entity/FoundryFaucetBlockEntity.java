@@ -142,12 +142,11 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
         faucet.transferTimer = 0;
 
         int extracted =
-                FoundryMultiMetalStorage.extract(
-                        level,
-                        context.network(),
-                        context.metal(),
-                        TRANSFER_AMOUNT
-                );
+                context.network()
+                        .extract(
+                                context.metal(),
+                                TRANSFER_AMOUNT
+                        );
 
         if (extracted != TRANSFER_AMOUNT) {
             faucet.stopPouring();
@@ -162,12 +161,11 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                         );
 
         if (inserted != extracted) {
-            FoundryMultiMetalStorage.insert(
-                    level,
-                    context.network(),
-                    context.metal(),
-                    extracted
-            );
+            context.network()
+                    .insert(
+                            context.metal(),
+                            extracted
+                    );
 
             faucet.stopPouring();
             return;
@@ -175,12 +173,11 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
 
         if (
                 context.cauldron().isFull()
-                        || !FoundryMultiMetalStorage.hasMetalAtHeight(
-                        level,
-                        context.network(),
-                        context.tank().getBlockPos().getY(),
-                        context.metal()
-                )
+                        || !context.network()
+                        .hasMetalAtHeight(
+                                context.tank().getBlockPos().getY(),
+                                context.metal()
+                        )
         ) {
             faucet.stopPouring();
         }
@@ -221,9 +218,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                         : tank.getTopLocalMetal();
 
         return selectedMetal != null
-                && FoundryMultiMetalStorage.hasMetalAtHeight(
-                tank.getLevel(),
-                network,
+                && network.hasMetalAtHeight(
                 tank.getBlockPos().getY(),
                 selectedMetal
         );
@@ -306,10 +301,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             return null;
         }
 
-        FoundryMultiMetalStorage.ensureMigrated(
-                level,
-                network
-        );
+        network.ensureMoltenContentsMigrated();
 
         FoundryControllerBlockEntity controller =
                 network.getAttachedController();
@@ -325,14 +317,10 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
 
         if (
                 outputMetal == null
-                        || FoundryMultiMetalStorage.getAmount(
-                        level,
-                        network,
+                        || network.getMoltenAmount(
                         outputMetal
                 ) < TRANSFER_AMOUNT
-                        || !FoundryMultiMetalStorage.hasMetalAtHeight(
-                        level,
-                        network,
+                        || !network.hasMetalAtHeight(
                         tank.getBlockPos().getY(),
                         outputMetal
                 )
