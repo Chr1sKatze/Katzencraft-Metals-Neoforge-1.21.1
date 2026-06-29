@@ -23,25 +23,20 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Temporary compatibility BlockEntity for old separate Fuel Chambers.
+ *
+ * New Foundries store fuel directly in FoundryControllerBlockEntity. Existing
+ * chambers remain loadable for one checkpoint so their coal and active burn
+ * cycle can migrate safely into the Controller.
+ */
 public class FuelChamberBlockEntity
         extends BlockEntity
         implements MenuProvider {
 
     public static final int SLOT_COUNT = 3;
-
-    /*
-     * One coal provides 1600 active melting ticks.
-     *
-     * This value only decreases while a connected Controller actively
-     * requests one melting tick.
-     */
     public static final int COAL_BURN_TIME = 1600;
 
-    /*
-     * The Controller UUID this Fuel Chamber belongs to.
-     *
-     * null means unassigned. Facing has no structural meaning.
-     */
     @Nullable
     private UUID controllerId;
 
@@ -53,7 +48,9 @@ public class FuelChamberBlockEntity
                         int slot,
                         ItemStack stack
                 ) {
-                    return stack.is(Items.COAL);
+                    return stack.is(
+                            Items.COAL
+                    );
                 }
 
                 @Override
@@ -77,10 +74,6 @@ public class FuelChamberBlockEntity
         );
     }
 
-    // =========================
-    // FOUNDRY ASSIGNMENT
-    // =========================
-
     @Nullable
     public UUID getControllerId() {
         return controllerId;
@@ -102,17 +95,6 @@ public class FuelChamberBlockEntity
         setChanged();
     }
 
-    /**
-     * Resolves this chamber from the blocks physically touching it.
-     *
-     * Valid connections:
-     *
-     * - any of the six faces of a Controller
-     * - any of the six faces of a Tank owned by a Controller
-     *
-     * The clicked block wins when it identifies one of the candidates.
-     * Otherwise assignment occurs only when exactly one Controller is valid.
-     */
     public void tryAutoAssign(
             @Nullable BlockPos clickedAgainstPosition
     ) {
@@ -128,7 +110,9 @@ public class FuelChamberBlockEntity
 
         if (
                 controllerId != null
-                        && candidates.containsKey(controllerId)
+                        && candidates.containsKey(
+                        controllerId
+                )
         ) {
             return;
         }
@@ -157,11 +141,9 @@ public class FuelChamberBlockEntity
             return;
         }
 
-        /*
-         * An old assignment that is no longer physically valid is stale.
-         * Ambiguous chambers deliberately remain unassigned.
-         */
-        setControllerId(null);
+        setControllerId(
+                null
+        );
     }
 
     private Map<UUID, FoundryControllerBlockEntity>
@@ -175,10 +157,14 @@ public class FuelChamberBlockEntity
 
         for (Direction direction : Direction.values()) {
             BlockPos neighborPos =
-                    worldPosition.relative(direction);
+                    worldPosition.relative(
+                            direction
+                    );
 
             BlockEntity blockEntity =
-                    level.getBlockEntity(neighborPos);
+                    level.getBlockEntity(
+                            neighborPos
+                    );
 
             if (
                     blockEntity
@@ -270,10 +256,6 @@ public class FuelChamberBlockEntity
         return null;
     }
 
-    // =========================
-    // FUEL SUPPLY
-    // =========================
-
     public boolean supplyBurnTick() {
         if (
                 level == null
@@ -298,7 +280,9 @@ public class FuelChamberBlockEntity
     private boolean consumeCoal() {
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
             ItemStack stack =
-                    fuelInventory.getItem(slot);
+                    fuelInventory.getItem(
+                            slot
+                    );
 
             if (!stack.is(Items.COAL)) {
                 continue;
@@ -320,6 +304,32 @@ public class FuelChamberBlockEntity
         }
 
         return false;
+    }
+
+    /**
+     * Removes the currently active burn cycle so it can be moved into the new
+     * Controller-owned fuel system without duplicating fuel.
+     */
+    public int takeBurnTimeForControllerMigration() {
+        int transferred =
+                burnTimeRemaining;
+
+        if (
+                burnTimeRemaining == 0
+                        && maxBurnTime == 0
+        ) {
+            return 0;
+        }
+
+        burnTimeRemaining =
+                0;
+
+        maxBurnTime =
+                0;
+
+        setChanged();
+
+        return transferred;
     }
 
     public boolean hasAvailableFuel() {
@@ -357,7 +367,9 @@ public class FuelChamberBlockEntity
 
         for (int slot = 0; slot < SLOT_COUNT; slot++) {
             ItemStack stack =
-                    fuelInventory.getItem(slot);
+                    fuelInventory.getItem(
+                            slot
+                    );
 
             if (stack.is(Items.COAL)) {
                 coalCount +=
@@ -371,10 +383,6 @@ public class FuelChamberBlockEntity
     public SimpleContainer getFuelInventory() {
         return fuelInventory;
     }
-
-    // =========================
-    // SAVE / LOAD
-    // =========================
 
     @Override
     protected void saveAdditional(
@@ -395,7 +403,9 @@ public class FuelChamberBlockEntity
 
         tag.put(
                 "FuelInventory",
-                fuelInventory.createTag(registries)
+                fuelInventory.createTag(
+                        registries
+                )
         );
 
         tag.putInt(
@@ -438,10 +448,12 @@ public class FuelChamberBlockEntity
 
         fuelInventory.removeAllItems();
 
-        if (tag.contains(
-                "FuelInventory",
-                Tag.TAG_LIST
-        )) {
+        if (
+                tag.contains(
+                        "FuelInventory",
+                        Tag.TAG_LIST
+                )
+        ) {
             fuelInventory.fromTag(
                     tag.getList(
                             "FuelInventory",
@@ -461,16 +473,12 @@ public class FuelChamberBlockEntity
 
         maxBurnTime =
                 Math.max(
-                        0,
+                        burnTimeRemaining,
                         tag.getInt(
                                 "MaxBurnTime"
                         )
                 );
     }
-
-    // =========================
-    // MENU
-    // =========================
 
     @Override
     public Component getDisplayName() {

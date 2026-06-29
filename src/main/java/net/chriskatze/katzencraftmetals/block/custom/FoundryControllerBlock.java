@@ -28,13 +28,19 @@ import org.jetbrains.annotations.Nullable;
 public class FoundryControllerBlock extends BaseEntityBlock {
 
     public static final MapCodec<FoundryControllerBlock> CODEC =
-            simpleCodec(FoundryControllerBlock::new);
+            simpleCodec(
+                    FoundryControllerBlock::new
+            );
 
     public static final DirectionProperty FACING =
             BlockStateProperties.HORIZONTAL_FACING;
 
-    public FoundryControllerBlock(Properties properties) {
-        super(properties);
+    public FoundryControllerBlock(
+            Properties properties
+    ) {
+        super(
+                properties
+        );
 
         registerDefaultState(
                 stateDefinition.any()
@@ -51,7 +57,9 @@ public class FoundryControllerBlock extends BaseEntityBlock {
     }
 
     @Override
-    public RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(
+            BlockState state
+    ) {
         return RenderShape.MODEL;
     }
 
@@ -84,10 +92,6 @@ public class FoundryControllerBlock extends BaseEntityBlock {
         );
     }
 
-    // =========================
-    // AUTOMATIC CLAIMING
-    // =========================
-
     @Override
     public void setPlacedBy(
             Level level,
@@ -109,24 +113,17 @@ public class FoundryControllerBlock extends BaseEntityBlock {
         }
 
         BlockEntity blockEntity =
-                level.getBlockEntity(pos);
+                level.getBlockEntity(
+                        pos
+                );
 
         if (
                 blockEntity
                         instanceof FoundryControllerBlockEntity controller
         ) {
-            /*
-             * When placed beside a prebuilt orphan Tank layout, the
-             * Controller automatically claims the largest valid part touching
-             * its back, left, or right side.
-             */
             controller.ensureTankNetwork();
         }
     }
-
-    // =========================
-    // REMOVAL
-    // =========================
 
     @Override
     protected void onRemove(
@@ -138,17 +135,15 @@ public class FoundryControllerBlock extends BaseEntityBlock {
     ) {
         if (!state.is(newState.getBlock())) {
             BlockEntity blockEntity =
-                    level.getBlockEntity(pos);
+                    level.getBlockEntity(
+                            pos
+                    );
 
             if (
                     blockEntity
                             instanceof FoundryControllerBlockEntity controller
             ) {
                 if (!level.isClientSide()) {
-                    /*
-                     * Removing the Controller turns its surviving Tank
-                     * component into an orphan section.
-                     */
                     controller.releaseFoundry();
                 }
 
@@ -156,6 +151,12 @@ public class FoundryControllerBlock extends BaseEntityBlock {
                         level,
                         pos,
                         controller.getInputInventory()
+                );
+
+                Containers.dropContents(
+                        level,
+                        pos,
+                        controller.getFuelInventory()
                 );
             }
         }
@@ -168,10 +169,6 @@ public class FoundryControllerBlock extends BaseEntityBlock {
                 movedByPiston
         );
     }
-
-    // =========================
-    // INTERACTION
-    // =========================
 
     @Override
     protected InteractionResult useWithoutItem(
@@ -186,17 +183,22 @@ public class FoundryControllerBlock extends BaseEntityBlock {
         }
 
         BlockEntity blockEntity =
-                level.getBlockEntity(pos);
+                level.getBlockEntity(
+                        pos
+                );
 
         if (
                 blockEntity
                         instanceof FoundryControllerBlockEntity controller
-                        && player instanceof ServerPlayer serverPlayer
+                        && player
+                        instanceof ServerPlayer serverPlayer
         ) {
             serverPlayer.openMenu(
                     controller,
                     buffer ->
-                            buffer.writeBlockPos(pos)
+                            buffer.writeBlockPos(
+                                    pos
+                            )
             );
 
             return InteractionResult.CONSUME;
@@ -224,6 +226,8 @@ public class FoundryControllerBlock extends BaseEntityBlock {
                     BlockState
                     > builder
     ) {
-        builder.add(FACING);
+        builder.add(
+                FACING
+        );
     }
 }

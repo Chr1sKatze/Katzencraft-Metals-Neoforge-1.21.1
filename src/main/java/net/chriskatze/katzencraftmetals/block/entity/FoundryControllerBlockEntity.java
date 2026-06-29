@@ -1,10 +1,7 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
-import net.chriskatze.katzencraftmetals.block.custom.FoundryControllerBlock;
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
-import net.chriskatze.katzencraftmetals.recipe.FoundryMeltingRecipe;
-import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -19,18 +16,12 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -38,32 +29,38 @@ public class FoundryControllerBlockEntity
         extends BlockEntity
         implements MenuProvider {
 
-    /*
-     * Compatibility constants retained for existing callers.
-     *
-     * The Controller no longer uses these values to decide what can melt.
-     * That information now comes from FoundryMeltingRecipe.
-     */
     public static final ResourceLocation MOLTEN_IRON =
             ModMoltenMetals.IRON.id();
 
     public static final int INPUT_SLOT = 0;
-    public static final int SLOT_COUNT = 1;
+    public static final int INPUT_SLOT_COUNT = 1;
+
+    public static final int FUEL_SLOT_COUNT =
+            FoundryControllerFuelSystem.FUEL_SLOT_COUNT;
+
+    public static final int SLOT_COUNT =
+            INPUT_SLOT_COUNT
+                    + FUEL_SLOT_COUNT;
 
     public static final int MAX_PROGRESS = 20;
+
+    public static final int COAL_BURN_TIME =
+            FoundryControllerFuelSystem.COAL_BURN_TIME;
+
     public static final int MOLTEN_IRON_PER_RAW_IRON =
             ModMoltenMetals.IRON.unitsPerOre();
 
-    /*
-     * Every Controller owns one persistent UUID.
-     *
-     * Tanks and Fuel Chambers assigned to this Foundry store the same UUID.
-     */
     private UUID controllerId =
             UUID.randomUUID();
 
+    private final FoundryControllerProcessing processing =
+            new FoundryControllerProcessing(this);
+
+    private final FoundryControllerFuelSystem fuelSystem =
+            new FoundryControllerFuelSystem(this);
+
     private final SimpleContainer inputInventory =
-            new SimpleContainer(SLOT_COUNT) {
+            new SimpleContainer(INPUT_SLOT_COUNT) {
 
                 @Override
                 public boolean canPlaceItem(
@@ -71,7 +68,9 @@ public class FoundryControllerBlockEntity
                         ItemStack stack
                 ) {
                     return slot == INPUT_SLOT
-                            && canMelt(stack);
+                            && processing.canMelt(
+                            stack
+                    );
                 }
 
                 @Override
@@ -81,37 +80,34 @@ public class FoundryControllerBlockEntity
                 }
             };
 
-    private int progress;
-    private int maxProgress =
-            MAX_PROGRESS;
-
-    /*
-     * The active recipe signature prevents progress from carrying across
-     * two different Foundry recipes when the input is changed midway.
-     */
-    @Nullable
-    private ResourceLocation activeMoltenMetal;
-
-    private int activeMoltenAmount;
-
-    /*
-     * Global output selection shared by every Faucet attached to this Foundry.
-     * A Faucet locks this value when pouring begins.
-     */
-    @Nullable
-    private ResourceLocation selectedOutputMetal;
-
     public static final int METAL_DATA_START = 2;
+
     public static final int METAL_DATA_COUNT =
             ModMoltenMetals.values().size();
+
     public static final int SELECTED_METAL_DATA_INDEX =
-            METAL_DATA_START + METAL_DATA_COUNT;
+            METAL_DATA_START
+                    + METAL_DATA_COUNT;
+
     public static final int TOTAL_AMOUNT_DATA_INDEX =
-            SELECTED_METAL_DATA_INDEX + 1;
+            SELECTED_METAL_DATA_INDEX
+                    + 1;
+
     public static final int CAPACITY_DATA_INDEX =
-            TOTAL_AMOUNT_DATA_INDEX + 1;
+            TOTAL_AMOUNT_DATA_INDEX
+                    + 1;
+
+    public static final int BURN_TIME_DATA_INDEX =
+            CAPACITY_DATA_INDEX
+                    + 1;
+
+    public static final int MAX_BURN_TIME_DATA_INDEX =
+            BURN_TIME_DATA_INDEX
+                    + 1;
+
     public static final int DATA_COUNT =
-            CAPACITY_DATA_INDEX + 1;
+            MAX_BURN_TIME_DATA_INDEX
+                    + 1;
 
     private final ContainerData data =
             new ContainerData() {
@@ -121,11 +117,11 @@ public class FoundryControllerBlockEntity
                         int index
                 ) {
                     if (index == 0) {
-                        return progress;
+                        return processing.getProgress();
                     }
 
                     if (index == 1) {
-                        return maxProgress;
+                        return processing.getMaxProgress();
                     }
 
                     FoundryTankNetwork network =
@@ -136,7 +132,8 @@ public class FoundryControllerBlockEntity
                                     && index < SELECTED_METAL_DATA_INDEX
                     ) {
                         int syncId =
-                                index - METAL_DATA_START;
+                                index
+                                        - METAL_DATA_START;
 
                         ResourceLocation metal =
                                 ModMoltenMetals.bySyncId(
@@ -159,9 +156,10 @@ public class FoundryControllerBlockEntity
                     if (index == SELECTED_METAL_DATA_INDEX) {
                         ResourceLocation selected =
                                 network != null
-                                        ? getSelectedOutputMetalOrDefault(
-                                        network
-                                )
+                                        ? processing
+                                        .getSelectedOutputMetalOrDefault(
+                                                network
+                                        )
                                         : null;
 
                         return selected != null
@@ -183,6 +181,14 @@ public class FoundryControllerBlockEntity
                                 : 0;
                     }
 
+                    if (index == BURN_TIME_DATA_INDEX) {
+                        return fuelSystem.getBurnTimeRemaining();
+                    }
+
+                    if (index == MAX_BURN_TIME_DATA_INDEX) {
+                        return fuelSystem.getMaxBurnTime();
+                    }
+
                     return 0;
                 }
 
@@ -192,18 +198,17 @@ public class FoundryControllerBlockEntity
                         int value
                 ) {
                     if (index == 0) {
-                        progress =
-                                value;
+                        processing.setProgressFromMenuData(
+                                value
+                        );
 
                         return;
                     }
 
                     if (index == 1) {
-                        maxProgress =
-                                Math.max(
-                                        1,
-                                        value
-                                );
+                        processing.setMaxProgressFromMenuData(
+                                value
+                        );
                     }
                 }
 
@@ -225,7 +230,7 @@ public class FoundryControllerBlockEntity
     }
 
     // =========================
-    // CONTROLLER ID / FACING
+    // CONTROLLER / TANK NETWORK
     // =========================
 
     public UUID getControllerId() {
@@ -233,563 +238,93 @@ public class FoundryControllerBlockEntity
     }
 
     public Direction getFacing() {
-        return getBlockState().getValue(
-                FoundryControllerBlock.FACING
+        return FoundryControllerNetwork.getFacing(
+                this
         );
     }
 
-    /**
-     * A Controller connects to Tanks directly behind it, to its left,
-     * or to its right. A Tank directly in front is never a valid attachment.
-     */
     public boolean isValidTankAttachmentPosition(
             BlockPos tankPos
     ) {
-        if (tankPos.getY() != worldPosition.getY()) {
-            return false;
-        }
-
-        int deltaX =
-                tankPos.getX()
-                        - worldPosition.getX();
-
-        int deltaZ =
-                tankPos.getZ()
-                        - worldPosition.getZ();
-
-        if (Math.abs(deltaX) + Math.abs(deltaZ) != 1) {
-            return false;
-        }
-
-        int forwardDistance =
-                deltaX * getFacing().getStepX()
-                        + deltaZ * getFacing().getStepZ();
-
-        return forwardDistance <= 0;
+        return FoundryControllerNetwork
+                .isValidTankAttachmentPosition(
+                        this,
+                        tankPos
+                );
     }
 
-    /**
-     * The complete Tank layout may extend behind or beside the Controller,
-     * but no Tank in the owned network may lie in front of it.
-     */
     public boolean canOwnTankLayout(
             Set<BlockPos> tankPositions
     ) {
-        if (tankPositions.isEmpty()) {
-            return false;
-        }
-
-        boolean touchesController =
-                false;
-
-        Direction facing =
-                getFacing();
-
-        for (BlockPos tankPos : tankPositions) {
-            int deltaX =
-                    tankPos.getX()
-                            - worldPosition.getX();
-
-            int deltaZ =
-                    tankPos.getZ()
-                            - worldPosition.getZ();
-
-            int forwardDistance =
-                    deltaX * facing.getStepX()
-                            + deltaZ * facing.getStepZ();
-
-            if (forwardDistance > 0) {
-                return false;
-            }
-
-            if (isValidTankAttachmentPosition(tankPos)) {
-                touchesController =
-                        true;
-            }
-        }
-
-        return touchesController;
+        return FoundryControllerNetwork
+                .canOwnTankLayout(
+                        this,
+                        tankPositions
+                );
     }
 
     public List<BlockPos> getValidTankAttachmentPositions() {
-        Direction facing =
-                getFacing();
+        return FoundryControllerNetwork
+                .getValidTankAttachmentPositions(
+                        this
+                );
+    }
 
-        return List.of(
-                worldPosition.relative(
-                        facing.getOpposite()
-                ),
-                worldPosition.relative(
-                        facing.getClockWise()
-                ),
-                worldPosition.relative(
-                        facing.getCounterClockWise()
-                )
+    @Nullable
+    public FoundryTankNetwork getOwnedTankNetwork() {
+        return FoundryControllerNetwork
+                .getOwnedTankNetwork(
+                        this
+                );
+    }
+
+    public boolean ensureTankNetwork() {
+        return FoundryControllerNetwork
+                .ensureTankNetwork(
+                        this
+                );
+    }
+
+    public void releaseFoundry() {
+        FoundryControllerNetwork.releaseFoundry(
+                this
         );
     }
 
     // =========================
-    // TANK NETWORK
-    // =========================
-
-    @Nullable
-    public FoundryTankNetwork getOwnedTankNetwork() {
-        if (level == null) {
-            return null;
-        }
-
-        FoundryTankNetwork best =
-                null;
-
-        Set<BlockPos> alreadyChecked =
-                new HashSet<>();
-
-        for (
-                BlockPos attachmentPos :
-                getValidTankAttachmentPositions()
-        ) {
-            BlockEntity blockEntity =
-                    level.getBlockEntity(
-                            attachmentPos
-                    );
-
-            if (
-                    !(blockEntity
-                            instanceof FoundryTankBlockEntity tank)
-            ) {
-                continue;
-            }
-
-            FoundryTankNetwork network =
-                    tank.getNetwork();
-
-            if (
-                    network == null
-                            || !controllerId.equals(
-                            network.getOwnerId()
-                    )
-                            || !canOwnTankLayout(
-                            network.getTankPositions()
-                    )
-            ) {
-                continue;
-            }
-
-            BlockPos networkKey =
-                    network.getTankPositions()
-                            .stream()
-                            .min(
-                                    Comparator
-                                            .comparingInt(
-                                                    (BlockPos pos) ->
-                                                            pos.getY()
-                                            )
-                                            .thenComparingInt(
-                                                    pos ->
-                                                            pos.getX()
-                                            )
-                                            .thenComparingInt(
-                                                    pos ->
-                                                            pos.getZ()
-                                            )
-                            )
-                            .orElse(
-                                    attachmentPos
-                            );
-
-            if (!alreadyChecked.add(networkKey)) {
-                continue;
-            }
-
-            if (
-                    best == null
-                            || network.getTankCount()
-                            > best.getTankCount()
-            ) {
-                best =
-                        network;
-            }
-        }
-
-        return best;
-    }
-
-    /**
-     * Restores an existing owned network or claims the largest valid
-     * unassigned layout touching the Controller on its back/left/right side.
-     */
-    public boolean ensureTankNetwork() {
-        if (
-                level == null
-                        || level.isClientSide()
-        ) {
-            return false;
-        }
-
-        if (getOwnedTankNetwork() != null) {
-            return true;
-        }
-
-        return FoundryTankNetwork
-                .claimLargestUnassignedLayoutForController(
-                        level,
-                        this
-                )
-                != null;
-    }
-
-    /**
-     * Releases every local machine owned by this Controller.
-     */
-    public void releaseFoundry() {
-        FoundryTankNetwork network =
-                getOwnedTankNetwork();
-
-        for (
-                FuelChamberBlockEntity fuelChamber :
-                collectNearbyFuelChambers(network)
-        ) {
-            if (
-                    controllerId.equals(
-                            fuelChamber.getControllerId()
-                    )
-            ) {
-                fuelChamber.setControllerId(null);
-            }
-        }
-
-        if (network != null) {
-            network.releaseOwnership();
-        }
-    }
-
-    // =========================
-    // FOUNDRY RECIPES
+    // PROCESSING / OUTPUT
     // =========================
 
     public boolean canMelt(
             ItemStack stack
     ) {
-        return findMeltingRecipe(stack)
-                .isPresent();
+        return processing.canMelt(
+                stack
+        );
     }
-
-    private Optional<FoundryMeltingRecipe> findMeltingRecipe(
-            ItemStack stack
-    ) {
-        if (
-                level == null
-                        || stack.isEmpty()
-        ) {
-            return Optional.empty();
-        }
-
-        return level.getRecipeManager()
-                .getRecipeFor(
-                        ModRecipes.FOUNDRY_MELTING_TYPE.get(),
-                        new SingleRecipeInput(stack),
-                        level
-                )
-                .map(
-                        holder ->
-                                holder.value()
-                )
-                .filter(
-                        recipe ->
-                                ModMoltenMetals.contains(
-                                        recipe.moltenMetal()
-                                )
-                );
-    }
-
-    private boolean matchesActiveRecipe(
-            FoundryMeltingRecipe recipe
-    ) {
-        return Objects.equals(
-                activeMoltenMetal,
-                recipe.moltenMetal()
-        )
-                && activeMoltenAmount
-                == recipe.moltenAmount()
-                && maxProgress
-                == recipe.processingTime();
-    }
-
-    private void selectActiveRecipe(
-            FoundryMeltingRecipe recipe
-    ) {
-        if (matchesActiveRecipe(recipe)) {
-            return;
-        }
-
-        progress = 0;
-
-        activeMoltenMetal =
-                recipe.moltenMetal();
-
-        activeMoltenAmount =
-                recipe.moltenAmount();
-
-        maxProgress =
-                recipe.processingTime();
-
-        setChanged();
-    }
-
-    private void clearActiveRecipe() {
-        boolean changed =
-                progress != 0
-                        || maxProgress != MAX_PROGRESS
-                        || activeMoltenMetal != null
-                        || activeMoltenAmount != 0;
-
-        progress = 0;
-        maxProgress = MAX_PROGRESS;
-        activeMoltenMetal = null;
-        activeMoltenAmount = 0;
-
-        if (changed) {
-            setChanged();
-        }
-    }
-
-    // =========================
-    // OUTPUT METAL SELECTION
-    // =========================
 
     @Nullable
     public ResourceLocation getSelectedOutputMetal() {
-        return selectedOutputMetal;
+        return processing.getSelectedOutputMetal();
     }
 
     public boolean setSelectedOutputMetal(
             ResourceLocation metal
     ) {
-        if (
-                metal == null
-                        || !ModMoltenMetals.contains(metal)
-        ) {
-            return false;
-        }
-
-        FoundryTankNetwork network =
-                getOwnedTankNetwork();
-
-        if (
-                level == null
-                        || network == null
-                        || network.getMoltenAmount(
-                        metal
-                ) <= 0
-        ) {
-            return false;
-        }
-
-        if (Objects.equals(
-                selectedOutputMetal,
+        return processing.setSelectedOutputMetal(
                 metal
-        )) {
-            return true;
-        }
-
-        selectedOutputMetal =
-                metal;
-
-        setChanged();
-        return true;
+        );
     }
 
     @Nullable
     public ResourceLocation getSelectedOutputMetalOrDefault(
             FoundryTankNetwork network
     ) {
-        if (
-                level == null
-                        || network == null
-        ) {
-            return null;
-        }
-
-        if (
-                selectedOutputMetal != null
-                        && network.getMoltenAmount(
-                        selectedOutputMetal
-                ) > 0
-        ) {
-            return selectedOutputMetal;
-        }
-
-        for (
-                var definition :
-                ModMoltenMetals.lightestFirst()
-        ) {
-            if (network.getMoltenAmount(
-                    definition.id()
-            ) > 0) {
-                return definition.id();
-            }
-        }
-
-        return null;
-    }
-
-    private void normalizeSelectedOutputMetal(
-            FoundryTankNetwork network
-    ) {
-        ResourceLocation normalized =
-                getSelectedOutputMetalOrDefault(
+        return processing
+                .getSelectedOutputMetalOrDefault(
                         network
                 );
-
-        if (!Objects.equals(
-                selectedOutputMetal,
-                normalized
-        )) {
-            selectedOutputMetal =
-                    normalized;
-
-            setChanged();
-        }
     }
-
-    // =========================
-    // FUEL CHAMBER
-    // =========================
-
-    @Nullable
-    private FuelChamberBlockEntity getConnectedFuelChamber(
-            FoundryTankNetwork network
-    ) {
-        List<FuelChamberBlockEntity> fuelChambers =
-                collectNearbyFuelChambers(network);
-
-        fuelChambers.sort(
-                Comparator
-                        .comparingLong(
-                                (FuelChamberBlockEntity fuelChamber) ->
-                                        distanceSquared(
-                                                worldPosition,
-                                                fuelChamber.getBlockPos()
-                                        )
-                        )
-                        .thenComparingInt(
-                                fuelChamber ->
-                                        fuelChamber.getBlockPos()
-                                                .getY()
-                        )
-                        .thenComparingInt(
-                                fuelChamber ->
-                                        fuelChamber.getBlockPos()
-                                                .getX()
-                        )
-                        .thenComparingInt(
-                                fuelChamber ->
-                                        fuelChamber.getBlockPos()
-                                                .getZ()
-                        )
-        );
-
-        /*
-         * Preserve an existing valid assignment first.
-         */
-        for (
-                FuelChamberBlockEntity fuelChamber :
-                fuelChambers
-        ) {
-            if (
-                    controllerId.equals(
-                            fuelChamber.getControllerId()
-                    )
-            ) {
-                return fuelChamber;
-            }
-        }
-
-        /*
-         * Unassigned or stale Fuel Chambers resolve their surrounding
-         * Controllers automatically. Ambiguous chambers remain unused.
-         */
-        for (
-                FuelChamberBlockEntity fuelChamber :
-                fuelChambers
-        ) {
-            fuelChamber.tryAutoAssign(null);
-
-            if (
-                    controllerId.equals(
-                            fuelChamber.getControllerId()
-                    )
-            ) {
-                return fuelChamber;
-            }
-        }
-
-        return null;
-    }
-
-    private List<FuelChamberBlockEntity> collectNearbyFuelChambers(
-            @Nullable FoundryTankNetwork network
-    ) {
-        if (level == null) {
-            return List.of();
-        }
-
-        Set<BlockPos> candidatePositions =
-                new HashSet<>();
-
-        /*
-         * A Fuel Chamber may sit on any of the six faces of the Controller:
-         * above, below, north, south, east, or west.
-         */
-        for (Direction direction : Direction.values()) {
-            candidatePositions.add(
-                    worldPosition.relative(direction)
-            );
-        }
-
-        /*
-         * It may alternatively touch any Tank belonging to the network,
-         * again on any of the six faces.
-         */
-        if (network != null) {
-            for (
-                    BlockPos tankPos :
-                    network.getTankPositions()
-            ) {
-                for (
-                        Direction direction :
-                        Direction.values()
-                ) {
-                    candidatePositions.add(
-                            tankPos.relative(direction)
-                    );
-                }
-            }
-        }
-
-        List<FuelChamberBlockEntity> result =
-                new ArrayList<>();
-
-        for (BlockPos candidatePos : candidatePositions) {
-            BlockEntity blockEntity =
-                    level.getBlockEntity(
-                            candidatePos
-                    );
-
-            if (
-                    blockEntity
-                            instanceof FuelChamberBlockEntity fuelChamber
-            ) {
-                result.add(fuelChamber);
-            }
-        }
-
-        return result;
-    }
-
-    // =========================
-    // SERVER TICK
-    // =========================
 
     public static void serverTick(
             Level level,
@@ -797,205 +332,14 @@ public class FoundryControllerBlockEntity
             BlockState state,
             FoundryControllerBlockEntity controller
     ) {
-        if (level.isClientSide()) {
-            return;
-        }
-
-        if (!controller.ensureTankNetwork()) {
-            controller.resetProgress();
-            return;
-        }
-
-        FoundryTankNetwork network =
-                controller.getOwnedTankNetwork();
-
-        if (network == null) {
-            controller.resetProgress();
-            return;
-        }
-
-        network.ensureMoltenContentsMigrated();
-
-        controller.normalizeSelectedOutputMetal(
-                network
+        controller.processing.tick(
+                level,
+                pos
         );
-
-        ItemStack inputStack =
-                controller.inputInventory.getItem(
-                        INPUT_SLOT
-                );
-
-        Optional<FoundryMeltingRecipe> recipeOptional =
-                controller.findMeltingRecipe(
-                        inputStack
-                );
-
-        if (recipeOptional.isEmpty()) {
-            controller.clearActiveRecipe();
-            return;
-        }
-
-        FoundryMeltingRecipe recipe =
-                recipeOptional.get();
-
-        controller.selectActiveRecipe(recipe);
-
-        FuelChamberBlockEntity fuelChamber =
-                controller.getConnectedFuelChamber(
-                        network
-                );
-
-        if (fuelChamber == null) {
-            controller.resetProgress();
-            return;
-        }
-
-        /*
-         * A full network pauses the Controller without wasting fuel or losing
-         * progress. Different registered metals may now coexist.
-         */
-        if (
-                !network.canAccept(
-                        recipe.moltenMetal(),
-                        recipe.moltenAmount()
-                )
-        ) {
-            return;
-        }
-
-        if (!fuelChamber.supplyBurnTick()) {
-            return;
-        }
-
-        controller.progress++;
-
-        if (
-                controller.progress
-                        >= controller.maxProgress
-        ) {
-            controller.finishMelting(
-                    network,
-                    recipe
-            );
-        }
-
-        controller.setChanged();
-    }
-
-    private void finishMelting(
-            FoundryTankNetwork network,
-            FoundryMeltingRecipe expectedRecipe
-    ) {
-        ItemStack inputStack =
-                inputInventory.getItem(
-                        INPUT_SLOT
-                );
-
-        Optional<FoundryMeltingRecipe> currentRecipeOptional =
-                findMeltingRecipe(
-                        inputStack
-                );
-
-        if (currentRecipeOptional.isEmpty()) {
-            clearActiveRecipe();
-            return;
-        }
-
-        FoundryMeltingRecipe currentRecipe =
-                currentRecipeOptional.get();
-
-        if (
-                !matchesActiveRecipe(currentRecipe)
-                        || !sameRecipeResult(
-                        expectedRecipe,
-                        currentRecipe
-                )
-        ) {
-            selectActiveRecipe(currentRecipe);
-            return;
-        }
-
-        if (
-                level == null
-                        || !network.canAccept(
-                        currentRecipe.moltenMetal(),
-                        currentRecipe.moltenAmount()
-                )
-        ) {
-            return;
-        }
-
-        int inserted =
-                network.insert(
-                        currentRecipe.moltenMetal(),
-                        currentRecipe.moltenAmount()
-                );
-
-        if (
-                inserted
-                        != currentRecipe.moltenAmount()
-        ) {
-            return;
-        }
-
-        if (selectedOutputMetal == null) {
-            selectedOutputMetal =
-                    currentRecipe.moltenMetal();
-        }
-
-        inputStack.shrink(1);
-        progress = 0;
-
-        inputInventory.setChanged();
-        setChanged();
-    }
-
-    private static boolean sameRecipeResult(
-            FoundryMeltingRecipe first,
-            FoundryMeltingRecipe second
-    ) {
-        return first.moltenAmount()
-                == second.moltenAmount()
-                && first.processingTime()
-                == second.processingTime()
-                && first.moltenMetal()
-                .equals(
-                        second.moltenMetal()
-                );
-    }
-
-    private void resetProgress() {
-        if (progress == 0) {
-            return;
-        }
-
-        progress = 0;
-        setChanged();
-    }
-
-    private static long distanceSquared(
-            BlockPos first,
-            BlockPos second
-    ) {
-        long deltaX =
-                first.getX()
-                        - second.getX();
-
-        long deltaY =
-                first.getY()
-                        - second.getY();
-
-        long deltaZ =
-                first.getZ()
-                        - second.getZ();
-
-        return deltaX * deltaX
-                + deltaY * deltaY
-                + deltaZ * deltaZ;
     }
 
     // =========================
-    // MENU
+    // MENU / INVENTORIES
     // =========================
 
     @Override
@@ -1019,12 +363,16 @@ public class FoundryControllerBlockEntity
         );
     }
 
-    // =========================
-    // GETTERS
-    // =========================
-
     public SimpleContainer getInputInventory() {
         return inputInventory;
+    }
+
+    public SimpleContainer getFuelInventory() {
+        return fuelSystem.getInventory();
+    }
+
+    FoundryControllerFuelSystem getFuelSystem() {
+        return fuelSystem;
     }
 
     public ContainerData getData() {
@@ -1032,20 +380,40 @@ public class FoundryControllerBlockEntity
     }
 
     public int getProgress() {
-        return progress;
+        return processing.getProgress();
     }
 
     public int getMaxProgress() {
-        return maxProgress;
+        return processing.getMaxProgress();
+    }
+
+    public int getBurnTimeRemaining() {
+        return fuelSystem.getBurnTimeRemaining();
+    }
+
+    public int getMaxBurnTime() {
+        return fuelSystem.getMaxBurnTime();
+    }
+
+    public boolean isBurning() {
+        return fuelSystem.isBurning();
+    }
+
+    public boolean hasAvailableFuel() {
+        return fuelSystem.hasAvailableFuel();
+    }
+
+    public int getStoredCoalCount() {
+        return fuelSystem.getStoredCoalCount();
     }
 
     @Nullable
     public ResourceLocation getActiveMoltenMetal() {
-        return activeMoltenMetal;
+        return processing.getActiveMoltenMetal();
     }
 
     public int getActiveMoltenAmount() {
-        return activeMoltenAmount;
+        return processing.getActiveMoltenAmount();
     }
 
     // =========================
@@ -1074,34 +442,15 @@ public class FoundryControllerBlockEntity
                 )
         );
 
-        tag.putInt(
-                "Progress",
-                progress
+        fuelSystem.save(
+                tag,
+                registries
         );
 
-        tag.putInt(
-                "MaxProgress",
-                maxProgress
+        processing.save(
+                tag,
+                registries
         );
-
-        if (activeMoltenMetal != null) {
-            tag.putString(
-                    "ActiveMoltenMetal",
-                    activeMoltenMetal.toString()
-            );
-        }
-
-        tag.putInt(
-                "ActiveMoltenAmount",
-                activeMoltenAmount
-        );
-
-        if (selectedOutputMetal != null) {
-            tag.putString(
-                    "SelectedOutputMetal",
-                    selectedOutputMetal.toString()
-            );
-        }
     }
 
     @Override
@@ -1148,78 +497,14 @@ public class FoundryControllerBlockEntity
             );
         }
 
-        maxProgress =
-                tag.contains("MaxProgress")
-                        ? Math.max(
-                        1,
-                        tag.getInt(
-                                "MaxProgress"
-                        )
-                )
-                        : MAX_PROGRESS;
+        fuelSystem.load(
+                tag,
+                registries
+        );
 
-        progress =
-                Math.max(
-                        0,
-                        Math.min(
-                                tag.getInt("Progress"),
-                                maxProgress
-                        )
-                );
-
-        activeMoltenMetal =
-                null;
-
-        if (tag.contains("ActiveMoltenMetal")) {
-            activeMoltenMetal =
-                    ResourceLocation.tryParse(
-                            tag.getString(
-                                    "ActiveMoltenMetal"
-                            )
-                    );
-        }
-
-        activeMoltenAmount =
-                Math.max(
-                        0,
-                        tag.getInt(
-                                "ActiveMoltenAmount"
-                        )
-                );
-
-        selectedOutputMetal =
-                null;
-
-        if (tag.contains("SelectedOutputMetal")) {
-            ResourceLocation parsedSelection =
-                    ResourceLocation.tryParse(
-                            tag.getString(
-                                    "SelectedOutputMetal"
-                            )
-                    );
-
-            if (
-                    parsedSelection != null
-                            && ModMoltenMetals.contains(
-                            parsedSelection
-                    )
-            ) {
-                selectedOutputMetal =
-                        parsedSelection;
-            }
-        }
-
-        if (
-                activeMoltenMetal == null
-                        || activeMoltenAmount <= 0
-                        || !ModMoltenMetals.contains(
-                        activeMoltenMetal
-                )
-        ) {
-            progress = 0;
-            maxProgress = MAX_PROGRESS;
-            activeMoltenMetal = null;
-            activeMoltenAmount = 0;
-        }
+        processing.load(
+                tag,
+                registries
+        );
     }
 }

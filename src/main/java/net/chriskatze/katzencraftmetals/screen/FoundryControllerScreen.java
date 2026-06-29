@@ -26,8 +26,14 @@ public class FoundryControllerScreen
     private static final int PROGRESS_WIDTH = 52;
     private static final int PROGRESS_HEIGHT = 6;
 
+    private static final int FUEL_WIDTH = 52;
+    private static final int FUEL_HEIGHT = 6;
+
+    private static final int FUEL_SLOT_Y = 35;
+
     private static final int MOLTEN_TEXTURE_WIDTH = 16;
     private static final int MOLTEN_FRAME_HEIGHT = 16;
+
     private static final int MOLTEN_TEXTURE_HEIGHT =
             MOLTEN_FRAME_HEIGHT
                     * MoltenIronAnimation.TEXTURE_FRAME_COUNT;
@@ -47,21 +53,25 @@ public class FoundryControllerScreen
             Inventory playerInventory,
             Component title
     ) {
-        super(menu, playerInventory, title);
+        super(
+                menu,
+                playerInventory,
+                title
+        );
 
-        this.imageWidth = 176;
-        this.imageHeight = 166;
+        imageWidth = 176;
+        imageHeight = 166;
     }
 
     @Override
     protected void init() {
         super.init();
 
-        this.titleLabelX = 8;
-        this.titleLabelY = 6;
+        titleLabelX = 8;
+        titleLabelY = 6;
 
-        this.inventoryLabelX = 8;
-        this.inventoryLabelY = 72;
+        inventoryLabelX = 8;
+        inventoryLabelY = 72;
     }
 
     @Override
@@ -81,18 +91,150 @@ public class FoundryControllerScreen
                 imageHeight
         );
 
-        renderProgressBar(graphics);
-        renderMetalList(graphics);
+        renderFuelSlotFrames(
+                graphics
+        );
+
+        renderFuelBar(
+                graphics
+        );
+
+        renderProgressBar(
+                graphics
+        );
+
+        renderMetalList(
+                graphics
+        );
+    }
+
+    private void renderFuelSlotFrames(
+            GuiGraphics graphics
+    ) {
+        for (int slot = 0; slot < 3; slot++) {
+            int x =
+                    leftPos
+                            + 8
+                            + slot * 18;
+
+            int y =
+                    topPos
+                            + FUEL_SLOT_Y;
+
+            graphics.fill(
+                    x - 1,
+                    y - 1,
+                    x + 17,
+                    y + 17,
+                    0xFF373737
+            );
+
+            graphics.fill(
+                    x,
+                    y,
+                    x + 16,
+                    y + 16,
+                    0xFF8B8B8B
+            );
+        }
+    }
+
+    private void renderFuelBar(
+            GuiGraphics graphics
+    ) {
+        int x =
+                leftPos
+                        + 8;
+
+        int y =
+                topPos
+                        + 56;
+
+        int fuel =
+                menu.getScaledBurnTime(
+                        FUEL_WIDTH
+                );
+
+        graphics.fill(
+                x - 1,
+                y - 1,
+                x + FUEL_WIDTH + 1,
+                y + FUEL_HEIGHT + 1,
+                0xFF202020
+        );
+
+        graphics.fill(
+                x,
+                y,
+                x + FUEL_WIDTH,
+                y + FUEL_HEIGHT,
+                0xFF555555
+        );
+
+        if (fuel > 0) {
+            graphics.fill(
+                    x,
+                    y,
+                    x + fuel,
+                    y + FUEL_HEIGHT,
+                    0xFFE65A1F
+            );
+        }
+    }
+
+    private void renderProgressBar(
+            GuiGraphics graphics
+    ) {
+        int x =
+                leftPos
+                        + 62;
+
+        int y =
+                topPos
+                        + 56;
+
+        int progress =
+                menu.getScaledProgress(
+                        PROGRESS_WIDTH
+                );
+
+        graphics.fill(
+                x - 1,
+                y - 1,
+                x + PROGRESS_WIDTH + 1,
+                y + PROGRESS_HEIGHT + 1,
+                0xFF202020
+        );
+
+        graphics.fill(
+                x,
+                y,
+                x + PROGRESS_WIDTH,
+                y + PROGRESS_HEIGHT,
+                0xFF555555
+        );
+
+        if (progress > 0) {
+            graphics.fill(
+                    x,
+                    y,
+                    x + progress,
+                    y + PROGRESS_HEIGHT,
+                    0xFFFF8C22
+            );
+        }
     }
 
     private void renderMetalList(
             GuiGraphics graphics
     ) {
         int panelX =
-                leftPos + CONTENT_PANEL_X;
+                leftPos
+                        + CONTENT_PANEL_X;
 
         int panelY =
-                topPos + CONTENT_PANEL_Y;
+                topPos
+                        + CONTENT_PANEL_Y;
 
         graphics.fill(
                 panelX,
@@ -116,8 +258,10 @@ public class FoundryControllerScreen
                     Component.translatable(
                             "gui.katzencraftmetals.foundry.empty"
                     ),
-                    panelX + CONTENT_PANEL_WIDTH / 2,
-                    panelY + 15,
+                    panelX
+                            + CONTENT_PANEL_WIDTH / 2,
+                    panelY
+                            + 15,
                     0x303030
             );
 
@@ -142,14 +286,16 @@ public class FoundryControllerScreen
             }
 
             int rowY =
-                    panelY + 1
+                    panelY
+                            + 1
                             + visibleRow * ROW_HEIGHT;
 
             boolean isSelected =
                     selected != null
-                            && selected.id().equals(
-                            definition.id()
-                    );
+                            && selected.id()
+                            .equals(
+                                    definition.id()
+                            );
 
             renderMetalRow(
                     graphics,
@@ -180,7 +326,8 @@ public class FoundryControllerScreen
             boolean selected
     ) {
         int rowWidth =
-                CONTENT_PANEL_WIDTH - 2;
+                CONTENT_PANEL_WIDTH
+                        - 2;
 
         graphics.fill(
                 rowX,
@@ -292,7 +439,9 @@ public class FoundryControllerScreen
                 );
 
         if (fraction == 0) {
-            return Integer.toString(whole);
+            return Integer.toString(
+                    whole
+            );
         }
 
         if (fraction % 10 == 0) {
@@ -309,44 +458,6 @@ public class FoundryControllerScreen
         );
     }
 
-    private void renderProgressBar(
-            GuiGraphics graphics
-    ) {
-        int x = leftPos + 62;
-        int y = topPos + 56;
-
-        int progress =
-                menu.getScaledProgress(
-                        PROGRESS_WIDTH
-                );
-
-        graphics.fill(
-                x - 1,
-                y - 1,
-                x + PROGRESS_WIDTH + 1,
-                y + PROGRESS_HEIGHT + 1,
-                0xFF202020
-        );
-
-        graphics.fill(
-                x,
-                y,
-                x + PROGRESS_WIDTH,
-                y + PROGRESS_HEIGHT,
-                0xFF555555
-        );
-
-        if (progress > 0) {
-            graphics.fill(
-                    x,
-                    y,
-                    x + progress,
-                    y + PROGRESS_HEIGHT,
-                    0xFFFF8C22
-            );
-        }
-    }
-
     @Override
     public boolean mouseClicked(
             double mouseX,
@@ -355,10 +466,14 @@ public class FoundryControllerScreen
     ) {
         if (button == 0) {
             int panelX =
-                    leftPos + CONTENT_PANEL_X + 1;
+                    leftPos
+                            + CONTENT_PANEL_X
+                            + 1;
 
             int panelY =
-                    topPos + CONTENT_PANEL_Y + 1;
+                    topPos
+                            + CONTENT_PANEL_Y
+                            + 1;
 
             int visibleRow =
                     0;
@@ -379,10 +494,14 @@ public class FoundryControllerScreen
 
                 if (
                         mouseX >= panelX
-                                && mouseX < panelX
-                                + CONTENT_PANEL_WIDTH - 2
+                                && mouseX
+                                < panelX
+                                + CONTENT_PANEL_WIDTH
+                                - 2
                                 && mouseY >= rowY
-                                && mouseY < rowY + ROW_HEIGHT
+                                && mouseY
+                                < rowY
+                                + ROW_HEIGHT
                 ) {
                     int syncId =
                             ModMoltenMetals.getSyncId(
@@ -421,10 +540,14 @@ public class FoundryControllerScreen
             int mouseY
     ) {
         int panelX =
-                leftPos + CONTENT_PANEL_X + 1;
+                leftPos
+                        + CONTENT_PANEL_X
+                        + 1;
 
         int panelY =
-                topPos + CONTENT_PANEL_Y + 1;
+                topPos
+                        + CONTENT_PANEL_Y
+                        + 1;
 
         int visibleRow =
                 0;
@@ -449,16 +572,21 @@ public class FoundryControllerScreen
 
             if (
                     mouseX >= panelX
-                            && mouseX < panelX
-                            + CONTENT_PANEL_WIDTH - 2
+                            && mouseX
+                            < panelX
+                            + CONTENT_PANEL_WIDTH
+                            - 2
                             && mouseY >= rowY
-                            && mouseY < rowY + ROW_HEIGHT
+                            && mouseY
+                            < rowY
+                            + ROW_HEIGHT
             ) {
                 boolean isSelected =
                         selected != null
-                                && selected.id().equals(
-                                definition.id()
-                        );
+                                && selected.id()
+                                .equals(
+                                        definition.id()
+                                );
 
                 graphics.renderTooltip(
                         font,

@@ -26,41 +26,63 @@ import org.slf4j.Logger;
 @Mod(KatzencraftMetalsMod.MODID)
 public class KatzencraftMetalsMod {
 
-    public static final String MODID = "katzencraftmetals";
-    public static final Logger LOGGER = LogUtils.getLogger();
+    public static final String MODID =
+            "katzencraftmetals";
 
-    public KatzencraftMetalsMod(IEventBus modEventBus, ModContainer modContainer) {
+    public static final Logger LOGGER =
+            LogUtils.getLogger();
 
-        // Register your content
-        ModItems.register(modEventBus);
-        ModBlocks.register(modEventBus);
-        ModBlockEntities.register(modEventBus);
-        ModRecipes.RECIPE_SERIALIZERS.register(modEventBus);
-        ModRecipes.RECIPE_TYPES.register(modEventBus);
-        ModMenuTypes.MENUS.register(modEventBus);
+    public KatzencraftMetalsMod(
+            IEventBus modEventBus,
+            ModContainer modContainer
+    ) {
+        ModItems.register(
+                modEventBus
+        );
 
-        // Register creative tab injection
-        modEventBus.addListener(this::addCreative);
+        ModBlocks.register(
+                modEventBus
+        );
 
-        // Register for general events (optional but fine)
-        NeoForge.EVENT_BUS.register(this);
+        ModBlockEntities.register(
+                modEventBus
+        );
 
-        // Configs
+        ModRecipes.RECIPE_SERIALIZERS.register(
+                modEventBus
+        );
+
+        ModRecipes.RECIPE_TYPES.register(
+                modEventBus
+        );
+
+        ModMenuTypes.MENUS.register(
+                modEventBus
+        );
+
+        modEventBus.addListener(
+                this::addCreative
+        );
+
+        NeoForge.EVENT_BUS.register(
+                this
+        );
+
         modContainer.registerConfig(
-                ModConfig.Type.COMMON, CatoToolTierConfig.SPEC, "katzencraftmetals-tooltiers.toml");
+                ModConfig.Type.COMMON,
+                CatoToolTierConfig.SPEC,
+                "katzencraftmetals-tooltiers.toml"
+        );
     }
 
-    // =========================
-    // VANILLA CREATIVE TABS
-    // =========================
-
-    private void addCreative(BuildCreativeModeTabContentsEvent event) {
-
-        // INGREDIENTS
-        if (event.getTabKey() == CreativeModeTabs.INGREDIENTS) {
-
+    private void addCreative(
+            BuildCreativeModeTabContentsEvent event
+    ) {
+        if (
+                event.getTabKey()
+                        == CreativeModeTabs.INGREDIENTS
+        ) {
             event.accept(ModItems.CRUSHED_COAL);
-
             event.accept(ModItems.CRUSHED_IRON_ORE);
 
             event.accept(ModItems.STEEL_NUGGET);
@@ -81,11 +103,11 @@ public class KatzencraftMetalsMod {
             event.accept(ModItems.AMETHYST_GEM);
         }
 
-        // BUILDING BLOCKS
-        if (event.getTabKey() == CreativeModeTabs.BUILDING_BLOCKS) {
-
+        if (
+                event.getTabKey()
+                        == CreativeModeTabs.BUILDING_BLOCKS
+        ) {
             event.accept(ModBlocks.PLATINUM_BLOCK);
-
             event.accept(ModBlocks.MYTHRIL_BLOCK);
 
             event.accept(ModBlocks.STEEL_BLOCK);
@@ -102,9 +124,10 @@ public class KatzencraftMetalsMod {
             event.accept(ModBlocks.STEEL_LADDER);
         }
 
-        // NATURAL BLOCKS
-        if (event.getTabKey() == CreativeModeTabs.NATURAL_BLOCKS) {
-
+        if (
+                event.getTabKey()
+                        == CreativeModeTabs.NATURAL_BLOCKS
+        ) {
             event.accept(ModBlocks.PLATINUM_ORE);
             event.accept(ModBlocks.DEEPSLATE_PLATINUM_ORE);
             event.accept(ModBlocks.NETHER_PLATINUM_ORE);
@@ -116,19 +139,21 @@ public class KatzencraftMetalsMod {
             event.accept(ModBlocks.END_MYTHRIL_ORE);
         }
 
-        // FUNCTIONAL BLOCKS
-        if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
+        if (
+                event.getTabKey()
+                        == CreativeModeTabs.FUNCTIONAL_BLOCKS
+        ) {
             event.accept(ModBlocks.CRUSHER);
-            event.accept(ModBlocks.FUEL_CHAMBER);
             event.accept(ModBlocks.FOUNDRY_CONTROLLER);
             event.accept(ModBlocks.FOUNDRY_TANK);
             event.accept(ModBlocks.CASTING_CAULDRON);
             event.accept(ModBlocks.FOUNDRY_FAUCET);
         }
 
-        // COMBAT
-        if (event.getTabKey() == CreativeModeTabs.COMBAT) {
-
+        if (
+                event.getTabKey()
+                        == CreativeModeTabs.COMBAT
+        ) {
             event.accept(ModItems.STEEL_SWORD);
             event.accept(ModItems.STEEL_HELMET);
             event.accept(ModItems.STEEL_CHESTPLATE);
@@ -143,9 +168,10 @@ public class KatzencraftMetalsMod {
             event.accept(ModItems.MYTHRIL_BOOTS);
         }
 
-        // TOOLS & UTILITIES
-        if (event.getTabKey() == CreativeModeTabs.TOOLS_AND_UTILITIES) {
-
+        if (
+                event.getTabKey()
+                        == CreativeModeTabs.TOOLS_AND_UTILITIES
+        ) {
             event.accept(ModItems.STEEL_PICKAXE);
             event.accept(ModItems.STEEL_AXE);
             event.accept(ModItems.STEEL_SHOVEL);
@@ -158,30 +184,65 @@ public class KatzencraftMetalsMod {
         }
     }
 
-    // =========================
-    // OPTIONAL EVENTS
-    // =========================
-
     @SubscribeEvent
-    public void onServerStarting(ServerStartingEvent event) {
-        LOGGER.info("Katzencraft Metals server starting");
+    public void onServerStarting(
+            ServerStartingEvent event
+    ) {
+        LOGGER.info(
+                "Katzencraft Metals server starting"
+        );
     }
 
     @SubscribeEvent
-    public void onLevelLoad(LevelEvent.Load event) {
-        if (!(event.getLevel() instanceof ServerLevel level)) return;
-        if (level.getServer() == null) return;
-        if (level.dimension() != Level.OVERWORLD) return;
+    public void onLevelLoad(
+            LevelEvent.Load event
+    ) {
+        if (
+                !(event.getLevel()
+                        instanceof ServerLevel level)
+        ) {
+            return;
+        }
 
-        KatzencraftWorldRulesData data = KatzencraftWorldRulesData.get(level);
+        if (level.getServer() == null) {
+            return;
+        }
 
-        if (data.isApplied()) return;
+        if (level.dimension() != Level.OVERWORLD) {
+            return;
+        }
 
-        level.getGameRules().getRule(GameRules.RULE_DOFIRETICK).set(false, level.getServer());
-        level.getGameRules().getRule(GameRules.RULE_KEEPINVENTORY).set(true, level.getServer());
+        KatzencraftWorldRulesData data =
+                KatzencraftWorldRulesData.get(
+                        level
+                );
+
+        if (data.isApplied()) {
+            return;
+        }
+
+        level.getGameRules()
+                .getRule(
+                        GameRules.RULE_DOFIRETICK
+                )
+                .set(
+                        false,
+                        level.getServer()
+                );
+
+        level.getGameRules()
+                .getRule(
+                        GameRules.RULE_KEEPINVENTORY
+                )
+                .set(
+                        true,
+                        level.getServer()
+                );
 
         data.setApplied();
 
-        LOGGER.info("Applied Katzencraft Metals default gamerules.");
+        LOGGER.info(
+                "Applied Katzencraft Metals default gamerules."
+        );
     }
 }

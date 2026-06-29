@@ -14,14 +14,22 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
 import java.util.Optional;
 
 public class FoundryControllerMenu
         extends AbstractContainerMenu {
 
-    private static final int CONTROLLER_SLOT_COUNT =
-            FoundryControllerBlockEntity.SLOT_COUNT;
+    private static final int INPUT_SLOT_COUNT =
+            FoundryControllerBlockEntity.INPUT_SLOT_COUNT;
+
+    private static final int FUEL_SLOT_COUNT =
+            FoundryControllerBlockEntity.FUEL_SLOT_COUNT;
+
+    private static final int MACHINE_SLOT_COUNT =
+            INPUT_SLOT_COUNT
+                    + FUEL_SLOT_COUNT;
 
     private static final int DATA_COUNT =
             FoundryControllerBlockEntity.DATA_COUNT;
@@ -29,24 +37,27 @@ public class FoundryControllerMenu
     /*
      * Menu slot indices:
      *
-     * 0      Controller input
-     * 1-27   Player inventory
-     * 28-36  Player hotbar
+     * 0      Controller melting input
+     * 1-3    Controller fuel
+     * 4-30   Player inventory
+     * 31-39  Player hotbar
      */
-    private static final int PLAYER_INVENTORY_START = 1;
-    private static final int PLAYER_INVENTORY_END = 28;
+    private static final int INPUT_MENU_SLOT = 0;
+    private static final int FUEL_MENU_START = 1;
+    private static final int FUEL_MENU_END = 4;
 
-    private static final int HOTBAR_START = 28;
-    private static final int HOTBAR_END = 37;
+    private static final int PLAYER_INVENTORY_START = 4;
+    private static final int PLAYER_INVENTORY_END = 31;
+
+    private static final int HOTBAR_START = 31;
+    private static final int HOTBAR_END = 40;
 
     private final FoundryControllerBlockEntity blockEntity;
-    private final Container container;
+    private final Container inputContainer;
+    private final Container fuelContainer;
     private final ContainerData data;
     private final ContainerLevelAccess access;
 
-    /*
-     * Client constructor.
-     */
     public FoundryControllerMenu(
             int containerId,
             Inventory playerInventory,
@@ -65,9 +76,6 @@ public class FoundryControllerMenu
         );
     }
 
-    /*
-     * Server constructor used by the block entity.
-     */
     public FoundryControllerMenu(
             int containerId,
             Inventory playerInventory,
@@ -95,8 +103,11 @@ public class FoundryControllerMenu
         this.blockEntity =
                 blockEntity;
 
-        this.container =
+        this.inputContainer =
                 blockEntity.getInputInventory();
+
+        this.fuelContainer =
+                blockEntity.getFuelInventory();
 
         this.data =
                 data;
@@ -108,8 +119,13 @@ public class FoundryControllerMenu
                 );
 
         checkContainerSize(
-                container,
-                CONTROLLER_SLOT_COUNT
+                inputContainer,
+                INPUT_SLOT_COUNT
+        );
+
+        checkContainerSize(
+                fuelContainer,
+                FUEL_SLOT_COUNT
         );
 
         checkContainerDataCount(
@@ -117,18 +133,24 @@ public class FoundryControllerMenu
                 DATA_COUNT
         );
 
-        container.startOpen(
+        inputContainer.startOpen(
                 playerInventory.player
         );
 
-        addDataSlots(data);
+        fuelContainer.startOpen(
+                playerInventory.player
+        );
+
+        addDataSlots(
+                data
+        );
 
         /*
-         * Any item with a FoundryMeltingRecipe can use the input slot.
+         * Melting input.
          */
-        this.addSlot(
+        addSlot(
                 new Slot(
-                        container,
+                        inputContainer,
                         FoundryControllerBlockEntity.INPUT_SLOT,
                         80,
                         35
@@ -144,6 +166,34 @@ public class FoundryControllerMenu
                     }
                 }
         );
+
+        /*
+         * Three coal slots formerly provided by the separate Fuel Chamber.
+         */
+        for (
+                int slot = 0;
+                slot < FUEL_SLOT_COUNT;
+                slot++
+        ) {
+            addSlot(
+                    new Slot(
+                            fuelContainer,
+                            slot,
+                            8 + slot * 18,
+                            35
+                    ) {
+
+                        @Override
+                        public boolean mayPlace(
+                                ItemStack stack
+                        ) {
+                            return stack.is(
+                                    Items.COAL
+                            );
+                        }
+                    }
+            );
+        }
 
         addPlayerInventory(
                 playerInventory
@@ -164,7 +214,9 @@ public class FoundryControllerMenu
         var blockEntity =
                 playerInventory.player
                         .level()
-                        .getBlockEntity(pos);
+                        .getBlockEntity(
+                                pos
+                        );
 
         if (
                 blockEntity
@@ -198,6 +250,31 @@ public class FoundryControllerMenu
         return progress
                 * width
                 / maxProgress;
+    }
+
+    public int getScaledBurnTime(
+            int width
+    ) {
+        int burnTime =
+                data.get(
+                        FoundryControllerBlockEntity.BURN_TIME_DATA_INDEX
+                );
+
+        int maxBurnTime =
+                data.get(
+                        FoundryControllerBlockEntity.MAX_BURN_TIME_DATA_INDEX
+                );
+
+        if (
+                burnTime <= 0
+                        || maxBurnTime <= 0
+        ) {
+            return 0;
+        }
+
+        return burnTime
+                * width
+                / maxBurnTime;
     }
 
     public int getMetalAmount(
@@ -250,7 +327,8 @@ public class FoundryControllerMenu
 
         return definition.isPresent()
                 && blockEntity.setSelectedOutputMetal(
-                definition.get().id()
+                definition.get()
+                        .id()
         );
     }
 
@@ -271,7 +349,9 @@ public class FoundryControllerMenu
             int index
     ) {
         Slot slot =
-                this.slots.get(index);
+                slots.get(
+                        index
+                );
 
         if (!slot.hasItem()) {
             return ItemStack.EMPTY;
@@ -283,10 +363,7 @@ public class FoundryControllerMenu
         ItemStack originalStack =
                 stack.copy();
 
-        if (index == 0) {
-            /*
-             * Controller -> player inventory
-             */
+        if (index < MACHINE_SLOT_COUNT) {
             if (
                     !moveItemStackTo(
                             stack,
@@ -297,17 +374,23 @@ public class FoundryControllerMenu
             ) {
                 return ItemStack.EMPTY;
             }
-        } else if (
-                blockEntity.canMelt(stack)
-        ) {
-            /*
-             * Valid Foundry melting input -> Controller
-             */
+        } else if (stack.is(Items.COAL)) {
             if (
                     !moveItemStackTo(
                             stack,
-                            0,
-                            1,
+                            FUEL_MENU_START,
+                            FUEL_MENU_END,
+                            false
+                    )
+            ) {
+                return ItemStack.EMPTY;
+            }
+        } else if (blockEntity.canMelt(stack)) {
+            if (
+                    !moveItemStackTo(
+                            stack,
+                            INPUT_MENU_SLOT,
+                            INPUT_MENU_SLOT + 1,
                             false
                     )
             ) {
@@ -317,9 +400,6 @@ public class FoundryControllerMenu
                 index >= PLAYER_INVENTORY_START
                         && index < PLAYER_INVENTORY_END
         ) {
-            /*
-             * Player inventory -> hotbar
-             */
             if (
                     !moveItemStackTo(
                             stack,
@@ -334,9 +414,6 @@ public class FoundryControllerMenu
                 index >= HOTBAR_START
                         && index < HOTBAR_END
         ) {
-            /*
-             * Hotbar -> player inventory
-             */
             if (
                     !moveItemStackTo(
                             stack,
@@ -378,8 +455,17 @@ public class FoundryControllerMenu
     public void removed(
             Player player
     ) {
-        super.removed(player);
-        container.stopOpen(player);
+        super.removed(
+                player
+        );
+
+        inputContainer.stopOpen(
+                player
+        );
+
+        fuelContainer.stopOpen(
+                player
+        );
     }
 
     private void addPlayerInventory(
@@ -391,7 +477,7 @@ public class FoundryControllerMenu
                     column < 9;
                     column++
             ) {
-                this.addSlot(
+                addSlot(
                         new Slot(
                                 playerInventory,
                                 column
@@ -415,7 +501,7 @@ public class FoundryControllerMenu
                 column < 9;
                 column++
         ) {
-            this.addSlot(
+            addSlot(
                     new Slot(
                             playerInventory,
                             column,
