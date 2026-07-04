@@ -27,7 +27,7 @@ final class FoundryControllerProcessRenderer {
         renderUnlockedSlotFrames(graphics);
         renderActiveInputOutline(graphics);
         renderBurnTime(graphics);
-        renderTemperaturePlaceholder(graphics);
+        renderTemperature(graphics);
     }
 
     private void renderUnlockedSlotFrames(
@@ -169,16 +169,32 @@ final class FoundryControllerProcessRenderer {
         );
     }
 
-    private void renderTemperaturePlaceholder(
+    private void renderTemperature(
             GuiGraphics graphics
     ) {
-        /*
-         * The actual heating/cooling system is the next gameplay checkpoint.
-         * Keep the final temperature location live now rather than leaving a
-         * debug number baked into the texture.
-         */
-        Component temperature =
-                Component.literal("20 C");
+        int fill = screen.controllerMenu().getScaledTemperature(
+                FoundryControllerUiLayout.TEMPERATURE_GAUGE_HEIGHT
+        );
+
+        int left = screen.guiLeft() + FoundryControllerUiLayout.TEMPERATURE_GAUGE_X;
+        int bottom = screen.guiTop()
+                + FoundryControllerUiLayout.TEMPERATURE_GAUGE_Y
+                + FoundryControllerUiLayout.TEMPERATURE_GAUGE_HEIGHT;
+
+        if (fill > 0) {
+            int top = bottom - fill;
+            graphics.fill(
+                    left,
+                    top,
+                    left + FoundryControllerUiLayout.TEMPERATURE_GAUGE_WIDTH,
+                    bottom,
+                    getTemperatureColor()
+            );
+        }
+
+        Component temperature = Component.literal(
+                screen.controllerMenu().getCurrentTemperature() + "°C"
+        );
 
         FoundryControllerUiDrawing.drawCentered(
                 graphics,
@@ -191,4 +207,19 @@ final class FoundryControllerProcessRenderer {
                 FoundryControllerUiDrawing.TEXT
         );
     }
+
+    private int getTemperatureColor() {
+        int current = screen.controllerMenu().getCurrentTemperature();
+        int maximum = screen.controllerMenu().getMaximumTemperature();
+        float ratio = maximum <= 0 ? 0.0f : Math.min(1.0f, current / (float) maximum);
+
+        if (ratio < 0.33f) {
+            return 0xFFCC5A24;
+        }
+        if (ratio < 0.66f) {
+            return 0xFFFF941F;
+        }
+        return 0xFFFFC34A;
+    }
+
 }

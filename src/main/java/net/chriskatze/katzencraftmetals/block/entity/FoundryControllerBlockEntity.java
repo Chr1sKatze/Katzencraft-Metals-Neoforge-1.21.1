@@ -62,6 +62,9 @@ public class FoundryControllerBlockEntity
     private final FoundryControllerProgression progression =
             new FoundryControllerProgression();
 
+    private final FoundryControllerTemperature temperature =
+            new FoundryControllerTemperature(this);
+
     private final SimpleContainer inputInventory =
             new SimpleContainer(INPUT_SLOT_COUNT) {
 
@@ -128,9 +131,20 @@ public class FoundryControllerBlockEntity
             TIER_EXPERIENCE_NEEDED_DATA_INDEX
                     + 1;
 
+    public static final int CURRENT_TEMPERATURE_DATA_INDEX =
+            ACTIVE_INPUT_SLOT_DATA_INDEX + 1;
+
+    public static final int MAXIMUM_TEMPERATURE_DATA_INDEX =
+            CURRENT_TEMPERATURE_DATA_INDEX + 1;
+
+    public static final int REQUIRED_TEMPERATURE_DATA_INDEX =
+            MAXIMUM_TEMPERATURE_DATA_INDEX + 1;
+
+    public static final int STATUS_DATA_INDEX =
+            REQUIRED_TEMPERATURE_DATA_INDEX + 1;
+
     public static final int DATA_COUNT =
-            ACTIVE_INPUT_SLOT_DATA_INDEX
-                    + 1;
+            STATUS_DATA_INDEX + 1;
 
     private final ContainerData data =
             new ContainerData() {
@@ -230,6 +244,22 @@ public class FoundryControllerBlockEntity
 
                     if (index == ACTIVE_INPUT_SLOT_DATA_INDEX) {
                         return processing.getActiveInputSlot();
+                    }
+
+                    if (index == CURRENT_TEMPERATURE_DATA_INDEX) {
+                        return temperature.getCurrentTemperature();
+                    }
+
+                    if (index == MAXIMUM_TEMPERATURE_DATA_INDEX) {
+                        return temperature.getTierMaximumTemperature();
+                    }
+
+                    if (index == REQUIRED_TEMPERATURE_DATA_INDEX) {
+                        return processing.getRequiredTemperature();
+                    }
+
+                    if (index == STATUS_DATA_INDEX) {
+                        return processing.getStatusCode();
                     }
 
                     return 0;
@@ -418,6 +448,18 @@ public class FoundryControllerBlockEntity
         return fuelSystem;
     }
 
+    FoundryControllerTemperature getTemperatureSystem() {
+        return temperature;
+    }
+
+    public int getCurrentTemperature() {
+        return temperature.getCurrentTemperature();
+    }
+
+    public int getMaximumTemperature() {
+        return temperature.getTierMaximumTemperature();
+    }
+
     public ContainerData getData() {
         return data;
     }
@@ -549,6 +591,8 @@ public class FoundryControllerBlockEntity
         progression.save(
                 tag
         );
+
+        temperature.save(tag);
     }
 
     @Override
@@ -614,5 +658,7 @@ public class FoundryControllerBlockEntity
                 tag,
                 registries
         );
+
+        temperature.load(tag);
     }
 }

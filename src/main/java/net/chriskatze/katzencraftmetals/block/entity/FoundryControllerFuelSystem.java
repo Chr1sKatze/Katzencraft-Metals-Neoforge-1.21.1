@@ -25,6 +25,7 @@ final class FoundryControllerFuelSystem {
 
     static final int FUEL_SLOT_COUNT = 4;
     static final int COAL_BURN_TIME = 1600;
+    static final int COAL_MAXIMUM_TEMPERATURE = 900;
 
     private final FoundryControllerBlockEntity controller;
 
@@ -49,6 +50,7 @@ final class FoundryControllerFuelSystem {
 
     private int burnTimeRemaining;
     private int maxBurnTime;
+    private int activeFuelMaximumTemperature;
 
     FoundryControllerFuelSystem(
             FoundryControllerBlockEntity controller
@@ -101,6 +103,9 @@ final class FoundryControllerFuelSystem {
             maxBurnTime =
                     COAL_BURN_TIME;
 
+            activeFuelMaximumTemperature =
+                    COAL_MAXIMUM_TEMPERATURE;
+
             controller.setChanged();
             return true;
         }
@@ -139,6 +144,24 @@ final class FoundryControllerFuelSystem {
 
     int getMaxBurnTime() {
         return maxBurnTime;
+    }
+
+
+    int getActiveFuelMaximumTemperature() {
+        return burnTimeRemaining > 0
+                ? Math.max(
+                FoundryControllerTemperature.AMBIENT_TEMPERATURE,
+                activeFuelMaximumTemperature
+        )
+                : COAL_MAXIMUM_TEMPERATURE;
+    }
+
+    boolean canReachTemperature(int requiredTemperature) {
+        return requiredTemperature <= Math.min(
+                controller.getTemperatureSystem()
+                        .getTierMaximumTemperature(),
+                getActiveFuelMaximumTemperature()
+        );
     }
 
     int getStoredCoalCount() {
@@ -425,6 +448,11 @@ final class FoundryControllerFuelSystem {
                 "MaxBurnTime",
                 maxBurnTime
         );
+
+        tag.putInt(
+                "ActiveFuelMaximumTemperature",
+                activeFuelMaximumTemperature
+        );
     }
 
     void load(
@@ -463,5 +491,15 @@ final class FoundryControllerFuelSystem {
                                 "MaxBurnTime"
                         )
                 );
+
+        activeFuelMaximumTemperature =
+                burnTimeRemaining > 0
+                        ? Math.max(
+                        FoundryControllerTemperature.AMBIENT_TEMPERATURE,
+                        tag.contains("ActiveFuelMaximumTemperature")
+                                ? tag.getInt("ActiveFuelMaximumTemperature")
+                                : COAL_MAXIMUM_TEMPERATURE
+                )
+                        : 0;
     }
 }

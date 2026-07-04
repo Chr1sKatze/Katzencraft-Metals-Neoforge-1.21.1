@@ -333,6 +333,27 @@ public class FoundryControllerMenu
                 / maxBurnTime;
     }
 
+
+    public int getCurrentTemperature() {
+        return data.get(FoundryControllerBlockEntity.CURRENT_TEMPERATURE_DATA_INDEX);
+    }
+
+    public int getMaximumTemperature() {
+        return Math.max(1, data.get(FoundryControllerBlockEntity.MAXIMUM_TEMPERATURE_DATA_INDEX));
+    }
+
+    public int getRequiredTemperature() {
+        return data.get(FoundryControllerBlockEntity.REQUIRED_TEMPERATURE_DATA_INDEX);
+    }
+
+    public int getProcessingStatus() {
+        return data.get(FoundryControllerBlockEntity.STATUS_DATA_INDEX);
+    }
+
+    public int getScaledTemperature(int height) {
+        return Math.max(0, Math.min(height, getCurrentTemperature() * height / getMaximumTemperature()));
+    }
+
     public int getFoundryTier() {
         return data.get(
                 FoundryControllerBlockEntity.TIER_DATA_INDEX

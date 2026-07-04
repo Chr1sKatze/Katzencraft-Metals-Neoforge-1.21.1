@@ -4,7 +4,6 @@ import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.ItemStack;
 
 final class FoundryControllerHeaderStatusRenderer {
 
@@ -146,57 +145,40 @@ final class FoundryControllerHeaderStatusRenderer {
     }
 
     private FoundryStatus resolveStatus() {
-        if (menu().getTankCount() <= 0) {
-            return new FoundryStatus(
+        return switch (menu().getProcessingStatus()) {
+            case 1 -> new FoundryStatus(
                     Component.literal("NO TANKS CONNECTED"),
                     FoundryControllerUiDrawing.RED
             );
-        }
-
-        if (
-                menu().getTankCapacity() > 0
-                        && menu().getTotalMoltenAmount()
-                        >= menu().getTankCapacity()
-        ) {
-            return new FoundryStatus(
+            case 2 -> new FoundryStatus(
                     Component.literal("TANK FULL"),
                     FoundryControllerUiDrawing.RED
             );
-        }
-
-        ItemStack input = menu().getInputStack();
-
-        if (input.isEmpty()) {
-            return new FoundryStatus(
-                    Component.literal("READY"),
-                    FoundryControllerUiDrawing.GREEN
-            );
-        }
-
-        if (!menu().hasFuelAvailable()) {
-            return new FoundryStatus(
+            case 3 -> new FoundryStatus(
                     Component.literal("MISSING FUEL"),
                     FoundryControllerUiDrawing.RED
             );
-        }
-
-        Component metal =
-                menu().getInputMoltenMetalDefinition()
-                        .<Component>map(
-                                definition ->
-                                        Component.translatable(
-                                                definition.translationKey()
-                                        )
-                        )
-                        .orElse(
-                                Component.literal("ORE")
-                        );
-
-        return new FoundryStatus(
-                Component.literal("MELTING ")
-                        .append(metal),
-                FoundryControllerUiDrawing.ORANGE
-        );
+            case 4 -> new FoundryStatus(
+                    Component.literal("TEMPERATURE TOO LOW"),
+                    FoundryControllerUiDrawing.RED
+            );
+            case 5 -> new FoundryStatus(
+                    Component.literal("HEATING TO " + menu().getRequiredTemperature() + "°C"),
+                    FoundryControllerUiDrawing.ORANGE
+            );
+            case 6 -> new FoundryStatus(
+                    Component.literal("MELTING ").append(
+                            menu().getInputMoltenMetalDefinition()
+                                    .<Component>map(definition -> Component.translatable(definition.translationKey()))
+                                    .orElse(Component.literal("ORE"))
+                    ),
+                    FoundryControllerUiDrawing.ORANGE
+            );
+            default -> new FoundryStatus(
+                    Component.literal("READY"),
+                    FoundryControllerUiDrawing.GREEN
+            );
+        };
     }
 
     private FoundryControllerMenu menu() {

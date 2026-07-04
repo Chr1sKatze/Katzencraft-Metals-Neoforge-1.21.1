@@ -20,6 +20,14 @@ import java.util.Optional;
  */
 final class FoundryControllerProcessing {
 
+    static final int STATUS_READY = 0;
+    static final int STATUS_NO_TANKS = 1;
+    static final int STATUS_TANK_FULL = 2;
+    static final int STATUS_MISSING_FUEL = 3;
+    static final int STATUS_TEMPERATURE_TOO_LOW = 4;
+    static final int STATUS_HEATING = 5;
+    static final int STATUS_MELTING = 6;
+
     private final FoundryControllerBlockEntity controller;
 
     private int progress;
@@ -33,6 +41,9 @@ final class FoundryControllerProcessing {
     private int activeMoltenAmount;
 
     private int activeInputSlot = -1;
+
+    private int requiredTemperature;
+    private int statusCode = STATUS_READY;
 
     @Nullable
     private ResourceLocation selectedOutputMetal;
@@ -186,7 +197,9 @@ final class FoundryControllerProcessing {
         }
 
         if (!controller.ensureTankNetwork()) {
+            statusCode = STATUS_NO_TANKS;
             clearActiveRecipe();
+            controller.getTemperatureSystem().coolTick();
             return;
         }
 
@@ -194,83 +207,85 @@ final class FoundryControllerProcessing {
                 controller.getOwnedTankNetwork();
 
         if (network == null) {
+            statusCode = STATUS_NO_TANKS;
             clearActiveRecipe();
+            controller.getTemperatureSystem().coolTick();
             return;
         }
 
         network.ensureMoltenContentsMigrated();
-
-        normalizeSelectedOutputMetal(
-                network
-        );
+        normalizeSelectedOutputMetal(network);
 
         if (level.getGameTime() % 20L == 0L) {
             controller.getFuelSystem()
-                    .migrateNearbyLegacyFuelChambers(
-                            network
-                    );
+                    .migrateNearbyLegacyFuelChambers(network);
         }
 
-        int inputSlot =
-                findNextInputSlot();
+        int inputSlot = findNextInputSlot();
 
         if (inputSlot < 0) {
+            statusCode = STATUS_READY;
             clearActiveRecipe();
+            controller.getTemperatureSystem().coolTick();
             return;
         }
 
-        ItemStack inputStack =
-                controller.getInputInventory()
-                        .getItem(
-                                inputSlot
-                        );
-
-        Optional<FoundryMeltingRecipe> recipeOptional =
-                findMeltingRecipe(
-                        inputStack
-                );
+        ItemStack inputStack = controller.getInputInventory().getItem(inputSlot);
+        Optional<FoundryMeltingRecipe> recipeOptional = findMeltingRecipe(inputStack);
 
         if (recipeOptional.isEmpty()) {
+            statusCode = STATUS_READY;
             clearActiveRecipe();
+            controller.getTemperatureSystem().coolTick();
             return;
         }
 
-        FoundryMeltingRecipe recipe =
-                recipeOptional.get();
+        FoundryMeltingRecipe recipe = recipeOptional.get();
+        selectActiveRecipe(inputSlot, recipe);
+        requiredTemperature = FoundryMeltingTemperatures
+                .getRequiredTemperature(recipe.moltenMetal());
 
-        selectActiveRecipe(
-                inputSlot,
-                recipe
+        if (!network.canAccept(recipe.moltenMetal(), recipe.moltenAmount())) {
+            statusCode = STATUS_TANK_FULL;
+            controller.getTemperatureSystem().coolTick();
+            return;
+        }
+
+        FoundryControllerFuelSystem fuel = controller.getFuelSystem();
+
+        if (!fuel.canReachTemperature(requiredTemperature)) {
+            statusCode = STATUS_TEMPERATURE_TOO_LOW;
+            controller.getTemperatureSystem().coolTick();
+            return;
+        }
+
+        if (!fuel.hasAvailableFuel()) {
+            statusCode = STATUS_MISSING_FUEL;
+            controller.getTemperatureSystem().coolTick();
+            return;
+        }
+
+        if (!fuel.supplyBurnTick()) {
+            statusCode = STATUS_MISSING_FUEL;
+            controller.getTemperatureSystem().coolTick();
+            return;
+        }
+
+        controller.getTemperatureSystem().heatTick(
+                fuel.getActiveFuelMaximumTemperature()
         );
 
-        /*
-         * Queue order is strict. If the first valid queued item cannot fit,
-         * later slots are not skipped and no fuel is consumed.
-         */
-        if (
-                !network.canAccept(
-                        recipe.moltenMetal(),
-                        recipe.moltenAmount()
-                )
-        ) {
+        if (!controller.getTemperatureSystem().isHotEnough(requiredTemperature)) {
+            statusCode = STATUS_HEATING;
+            controller.setChanged();
             return;
         }
 
-        if (
-                !controller.getFuelSystem()
-                        .supplyBurnTick()
-        ) {
-            return;
-        }
-
+        statusCode = STATUS_MELTING;
         progress++;
 
         if (progress >= maxProgress) {
-            finishMelting(
-                    network,
-                    inputSlot,
-                    recipe
-            );
+            finishMelting(network, inputSlot, recipe);
         }
 
         controller.setChanged();
@@ -341,6 +356,7 @@ final class FoundryControllerProcessing {
         progress = 0;
         maxProgress = FoundryControllerBlockEntity.MAX_PROGRESS;
         activeInputSlot = -1;
+        requiredTemperature = 0;
         activeMoltenMetal = null;
         activeMoltenAmount = 0;
 
@@ -505,6 +521,14 @@ final class FoundryControllerProcessing {
         return activeInputSlot;
     }
 
+    int getRequiredTemperature() {
+        return requiredTemperature;
+    }
+
+    int getStatusCode() {
+        return statusCode;
+    }
+
     void save(
             CompoundTag tag,
             HolderLookup.Provider registries
@@ -535,6 +559,9 @@ final class FoundryControllerProcessing {
                 "ActiveInputSlot",
                 activeInputSlot
         );
+
+        tag.putInt("RequiredTemperature", requiredTemperature);
+        tag.putInt("ProcessingStatus", statusCode);
 
         if (selectedOutputMetal != null) {
             tag.putString(
@@ -588,6 +615,11 @@ final class FoundryControllerProcessing {
                                 "ActiveMoltenAmount"
                         )
                 );
+
+        requiredTemperature = Math.max(0, tag.getInt("RequiredTemperature"));
+        statusCode = tag.contains("ProcessingStatus")
+                ? tag.getInt("ProcessingStatus")
+                : STATUS_READY;
 
         activeInputSlot =
                 tag.contains("ActiveInputSlot")
