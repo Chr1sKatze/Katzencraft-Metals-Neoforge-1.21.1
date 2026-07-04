@@ -65,6 +65,9 @@ public class FoundryControllerBlockEntity
     private final FoundryControllerTemperature temperature =
             new FoundryControllerTemperature(this);
 
+    private final FoundryControllerAlloying alloying =
+            new FoundryControllerAlloying(this);
+
     private final SimpleContainer inputInventory =
             new SimpleContainer(INPUT_SLOT_COUNT) {
 
@@ -143,8 +146,14 @@ public class FoundryControllerBlockEntity
     public static final int STATUS_DATA_INDEX =
             REQUIRED_TEMPERATURE_DATA_INDEX + 1;
 
-    public static final int DATA_COUNT =
+    public static final int ACTIVE_ALLOY_OUTPUT_DATA_INDEX =
             STATUS_DATA_INDEX + 1;
+
+    public static final int ALLOY_ACTIVE_DATA_INDEX =
+            ACTIVE_ALLOY_OUTPUT_DATA_INDEX + 1;
+
+    public static final int DATA_COUNT =
+            ALLOY_ACTIVE_DATA_INDEX + 1;
 
     private final ContainerData data =
             new ContainerData() {
@@ -154,11 +163,15 @@ public class FoundryControllerBlockEntity
                         int index
                 ) {
                     if (index == 0) {
-                        return processing.getProgress();
+                        return alloying.hasActiveJob()
+                                ? alloying.getProgress()
+                                : processing.getProgress();
                     }
 
                     if (index == 1) {
-                        return processing.getMaxProgress();
+                        return alloying.hasActiveJob()
+                                ? alloying.getMaxProgress()
+                                : processing.getMaxProgress();
                     }
 
                     FoundryTankNetwork network =
@@ -243,7 +256,9 @@ public class FoundryControllerBlockEntity
                     }
 
                     if (index == ACTIVE_INPUT_SLOT_DATA_INDEX) {
-                        return processing.getActiveInputSlot();
+                        return alloying.hasActiveJob()
+                                ? -1
+                                : processing.getActiveInputSlot();
                     }
 
                     if (index == CURRENT_TEMPERATURE_DATA_INDEX) {
@@ -255,11 +270,30 @@ public class FoundryControllerBlockEntity
                     }
 
                     if (index == REQUIRED_TEMPERATURE_DATA_INDEX) {
-                        return processing.getRequiredTemperature();
+                        return alloying.hasActiveJob()
+                                ? alloying.getRequiredTemperature()
+                                : processing.getRequiredTemperature();
                     }
 
                     if (index == STATUS_DATA_INDEX) {
-                        return processing.getStatusCode();
+                        return alloying.hasActiveJob()
+                                ? alloying.getStatusCode()
+                                : processing.getStatusCode();
+                    }
+
+                    if (index == ACTIVE_ALLOY_OUTPUT_DATA_INDEX) {
+                        ResourceLocation output =
+                                alloying.getOutputMetal();
+
+                        return output == null
+                                ? -1
+                                : ModMoltenMetals.getSyncId(output);
+                    }
+
+                    if (index == ALLOY_ACTIVE_DATA_INDEX) {
+                        return alloying.hasActiveJob()
+                                ? 1
+                                : 0;
                     }
 
                     return 0;
@@ -359,6 +393,8 @@ public class FoundryControllerBlockEntity
     }
 
     public void releaseFoundry() {
+        alloying.cancelAndRefund();
+
         FoundryControllerNetwork.releaseFoundry(
                 this
         );
@@ -405,10 +441,17 @@ public class FoundryControllerBlockEntity
             BlockState state,
             FoundryControllerBlockEntity controller
     ) {
-        controller.processing.tick(
-                level,
-                pos
-        );
+        if (controller.alloying.hasActiveJob()) {
+            controller.alloying.tick(
+                    level,
+                    pos
+            );
+        } else {
+            controller.processing.tick(
+                    level,
+                    pos
+            );
+        }
     }
 
     // =========================
@@ -450,6 +493,20 @@ public class FoundryControllerBlockEntity
 
     FoundryControllerTemperature getTemperatureSystem() {
         return temperature;
+    }
+
+    public boolean startAlloy(
+            int recipeIndex,
+            int batchCount
+    ) {
+        return alloying.start(
+                recipeIndex,
+                batchCount
+        );
+    }
+
+    public boolean isAlloying() {
+        return alloying.hasActiveJob();
     }
 
     public int getCurrentTemperature() {
@@ -593,6 +650,7 @@ public class FoundryControllerBlockEntity
         );
 
         temperature.save(tag);
+        alloying.save(tag);
     }
 
     @Override
@@ -660,5 +718,6 @@ public class FoundryControllerBlockEntity
         );
 
         temperature.load(tag);
+        alloying.load(tag);
     }
 }

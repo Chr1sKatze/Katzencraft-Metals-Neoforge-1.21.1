@@ -1,6 +1,7 @@
 package net.chriskatze.katzencraftmetals.metal;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
+import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -13,26 +14,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-/**
- * Central list of molten metals understood by the Foundry.
- *
- * This is intentionally a small Java registry rather than a NeoForge
- * DeferredRegister. The entries describe Foundry behavior and visuals; they
- * are not standalone Minecraft registry objects.
- */
+/** Central list of molten metals understood by the Foundry. */
 public final class ModMoltenMetals {
 
     private static final Map<ResourceLocation, MoltenMetalDefinition>
             DEFINITIONS =
             new LinkedHashMap<>();
 
-    /*
-     * Keep minecraft:iron as the id because that is already the id stored
-     * by the existing Tank saves.
-     *
-     * Density is represented in kg/m³ only to provide a clear, stable
-     * ordering. The exact number is not used for fluid simulation.
-     */
     public static final MoltenMetalDefinition IRON =
             register(
                     new MoltenMetalDefinition(
@@ -57,10 +45,6 @@ public final class ModMoltenMetals {
                     )
             );
 
-    /*
-     * Copper is denser than Iron, so the future multi-metal distributor
-     * will place Copper below Iron.
-     */
     public static final MoltenMetalDefinition COPPER =
             register(
                     new MoltenMetalDefinition(
@@ -73,10 +57,6 @@ public final class ModMoltenMetals {
                                     KatzencraftMetalsMod.MODID,
                                     "textures/block/molten_copper.png"
                             ),
-                            /*
-                             * A cooled Copper cast uses Minecraft's normal
-                             * Copper Block texture.
-                             */
                             ResourceLocation.fromNamespaceAndPath(
                                     "minecraft",
                                     "textures/block/copper_block.png"
@@ -85,6 +65,58 @@ public final class ModMoltenMetals {
                             6,
                             () -> new ItemStack(
                                     Items.COPPER_BLOCK
+                            )
+                    )
+            );
+
+    /*
+     * Temporary Step 10C alloy outputs. Dedicated molten textures can replace
+     * these reused animations later without changing storage or recipes.
+     */
+    public static final MoltenMetalDefinition STEEL =
+            register(
+                    new MoltenMetalDefinition(
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "steel"
+                            ),
+                            "metal.katzencraftmetals.steel",
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "textures/block/molten_iron.png"
+                            ),
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "textures/block/steel_block.png"
+                            ),
+                            7_850,
+                            6,
+                            () -> new ItemStack(
+                                    ModBlocks.STEEL_BLOCK.get()
+                            )
+                    )
+            );
+
+    public static final MoltenMetalDefinition MYTHRIL =
+            register(
+                    new MoltenMetalDefinition(
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "mythril"
+                            ),
+                            "metal.katzencraftmetals.mythril",
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "textures/block/molten_copper.png"
+                            ),
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "textures/block/mythril_block.png"
+                            ),
+                            9_500,
+                            6,
+                            () -> new ItemStack(
+                                    ModBlocks.MYTHRIL_BLOCK.get()
                             )
                     )
             );
@@ -125,13 +157,6 @@ public final class ModMoltenMetals {
         return DEFINITIONS.containsKey(id);
     }
 
-    /**
-     * Compact integer id used only for menu synchronization.
-     *
-     * The order follows the insertion order of DEFINITIONS, which is stable
-     * for one running mod version. Persistent saves continue to use the full
-     * ResourceLocation and never depend on this number.
-     */
     public static int getSyncId(
             ResourceLocation id
     ) {
@@ -170,9 +195,6 @@ public final class ModMoltenMetals {
         );
     }
 
-    /**
-     * Lightest first, matching how the Controller list will be displayed.
-     */
     public static List<MoltenMetalDefinition> lightestFirst() {
         return DEFINITIONS.values()
                 .stream()
@@ -184,9 +206,6 @@ public final class ModMoltenMetals {
                 .toList();
     }
 
-    /**
-     * Heaviest first, matching bottom-up Tank layer construction.
-     */
     public static List<MoltenMetalDefinition> heaviestFirst() {
         return DEFINITIONS.values()
                 .stream()

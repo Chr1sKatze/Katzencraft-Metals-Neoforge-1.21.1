@@ -6,6 +6,8 @@ import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
+import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyCatalog;
+import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyRecipe;
 import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.Container;
@@ -18,8 +20,10 @@ import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
 
+import java.util.List;
 import java.util.Optional;
 
 public class FoundryControllerMenu
@@ -46,6 +50,10 @@ public class FoundryControllerMenu
 
     private static final int PLAYER_INVENTORY_START = 12;
     private static final int PLAYER_INVENTORY_END = 39;
+
+    public static final int START_ALLOY_BUTTON_BASE = 100_000;
+    private static final int ALLOY_BUTTON_QUANTITY_BASE = 100;
+    public static final int MAX_ALLOY_BATCHES = 99;
 
     private static final int[] INPUT_SLOT_X = {
             43,
@@ -567,20 +575,148 @@ public class FoundryControllerMenu
         return FoundryTankNetwork.MAX_TANK_COUNT;
     }
 
+    public List<RecipeHolder<FoundryAlloyRecipe>> getAlloyRecipes() {
+        return blockEntity.getLevel() == null
+                ? List.of()
+                : FoundryAlloyCatalog.getRecipes(
+                blockEntity.getLevel()
+        );
+    }
+
+    public int getMaxCraftableBatches(
+            FoundryAlloyRecipe recipe
+    ) {
+        if (
+                recipe == null
+                        || recipe.requiredTier() > getFoundryTier()
+                        || blockEntity.getLevel() == null
+                        || ModMoltenMetals.get(
+                        recipe.outputMetal()
+                ).isEmpty()
+        ) {
+            return 0;
+        }
+
+        int maximum =
+                MAX_ALLOY_BATCHES;
+
+        int totalInputPerBatch =
+                0;
+
+        for (
+                var ingredient :
+                recipe.ingredients()
+        ) {
+            Optional<MoltenMetalDefinition> definition =
+                    ModMoltenMetals.get(
+                            ingredient.metal()
+                    );
+
+            if (definition.isEmpty()) {
+                return 0;
+            }
+
+            int available =
+                    getMetalAmount(
+                            definition.get()
+                    );
+
+            maximum =
+                    Math.min(
+                            maximum,
+                            available
+                                    / ingredient.amount()
+                    );
+
+            totalInputPerBatch +=
+                    ingredient.amount();
+        }
+
+        int netGrowthPerBatch =
+                recipe.outputAmount()
+                        - totalInputPerBatch;
+
+        if (netGrowthPerBatch > 0) {
+            int free =
+                    Math.max(
+                            0,
+                            getTankCapacity()
+                                    - getTotalMoltenAmount()
+                    );
+
+            maximum =
+                    Math.min(
+                            maximum,
+                            free / netGrowthPerBatch
+                    );
+        }
+
+        return Math.max(
+                0,
+                maximum
+        );
+    }
+
+    public boolean isAlloyJobActive() {
+        return data.get(
+                FoundryControllerBlockEntity.ALLOY_ACTIVE_DATA_INDEX
+        ) != 0;
+    }
+
+    public Optional<MoltenMetalDefinition> getActiveAlloyOutput() {
+        return ModMoltenMetals.bySyncId(
+                data.get(
+                        FoundryControllerBlockEntity
+                                .ACTIVE_ALLOY_OUTPUT_DATA_INDEX
+                )
+        );
+    }
+
+    public static int createStartAlloyButton(
+            int recipeIndex,
+            int quantity
+    ) {
+        int normalizedQuantity =
+                Math.max(
+                        1,
+                        Math.min(
+                                MAX_ALLOY_BATCHES,
+                                quantity
+                        )
+                );
+
+        return START_ALLOY_BUTTON_BASE
+                + recipeIndex
+                * ALLOY_BUTTON_QUANTITY_BASE
+                + normalizedQuantity;
+    }
+
     @Override
     public boolean clickMenuButton(
             Player player,
             int buttonId
     ) {
-        Optional<MoltenMetalDefinition> definition =
-                ModMoltenMetals.bySyncId(
-                        buttonId
-                );
+        if (buttonId < START_ALLOY_BUTTON_BASE) {
+            return false;
+        }
 
-        return definition.isPresent()
-                && blockEntity.setSelectedOutputMetal(
-                definition.get()
-                        .id()
+        int encoded =
+                buttonId
+                        - START_ALLOY_BUTTON_BASE;
+
+        int recipeIndex =
+                encoded
+                        / ALLOY_BUTTON_QUANTITY_BASE;
+
+        int quantity =
+                encoded
+                        % ALLOY_BUTTON_QUANTITY_BASE;
+
+        return quantity >= 1
+                && quantity <= MAX_ALLOY_BATCHES
+                && blockEntity.startAlloy(
+                recipeIndex,
+                quantity
         );
     }
 

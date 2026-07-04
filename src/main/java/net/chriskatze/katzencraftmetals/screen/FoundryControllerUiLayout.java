@@ -87,6 +87,15 @@ final class FoundryControllerUiLayout {
     static final int QUANTITY_PLUS_X = 215;
     static final int QUANTITY_Y = 217;
 
+    static final int QUANTITY_MINUS_WIDTH = 11;
+    static final int QUANTITY_WIDTH = 19;
+    static final int QUANTITY_PLUS_WIDTH = 11;
+
+    static final int START_X = 234;
+    static final int START_Y = 217;
+    static final int START_WIDTH = 43;
+    static final int START_HEIGHT = 11;
+
     private FoundryControllerUiLayout() {
     }
 

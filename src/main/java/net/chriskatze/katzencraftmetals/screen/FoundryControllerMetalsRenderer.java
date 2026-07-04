@@ -1,7 +1,11 @@
 package net.chriskatze.katzencraftmetals.screen;
 
+import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
+import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
+import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyIngredient;
+import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyRecipe;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -9,12 +13,22 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 final class FoundryControllerMetalsRenderer {
+
+    private static final ResourceLocation UNLOCKED_SLOT_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(
+                    KatzencraftMetalsMod.MODID,
+                    "textures/gui/foundry_controller_unlocked_slot.png"
+            );
 
     private final FoundryControllerScreen screen;
 
@@ -32,12 +46,11 @@ final class FoundryControllerMetalsRenderer {
     void render(
             GuiGraphics graphics
     ) {
-        normalizeFocusedMetal();
+        List<Entry> entries =
+                buildEntries();
 
-        List<MoltenMetalDefinition> stored =
-                getStoredMetals();
-
-        clampScroll(stored.size());
+        normalizeSelection(entries);
+        clampScroll(entries.size());
 
         for (
                 int visibleRow = 0;
@@ -45,27 +58,29 @@ final class FoundryControllerMetalsRenderer {
                         < FoundryControllerUiLayout.VISIBLE_METAL_ROWS;
                 visibleRow++
         ) {
-            int index = scrollOffset + visibleRow;
+            int index =
+                    scrollOffset
+                            + visibleRow;
 
-            if (index >= stored.size()) {
+            if (index >= entries.size()) {
                 break;
             }
 
-            renderMetalRow(
+            renderEntry(
                     graphics,
-                    stored.get(index),
+                    entries.get(index),
                     visibleRow
             );
         }
 
         renderScrollbar(
                 graphics,
-                stored.size()
+                entries.size()
         );
 
-        renderRecipeFoundation(
+        renderRecipe(
                 graphics,
-                stored
+                findFocusedEntry(entries)
         );
     }
 
@@ -78,11 +93,14 @@ final class FoundryControllerMetalsRenderer {
             return false;
         }
 
-        List<MoltenMetalDefinition> stored =
-                getStoredMetals();
+        List<Entry> entries =
+                buildEntries();
 
-        int left = screen.guiLeft();
-        int top = screen.guiTop();
+        int left =
+                screen.guiLeft();
+
+        int top =
+                screen.guiTop();
 
         for (
                 int visibleRow = 0;
@@ -90,9 +108,11 @@ final class FoundryControllerMetalsRenderer {
                         < FoundryControllerUiLayout.VISIBLE_METAL_ROWS;
                 visibleRow++
         ) {
-            int index = scrollOffset + visibleRow;
+            int index =
+                    scrollOffset
+                            + visibleRow;
 
-            if (index >= stored.size()) {
+            if (index >= entries.size()) {
                 break;
             }
 
@@ -113,19 +133,117 @@ final class FoundryControllerMetalsRenderer {
                 continue;
             }
 
-            MoltenMetalDefinition definition =
-                    stored.get(index);
+            Entry entry =
+                    entries.get(index);
 
-            focusedMetal = definition.id();
+            focusedMetal =
+                    entry.definition()
+                            .id();
 
-            int syncId =
-                    ModMoltenMetals.getSyncId(
-                            definition.id()
+            int maximum =
+                    entry.recipe() == null
+                            ? 0
+                            : menu().getMaxCraftableBatches(
+                            entry.recipe()
+                                    .value()
                     );
 
-            if (syncId >= 0) {
-                screen.sendMenuButton(syncId);
+            screen.configureAlloyQuantity(
+                    maximum > 0
+                            && !menu().isAlloyJobActive(),
+                    maximum,
+                    true
+            );
+
+            return true;
+        }
+
+        Entry focused =
+                findFocusedEntry(entries);
+
+        if (
+                focused == null
+                        || focused.recipe() == null
+        ) {
+            return false;
+        }
+
+        int maximum =
+                menu().getMaxCraftableBatches(
+                        focused.recipe()
+                                .value()
+                );
+
+        boolean enabled =
+                maximum > 0
+                        && !menu().isAlloyJobActive();
+
+        if (
+                FoundryControllerUiLayout.contains(
+                        mouseX,
+                        mouseY,
+                        left,
+                        top,
+                        FoundryControllerUiLayout.QUANTITY_MINUS_X,
+                        FoundryControllerUiLayout.QUANTITY_Y,
+                        FoundryControllerUiLayout.QUANTITY_MINUS_WIDTH,
+                        11
+                )
+        ) {
+            if (enabled) {
+                screen.changeAlloyQuantity(-1);
             }
+
+            return true;
+        }
+
+        if (
+                FoundryControllerUiLayout.contains(
+                        mouseX,
+                        mouseY,
+                        left,
+                        top,
+                        FoundryControllerUiLayout.QUANTITY_PLUS_X,
+                        FoundryControllerUiLayout.QUANTITY_Y,
+                        FoundryControllerUiLayout.QUANTITY_PLUS_WIDTH,
+                        11
+                )
+        ) {
+            if (enabled) {
+                screen.changeAlloyQuantity(1);
+            }
+
+            return true;
+        }
+
+        if (
+                FoundryControllerUiLayout.contains(
+                        mouseX,
+                        mouseY,
+                        left,
+                        top,
+                        FoundryControllerUiLayout.START_X,
+                        FoundryControllerUiLayout.START_Y,
+                        FoundryControllerUiLayout.START_WIDTH,
+                        FoundryControllerUiLayout.START_HEIGHT
+                )
+        ) {
+            if (!enabled) {
+                return true;
+            }
+
+            int quantity =
+                    Math.min(
+                            maximum,
+                            screen.getAlloyQuantity()
+                    );
+
+            screen.sendMenuButton(
+                    FoundryControllerMenu.createStartAlloyButton(
+                            focused.recipeIndex(),
+                            quantity
+                    )
+            );
 
             return true;
         }
@@ -138,13 +256,13 @@ final class FoundryControllerMetalsRenderer {
             double mouseY,
             double scrollDelta
     ) {
-        List<MoltenMetalDefinition> stored =
-                getStoredMetals();
+        List<Entry> entries =
+                buildEntries();
 
         int maxOffset =
                 Math.max(
                         0,
-                        stored.size()
+                        entries.size()
                                 - FoundryControllerUiLayout.VISIBLE_METAL_ROWS
                 );
 
@@ -170,9 +288,17 @@ final class FoundryControllerMetalsRenderer {
         }
 
         if (scrollDelta > 0.0) {
-            scrollOffset = Math.max(0, scrollOffset - 1);
+            scrollOffset =
+                    Math.max(
+                            0,
+                            scrollOffset - 1
+                    );
         } else if (scrollDelta < 0.0) {
-            scrollOffset = Math.min(maxOffset, scrollOffset + 1);
+            scrollOffset =
+                    Math.min(
+                            maxOffset,
+                            scrollOffset + 1
+                    );
         }
 
         return true;
@@ -183,8 +309,8 @@ final class FoundryControllerMetalsRenderer {
             int mouseX,
             int mouseY
     ) {
-        List<MoltenMetalDefinition> stored =
-                getStoredMetals();
+        List<Entry> entries =
+                buildEntries();
 
         for (
                 int visibleRow = 0;
@@ -192,9 +318,11 @@ final class FoundryControllerMetalsRenderer {
                         < FoundryControllerUiLayout.VISIBLE_METAL_ROWS;
                 visibleRow++
         ) {
-            int index = scrollOffset + visibleRow;
+            int index =
+                    scrollOffset
+                            + visibleRow;
 
-            if (index >= stored.size()) {
+            if (index >= entries.size()) {
                 break;
             }
 
@@ -212,10 +340,17 @@ final class FoundryControllerMetalsRenderer {
                             FoundryControllerUiLayout.METAL_ROW_HEIGHT
                     )
             ) {
+                Entry entry =
+                        entries.get(index);
+
                 graphics.renderTooltip(
                         screen.uiFont(),
-                        Component.literal(
-                                "Select this metal. Per-Faucet output settings will later move to Shift + Right Click on each Faucet."
+                        entry.recipe() == null
+                                ? Component.literal(
+                                "Stored molten metal"
+                        )
+                                : Component.literal(
+                                "Select to inspect and start this alloy recipe"
                         ),
                         mouseX,
                         mouseY
@@ -226,9 +361,9 @@ final class FoundryControllerMetalsRenderer {
         }
     }
 
-    private void renderMetalRow(
+    private void renderEntry(
             GuiGraphics graphics,
-            MoltenMetalDefinition definition,
+            Entry entry,
             int visibleRow
     ) {
         int left =
@@ -242,8 +377,11 @@ final class FoundryControllerMetalsRenderer {
                         * FoundryControllerUiLayout.METAL_ROW_HEIGHT;
 
         boolean focused =
-                definition.id()
-                        .equals(focusedMetal);
+                entry.definition()
+                        .id()
+                        .equals(
+                                focusedMetal
+                        );
 
         drawRowFrame(
                 graphics,
@@ -252,7 +390,10 @@ final class FoundryControllerMetalsRenderer {
                 focused
         );
 
-        ItemStack icon = getDisplayIcon(definition);
+        ItemStack icon =
+                getDisplayIcon(
+                        entry.definition()
+                );
 
         if (!icon.isEmpty()) {
             graphics.renderItem(
@@ -274,8 +415,11 @@ final class FoundryControllerMetalsRenderer {
 
         graphics.drawString(
                 screen.uiFont(),
-                Component.translatable(
-                        definition.translationKey()
+                Component.literal(
+                        displayName(
+                                entry.definition()
+                                        .id()
+                        )
                 ),
                 left + 24,
                 top + 2,
@@ -283,27 +427,527 @@ final class FoundryControllerMetalsRenderer {
                 false
         );
 
-        int amount =
-                screen.controllerMenu()
-                        .getMetalAmount(definition);
+        int storedAmount =
+                menu().getMetalAmount(
+                        entry.definition()
+                );
+
+        if (storedAmount > 0) {
+            graphics.drawString(
+                    screen.uiFont(),
+                    FoundryControllerUiDrawing.formatOreAmount(
+                            storedAmount,
+                            entry.definition()
+                                    .unitsPerOre()
+                    )
+                            + " ore",
+                    left + 24,
+                    top + 11,
+                    secondaryColor,
+                    false
+            );
+        }
+    }
+
+    private void renderRecipe(
+            GuiGraphics graphics,
+            @Nullable Entry focused
+    ) {
+        if (
+                focused == null
+                        || focused.recipe() == null
+        ) {
+            screen.configureAlloyQuantity(
+                    false,
+                    1,
+                    false
+            );
+
+            renderResultOnly(
+                    graphics,
+                    focused
+            );
+
+            renderRequiredTemperature(
+                    graphics,
+                    0
+            );
+
+            return;
+        }
+
+        FoundryAlloyRecipe recipe =
+                focused.recipe()
+                        .value();
+
+        int maximum =
+                menu().getMaxCraftableBatches(
+                        recipe
+                );
+
+        boolean enabled =
+                maximum > 0
+                        && !menu().isAlloyJobActive();
+
+        screen.configureAlloyQuantity(
+                enabled,
+                Math.max(1, maximum),
+                false
+        );
+
+        int quantity =
+                enabled
+                        ? Math.min(
+                        maximum,
+                        screen.getAlloyQuantity()
+                )
+                        : 1;
+
+        int[] ingredientX = {
+                FoundryControllerUiLayout.INGREDIENT_ONE_X,
+                FoundryControllerUiLayout.INGREDIENT_TWO_X,
+                FoundryControllerUiLayout.INGREDIENT_THREE_X
+        };
+
+        for (
+                int index = 0;
+                index < recipe.ingredients().size();
+                index++
+        ) {
+            FoundryAlloyIngredient ingredient =
+                    recipe.ingredients()
+                            .get(index);
+
+            Optional<MoltenMetalDefinition> definition =
+                    ModMoltenMetals.get(
+                            ingredient.metal()
+                    );
+
+            if (definition.isEmpty()) {
+                continue;
+            }
+
+            int x =
+                    screen.guiLeft()
+                            + ingredientX[index];
+
+            int y =
+                    screen.guiTop()
+                            + FoundryControllerUiLayout.RECIPE_SLOT_Y;
+
+            renderUnlockedRecipeSlot(
+                    graphics,
+                    x,
+                    y
+            );
+
+            graphics.renderItem(
+                    getDisplayIcon(
+                            definition.get()
+                    ),
+                    x,
+                    y
+            );
+
+            renderAmount(
+                    graphics,
+                    x,
+                    y,
+                    ingredient.amount()
+                            * quantity,
+                    definition.get()
+                            .unitsPerOre()
+            );
+        }
+
+        Optional<MoltenMetalDefinition> outputDefinition =
+                ModMoltenMetals.get(
+                        recipe.outputMetal()
+                );
+
+        if (outputDefinition.isPresent()) {
+            int x =
+                    screen.guiLeft()
+                            + FoundryControllerUiLayout.RESULT_X;
+
+            int y =
+                    screen.guiTop()
+                            + FoundryControllerUiLayout.RECIPE_SLOT_Y;
+
+            renderUnlockedRecipeSlot(
+                    graphics,
+                    x,
+                    y
+            );
+
+            graphics.renderItem(
+                    getDisplayIcon(
+                            outputDefinition.get()
+                    ),
+                    x,
+                    y
+            );
+
+            renderAmount(
+                    graphics,
+                    x,
+                    y,
+                    recipe.outputAmount()
+                            * quantity,
+                    outputDefinition.get()
+                            .unitsPerOre()
+            );
+        }
+
+        renderRequiredTemperature(
+                graphics,
+                recipe.requiredTemperature()
+        );
+
+        if (!enabled) {
+            graphics.fill(
+                    screen.guiLeft()
+                            + FoundryControllerUiLayout.START_X,
+                    screen.guiTop()
+                            + FoundryControllerUiLayout.START_Y,
+                    screen.guiLeft()
+                            + FoundryControllerUiLayout.START_X
+                            + FoundryControllerUiLayout.START_WIDTH,
+                    screen.guiTop()
+                            + FoundryControllerUiLayout.START_Y
+                            + FoundryControllerUiLayout.START_HEIGHT,
+                    0x66000000
+            );
+        }
+    }
+
+    private void renderResultOnly(
+            GuiGraphics graphics,
+            @Nullable Entry focused
+    ) {
+        if (focused == null) {
+            return;
+        }
+
+        ItemStack result =
+                getDisplayIcon(
+                        focused.definition()
+                );
+
+        if (result.isEmpty()) {
+            return;
+        }
+
+        int x =
+                screen.guiLeft()
+                        + FoundryControllerUiLayout.RESULT_X;
+
+        int y =
+                screen.guiTop()
+                        + FoundryControllerUiLayout.RECIPE_SLOT_Y;
+
+        renderUnlockedRecipeSlot(
+                graphics,
+                x,
+                y
+        );
+
+        graphics.renderItem(
+                result,
+                x,
+                y
+        );
+    }
+
+    private void renderRequiredTemperature(
+            GuiGraphics graphics,
+            int temperature
+    ) {
+        FoundryControllerUiDrawing.drawCentered(
+                graphics,
+                screen.uiFont(),
+                Component.literal(
+                        temperature <= 0
+                                ? "-"
+                                : temperature + "°C"
+                ),
+                screen.guiLeft() + 248,
+                screen.guiTop()
+                        + FoundryControllerUiLayout.REQUIRED_TEMPERATURE_Y,
+                31,
+                10,
+                temperature <= 0
+                        ? FoundryControllerUiDrawing.MUTED_TEXT
+                        : FoundryControllerUiDrawing.TEXT
+        );
+    }
+
+    private void renderUnlockedRecipeSlot(
+            GuiGraphics graphics,
+            int x,
+            int y
+    ) {
+        graphics.blit(
+                UNLOCKED_SLOT_TEXTURE,
+                x - 1,
+                y - 1,
+                0.0f,
+                0.0f,
+                18,
+                18,
+                18,
+                18
+        );
+    }
+
+    private void renderAmount(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            int units,
+            int unitsPerOre
+    ) {
+        String amount =
+                FoundryControllerUiDrawing.formatOreAmount(
+                        units,
+                        unitsPerOre
+                );
 
         graphics.drawString(
                 screen.uiFont(),
-                FoundryControllerUiDrawing.formatOreAmount(
-                        amount,
-                        definition.unitsPerOre()
-                )
-                        + " ore",
-                left + 24,
-                top + 11,
-                secondaryColor,
-                false
+                amount,
+                x + 16
+                        - screen.uiFont()
+                        .width(amount),
+                y + 9,
+                0xFFFFFFFF,
+                true
         );
+    }
+
+    private List<Entry> buildEntries() {
+        List<Entry> entries =
+                new ArrayList<>();
+
+        List<RecipeHolder<FoundryAlloyRecipe>> recipes =
+                menu().getAlloyRecipes();
+
+        Set<ResourceLocation> included =
+                new HashSet<>();
+
+        for (
+                MoltenMetalDefinition definition :
+                ModMoltenMetals.lightestFirst()
+        ) {
+            int amount =
+                    menu().getMetalAmount(
+                            definition
+                    );
+
+            if (amount <= 0) {
+                continue;
+            }
+
+            RecipeReference recipe =
+                    findRecipeForOutput(
+                            recipes,
+                            definition.id()
+                    );
+
+            entries.add(
+                    new Entry(
+                            definition,
+                            recipe == null
+                                    ? -1
+                                    : recipe.index(),
+                            recipe == null
+                                    ? null
+                                    : recipe.holder()
+                    )
+            );
+
+            included.add(
+                    definition.id()
+            );
+        }
+
+        ResourceLocation activeAlloyOutput =
+                menu().getActiveAlloyOutput()
+                        .map(
+                                MoltenMetalDefinition::id
+                        )
+                        .orElse(null);
+
+        for (
+                int index = 0;
+                index < recipes.size();
+                index++
+        ) {
+            RecipeHolder<FoundryAlloyRecipe> holder =
+                    recipes.get(index);
+
+            FoundryAlloyRecipe recipe =
+                    holder.value();
+
+            boolean activeRecipeOutput =
+                    recipe.outputMetal()
+                            .equals(
+                                    activeAlloyOutput
+                            );
+
+            if (
+                    included.contains(
+                            recipe.outputMetal()
+                    )
+                            || (
+                            menu().getMaxCraftableBatches(
+                                    recipe
+                            ) <= 0
+                                    && !activeRecipeOutput
+                    )
+            ) {
+                continue;
+            }
+
+            Optional<MoltenMetalDefinition> outputDefinition =
+                    ModMoltenMetals.get(
+                            recipe.outputMetal()
+                    );
+
+            if (outputDefinition.isEmpty()) {
+                continue;
+            }
+
+            MoltenMetalDefinition definition =
+                    outputDefinition.get();
+
+            entries.add(
+                    new Entry(
+                            definition,
+                            index,
+                            holder
+                    )
+            );
+
+            included.add(
+                    definition.id()
+            );
+        }
+
+        return entries;
+    }
+
+    @Nullable
+    private static RecipeReference findRecipeForOutput(
+            List<RecipeHolder<FoundryAlloyRecipe>> recipes,
+            ResourceLocation output
+    ) {
+        for (int index = 0; index < recipes.size(); index++) {
+            RecipeHolder<FoundryAlloyRecipe> holder =
+                    recipes.get(index);
+
+            if (
+                    holder.value()
+                            .outputMetal()
+                            .equals(output)
+            ) {
+                return new RecipeReference(
+                        index,
+                        holder
+                );
+            }
+        }
+
+        return null;
+    }
+
+    private void normalizeSelection(
+            List<Entry> entries
+    ) {
+        if (entries.isEmpty()) {
+            focusedMetal = null;
+            scrollOffset = 0;
+            screen.configureAlloyQuantity(
+                    false,
+                    1,
+                    false
+            );
+            return;
+        }
+
+        Entry current =
+                findFocusedEntry(entries);
+
+        if (current != null) {
+            return;
+        }
+
+        Entry first =
+                entries.get(0);
+
+        focusedMetal =
+                first.definition()
+                        .id();
+
+        int maximum =
+                first.recipe() == null
+                        ? 0
+                        : menu().getMaxCraftableBatches(
+                        first.recipe()
+                                .value()
+                );
+
+        screen.configureAlloyQuantity(
+                maximum > 0
+                        && !menu().isAlloyJobActive(),
+                Math.max(1, maximum),
+                true
+        );
+    }
+
+    @Nullable
+    private Entry findFocusedEntry(
+            List<Entry> entries
+    ) {
+        if (focusedMetal == null) {
+            return null;
+        }
+
+        for (Entry entry : entries) {
+            if (
+                    entry.definition()
+                            .id()
+                            .equals(
+                                    focusedMetal
+                            )
+            ) {
+                return entry;
+            }
+        }
+
+        return null;
+    }
+
+    private void clampScroll(
+            int count
+    ) {
+        scrollOffset =
+                Math.max(
+                        0,
+                        Math.min(
+                                scrollOffset,
+                                Math.max(
+                                        0,
+                                        count
+                                                - FoundryControllerUiLayout.VISIBLE_METAL_ROWS
+                                )
+                        )
+                );
     }
 
     private void renderScrollbar(
             GuiGraphics graphics,
-            int metalCount
+            int entryCount
     ) {
         int left =
                 screen.guiLeft()
@@ -338,7 +982,7 @@ final class FoundryControllerMetalsRenderer {
         int maxOffset =
                 Math.max(
                         0,
-                        metalCount
+                        entryCount
                                 - FoundryControllerUiLayout.VISIBLE_METAL_ROWS
                 );
 
@@ -349,13 +993,15 @@ final class FoundryControllerMetalsRenderer {
                         10,
                         height
                                 * FoundryControllerUiLayout.VISIBLE_METAL_ROWS
-                                / metalCount
+                                / entryCount
                 );
 
         int travel =
                 Math.max(
                         0,
-                        height - thumbHeight - 2
+                        height
+                                - thumbHeight
+                                - 2
                 );
 
         int thumbY =
@@ -376,53 +1022,6 @@ final class FoundryControllerMetalsRenderer {
                 maxOffset <= 0
                         ? 0xFF626262
                         : 0xFFA5A5A5
-        );
-    }
-
-    private void renderRecipeFoundation(
-            GuiGraphics graphics,
-            List<MoltenMetalDefinition> stored
-    ) {
-        MoltenMetalDefinition focused =
-                findFocusedDefinition(stored);
-
-        if (focused != null) {
-            ItemStack result = getDisplayIcon(focused);
-
-            if (!result.isEmpty()) {
-                graphics.renderItem(
-                        result,
-                        screen.guiLeft()
-                                + FoundryControllerUiLayout.RESULT_X,
-                        screen.guiTop()
-                                + FoundryControllerUiLayout.RECIPE_SLOT_Y
-                );
-            }
-        }
-
-        FoundryControllerUiDrawing.drawCentered(
-                graphics,
-                screen.uiFont(),
-                Component.literal("-"),
-                screen.guiLeft() + 255,
-                screen.guiTop()
-                        + FoundryControllerUiLayout.REQUIRED_TEMPERATURE_Y,
-                24,
-                10,
-                FoundryControllerUiDrawing.MUTED_TEXT
-        );
-
-        FoundryControllerUiDrawing.drawCentered(
-                graphics,
-                screen.uiFont(),
-                Component.literal("1"),
-                screen.guiLeft()
-                        + FoundryControllerUiLayout.QUANTITY_X,
-                screen.guiTop()
-                        + FoundryControllerUiLayout.QUANTITY_Y,
-                19,
-                10,
-                FoundryControllerUiDrawing.TEXT
         );
     }
 
@@ -485,8 +1084,10 @@ final class FoundryControllerMetalsRenderer {
     ) {
         ResourceLocation candidateId =
                 ResourceLocation.fromNamespaceAndPath(
-                        definition.id().getNamespace(),
-                        definition.id().getPath()
+                        definition.id()
+                                .getNamespace(),
+                        definition.id()
+                                .getPath()
                                 + "_ingot"
                 );
 
@@ -502,97 +1103,40 @@ final class FoundryControllerMetalsRenderer {
         return definition.createCastResult();
     }
 
-    private void normalizeFocusedMetal() {
-        List<MoltenMetalDefinition> stored =
-                getStoredMetals();
-
-        if (stored.isEmpty()) {
-            focusedMetal = null;
-            scrollOffset = 0;
-            return;
-        }
-
-        boolean currentExists =
-                focusedMetal != null
-                        && stored.stream()
-                        .anyMatch(
-                                definition ->
-                                        definition.id()
-                                                .equals(focusedMetal)
+    private static String displayName(
+            ResourceLocation id
+    ) {
+        String path =
+                id.getPath()
+                        .replace(
+                                '_',
+                                ' '
                         );
 
-        if (currentExists) {
-            return;
+        if (path.isEmpty()) {
+            return "";
         }
 
-        focusedMetal =
-                screen.controllerMenu()
-                        .getSelectedMetalDefinition()
-                        .filter(
-                                selected ->
-                                        stored.stream()
-                                                .anyMatch(
-                                                        definition ->
-                                                                definition.id()
-                                                                        .equals(
-                                                                                selected.id()
-                                                                        )
-                                                )
-                        )
-                        .orElse(stored.get(0))
-                        .id();
+        return Character.toUpperCase(
+                path.charAt(0)
+        )
+                + path.substring(1);
     }
 
-    private void clampScroll(
-            int metalCount
+    private FoundryControllerMenu menu() {
+        return screen.controllerMenu();
+    }
+
+    private record Entry(
+            MoltenMetalDefinition definition,
+            int recipeIndex,
+            @Nullable RecipeHolder<FoundryAlloyRecipe> recipe
     ) {
-        scrollOffset =
-                Math.max(
-                        0,
-                        Math.min(
-                                scrollOffset,
-                                Math.max(
-                                        0,
-                                        metalCount
-                                                - FoundryControllerUiLayout.VISIBLE_METAL_ROWS
-                                )
-                        )
-                );
     }
 
-    private List<MoltenMetalDefinition> getStoredMetals() {
-        List<MoltenMetalDefinition> result =
-                new ArrayList<>();
-
-        for (
-                MoltenMetalDefinition definition :
-                ModMoltenMetals.lightestFirst()
-        ) {
-            if (
-                    screen.controllerMenu()
-                            .getMetalAmount(definition) > 0
-            ) {
-                result.add(definition);
-            }
-        }
-
-        return result;
-    }
-
-    @Nullable
-    private MoltenMetalDefinition findFocusedDefinition(
-            List<MoltenMetalDefinition> stored
+    private record RecipeReference(
+            int index,
+            RecipeHolder<FoundryAlloyRecipe> holder
     ) {
-        if (focusedMetal == null) {
-            return null;
-        }
-
-        for (MoltenMetalDefinition definition : stored) {
-            if (definition.id().equals(focusedMetal)) {
-                return definition;
-            }
-        }
-
-        return null;
     }
 }

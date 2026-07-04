@@ -5,6 +5,7 @@ import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -21,6 +22,10 @@ public class FoundryControllerScreen
 
     private final FoundryControllerOverviewRenderer overviewRenderer =
             new FoundryControllerOverviewRenderer(this);
+
+    private EditBox alloyQuantityBox;
+    private int alloyQuantityLimit = 1;
+    private boolean alloyQuantityEnabled;
 
     public FoundryControllerScreen(
             FoundryControllerMenu menu,
@@ -43,6 +48,50 @@ public class FoundryControllerScreen
 
         titleLabelX = -1000;
         inventoryLabelX = -1000;
+
+        alloyQuantityBox =
+                new EditBox(
+                        font,
+                        leftPos
+                                + FoundryControllerUiLayout.QUANTITY_X,
+                        topPos
+                                + FoundryControllerUiLayout.QUANTITY_Y,
+                        FoundryControllerUiLayout.QUANTITY_WIDTH,
+                        10,
+                        Component.literal(
+                                "Alloy batch amount"
+                        )
+                );
+
+        alloyQuantityBox.setBordered(false);
+        alloyQuantityBox.setMaxLength(2);
+        alloyQuantityBox.setValue("");
+        alloyQuantityBox.setTextColor(
+                FoundryControllerUiDrawing.TEXT
+        );
+
+        alloyQuantityBox.setFilter(
+                value -> {
+                    if (value.isEmpty()) {
+                        return true;
+                    }
+
+                    try {
+                        int parsed =
+                                Integer.parseInt(value);
+
+                        return parsed >= 1
+                                && parsed
+                                <= FoundryControllerMenu.MAX_ALLOY_BATCHES;
+                    } catch (NumberFormatException ignored) {
+                        return false;
+                    }
+                }
+        );
+
+        addRenderableWidget(
+                alloyQuantityBox
+        );
     }
 
     @Override
@@ -180,6 +229,98 @@ public class FoundryControllerScreen
 
     FoundryControllerMenu controllerMenu() {
         return menu;
+    }
+
+    int getAlloyQuantity() {
+        if (
+                alloyQuantityBox == null
+                        || alloyQuantityBox.getValue().isEmpty()
+        ) {
+            return 1;
+        }
+
+        try {
+            return Math.max(
+                    1,
+                    Math.min(
+                            alloyQuantityLimit,
+                            Integer.parseInt(
+                                    alloyQuantityBox.getValue()
+                            )
+                    )
+            );
+        } catch (NumberFormatException ignored) {
+            return 1;
+        }
+    }
+
+    void configureAlloyQuantity(
+            boolean enabled,
+            int maximum,
+            boolean reset
+    ) {
+        if (alloyQuantityBox == null) {
+            return;
+        }
+
+        alloyQuantityLimit =
+                Math.max(
+                        1,
+                        Math.min(
+                                FoundryControllerMenu.MAX_ALLOY_BATCHES,
+                                maximum
+                        )
+                );
+
+        alloyQuantityEnabled =
+                enabled;
+
+        alloyQuantityBox.setEditable(
+                enabled
+        );
+
+        if (!enabled) {
+            alloyQuantityBox.setValue("");
+            return;
+        }
+
+        if (
+                reset
+                        || alloyQuantityBox.getValue().isEmpty()
+        ) {
+            alloyQuantityBox.setValue("1");
+        } else {
+            alloyQuantityBox.setValue(
+                    Integer.toString(
+                            getAlloyQuantity()
+                    )
+            );
+        }
+    }
+
+    void changeAlloyQuantity(
+            int delta
+    ) {
+        if (
+                alloyQuantityBox == null
+                        || !alloyQuantityEnabled
+        ) {
+            return;
+        }
+
+        int next =
+                Math.max(
+                        1,
+                        Math.min(
+                                alloyQuantityLimit,
+                                getAlloyQuantity()
+                                        + delta
+                        )
+                );
+
+        alloyQuantityBox.setValue(
+                Integer.toString(next)
+        );
     }
 
     boolean sendMenuButton(

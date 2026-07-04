@@ -169,8 +169,55 @@ final class FoundryControllerHeaderStatusRenderer {
             case 6 -> new FoundryStatus(
                     Component.literal("MELTING ").append(
                             menu().getInputMoltenMetalDefinition()
-                                    .<Component>map(definition -> Component.translatable(definition.translationKey()))
-                                    .orElse(Component.literal("ORE"))
+                                    .<Component>map(
+                                            definition ->
+                                                    Component.literal(
+                                                            displayName(
+                                                                    definition.id()
+                                                            )
+                                                    )
+                                    )
+                                    .orElse(
+                                            Component.literal("ORE")
+                                    )
+                    ),
+                    FoundryControllerUiDrawing.ORANGE
+            );
+            case 7 -> new FoundryStatus(
+                    Component.literal(
+                            "HEATING FOR "
+                    ).append(
+                            menu().getActiveAlloyOutput()
+                                    .<Component>map(
+                                            definition ->
+                                                    Component.literal(
+                                                            displayName(
+                                                                    definition.id()
+                                                            )
+                                                    )
+                                    )
+                                    .orElse(
+                                            Component.literal("ALLOY")
+                                    )
+                    ),
+                    FoundryControllerUiDrawing.ORANGE
+            );
+            case 8 -> new FoundryStatus(
+                    Component.literal(
+                            "ALLOYING "
+                    ).append(
+                            menu().getActiveAlloyOutput()
+                                    .<Component>map(
+                                            definition ->
+                                                    Component.literal(
+                                                            displayName(
+                                                                    definition.id()
+                                                            )
+                                                    )
+                                    )
+                                    .orElse(
+                                            Component.literal("ALLOY")
+                                    )
                     ),
                     FoundryControllerUiDrawing.ORANGE
             );
@@ -179,6 +226,26 @@ final class FoundryControllerHeaderStatusRenderer {
                     FoundryControllerUiDrawing.GREEN
             );
         };
+    }
+
+    private static String displayName(
+            net.minecraft.resources.ResourceLocation id
+    ) {
+        String path =
+                id.getPath()
+                        .replace(
+                                '_',
+                                ' '
+                        );
+
+        if (path.isEmpty()) {
+            return "";
+        }
+
+        return Character.toUpperCase(
+                path.charAt(0)
+        )
+                + path.substring(1);
     }
 
     private FoundryControllerMenu menu() {

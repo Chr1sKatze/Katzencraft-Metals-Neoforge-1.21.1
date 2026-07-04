@@ -2,6 +2,7 @@ package net.chriskatze.katzencraftmetals.recipe;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeSerializer;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.neoforged.neoforge.registries.DeferredHolder;
@@ -23,10 +24,6 @@ public class ModRecipes {
                     KatzencraftMetalsMod.MODID
             );
 
-    // =========================
-    // CRUSHER
-    // =========================
-
     public static final DeferredHolder<
             RecipeSerializer<?>,
             RecipeSerializer<CrusherRecipe>
@@ -42,18 +39,8 @@ public class ModRecipes {
             > CRUSHER_TYPE =
             RECIPE_TYPES.register(
                     "crusher",
-                    () -> new RecipeType<>() {
-                        @Override
-                        public String toString() {
-                            return KatzencraftMetalsMod.MODID
-                                    + ":crusher";
-                        }
-                    }
+                    () -> namedType("crusher")
             );
-
-    // =========================
-    // FOUNDRY MELTING
-    // =========================
 
     public static final DeferredHolder<
             RecipeSerializer<?>,
@@ -70,14 +57,39 @@ public class ModRecipes {
             > FOUNDRY_MELTING_TYPE =
             RECIPE_TYPES.register(
                     "foundry_melting",
-                    () -> new RecipeType<>() {
-                        @Override
-                        public String toString() {
-                            return KatzencraftMetalsMod.MODID
-                                    + ":foundry_melting";
-                        }
-                    }
+                    () -> namedType("foundry_melting")
             );
+
+    public static final DeferredHolder<
+            RecipeSerializer<?>,
+            RecipeSerializer<FoundryAlloyRecipe>
+            > FOUNDRY_ALLOY_SERIALIZER =
+            RECIPE_SERIALIZERS.register(
+                    "foundry_alloy",
+                    FoundryAlloyRecipe.Serializer::new
+            );
+
+    public static final DeferredHolder<
+            RecipeType<?>,
+            RecipeType<FoundryAlloyRecipe>
+            > FOUNDRY_ALLOY_TYPE =
+            RECIPE_TYPES.register(
+                    "foundry_alloy",
+                    () -> namedType("foundry_alloy")
+            );
+
+    private static <T extends Recipe<?>> RecipeType<T> namedType(
+            String name
+    ) {
+        return new RecipeType<T>() {
+            @Override
+            public String toString() {
+                return KatzencraftMetalsMod.MODID
+                        + ":"
+                        + name;
+            }
+        };
+    }
 
     private ModRecipes() {
     }

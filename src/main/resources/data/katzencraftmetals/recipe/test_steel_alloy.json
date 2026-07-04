@@ -1,0 +1,19 @@
+{
+  "type": "katzencraftmetals:foundry_alloy",
+  "ingredients": [
+    {
+      "metal": "minecraft:iron",
+      "amount": 6
+    },
+    {
+      "metal": "minecraft:copper",
+      "amount": 6
+    }
+  ],
+  "output_metal": "katzencraftmetals:steel",
+  "output_amount": 12,
+  "required_temperature": 850,
+  "processing_time": 80,
+  "experience": 6,
+  "required_tier": 1
+}
