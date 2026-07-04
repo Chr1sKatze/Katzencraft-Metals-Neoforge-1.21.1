@@ -32,6 +32,8 @@ final class FoundryControllerProcessing {
 
     private int activeMoltenAmount;
 
+    private int activeInputSlot = -1;
+
     @Nullable
     private ResourceLocation selectedOutputMetal;
 
@@ -184,7 +186,7 @@ final class FoundryControllerProcessing {
         }
 
         if (!controller.ensureTankNetwork()) {
-            resetProgress();
+            clearActiveRecipe();
             return;
         }
 
@@ -192,7 +194,7 @@ final class FoundryControllerProcessing {
                 controller.getOwnedTankNetwork();
 
         if (network == null) {
-            resetProgress();
+            clearActiveRecipe();
             return;
         }
 
@@ -202,10 +204,6 @@ final class FoundryControllerProcessing {
                 network
         );
 
-        /*
-         * During this checkpoint, old separate Fuel Chambers are automatically
-         * drained into the Controller once per second.
-         */
         if (level.getGameTime() % 20L == 0L) {
             controller.getFuelSystem()
                     .migrateNearbyLegacyFuelChambers(
@@ -213,10 +211,18 @@ final class FoundryControllerProcessing {
                     );
         }
 
+        int inputSlot =
+                findNextInputSlot();
+
+        if (inputSlot < 0) {
+            clearActiveRecipe();
+            return;
+        }
+
         ItemStack inputStack =
                 controller.getInputInventory()
                         .getItem(
-                                FoundryControllerBlockEntity.INPUT_SLOT
+                                inputSlot
                         );
 
         Optional<FoundryMeltingRecipe> recipeOptional =
@@ -233,12 +239,13 @@ final class FoundryControllerProcessing {
                 recipeOptional.get();
 
         selectActiveRecipe(
+                inputSlot,
                 recipe
         );
 
         /*
-         * A full network pauses the Controller without wasting fuel or losing
-         * progress.
+         * Queue order is strict. If the first valid queued item cannot fit,
+         * later slots are not skipped and no fuel is consumed.
          */
         if (
                 !network.canAccept(
@@ -261,6 +268,7 @@ final class FoundryControllerProcessing {
         if (progress >= maxProgress) {
             finishMelting(
                     network,
+                    inputSlot,
                     recipe
             );
         }
@@ -268,10 +276,33 @@ final class FoundryControllerProcessing {
         controller.setChanged();
     }
 
+    private int findNextInputSlot() {
+        for (
+                int slot = 0;
+                slot < controller.getUnlockedInputSlotCount();
+                slot++
+        ) {
+            ItemStack stack =
+                    controller.getInputInventory()
+                            .getItem(slot);
+
+            if (
+                    !stack.isEmpty()
+                            && findMeltingRecipe(stack).isPresent()
+            ) {
+                return slot;
+            }
+        }
+
+        return -1;
+    }
+
     private boolean matchesActiveRecipe(
+            int inputSlot,
             FoundryMeltingRecipe recipe
     ) {
-        return Objects.equals(
+        return activeInputSlot == inputSlot
+                && Objects.equals(
                 activeMoltenMetal,
                 recipe.moltenMetal()
         )
@@ -282,23 +313,18 @@ final class FoundryControllerProcessing {
     }
 
     private void selectActiveRecipe(
+            int inputSlot,
             FoundryMeltingRecipe recipe
     ) {
-        if (matchesActiveRecipe(recipe)) {
+        if (matchesActiveRecipe(inputSlot, recipe)) {
             return;
         }
 
-        progress =
-                0;
-
-        activeMoltenMetal =
-                recipe.moltenMetal();
-
-        activeMoltenAmount =
-                recipe.moltenAmount();
-
-        maxProgress =
-                recipe.processingTime();
+        progress = 0;
+        activeInputSlot = inputSlot;
+        activeMoltenMetal = recipe.moltenMetal();
+        activeMoltenAmount = recipe.moltenAmount();
+        maxProgress = recipe.processingTime();
 
         controller.setChanged();
     }
@@ -308,20 +334,15 @@ final class FoundryControllerProcessing {
                 progress != 0
                         || maxProgress
                         != FoundryControllerBlockEntity.MAX_PROGRESS
+                        || activeInputSlot != -1
                         || activeMoltenMetal != null
                         || activeMoltenAmount != 0;
 
-        progress =
-                0;
-
-        maxProgress =
-                FoundryControllerBlockEntity.MAX_PROGRESS;
-
-        activeMoltenMetal =
-                null;
-
-        activeMoltenAmount =
-                0;
+        progress = 0;
+        maxProgress = FoundryControllerBlockEntity.MAX_PROGRESS;
+        activeInputSlot = -1;
+        activeMoltenMetal = null;
+        activeMoltenAmount = 0;
 
         if (changed) {
             controller.setChanged();
@@ -330,12 +351,22 @@ final class FoundryControllerProcessing {
 
     private void finishMelting(
             FoundryTankNetwork network,
+            int expectedInputSlot,
             FoundryMeltingRecipe expectedRecipe
     ) {
+        if (
+                !controller.isInputSlotUnlocked(
+                        expectedInputSlot
+                )
+        ) {
+            clearActiveRecipe();
+            return;
+        }
+
         ItemStack inputStack =
                 controller.getInputInventory()
                         .getItem(
-                                FoundryControllerBlockEntity.INPUT_SLOT
+                                expectedInputSlot
                         );
 
         Optional<FoundryMeltingRecipe> currentRecipeOptional =
@@ -353,6 +384,7 @@ final class FoundryControllerProcessing {
 
         if (
                 !matchesActiveRecipe(
+                        expectedInputSlot,
                         currentRecipe
                 )
                         || !sameRecipeResult(
@@ -361,6 +393,7 @@ final class FoundryControllerProcessing {
                 )
         ) {
             selectActiveRecipe(
+                    expectedInputSlot,
                     currentRecipe
             );
 
@@ -396,9 +429,9 @@ final class FoundryControllerProcessing {
         }
 
         inputStack.shrink(1);
+        progress = 0;
 
-        progress =
-                0;
+        controller.addFoundryExperience(1);
 
         controller.getInputInventory()
                 .setChanged();
@@ -468,6 +501,10 @@ final class FoundryControllerProcessing {
         return activeMoltenAmount;
     }
 
+    int getActiveInputSlot() {
+        return activeInputSlot;
+    }
+
     void save(
             CompoundTag tag,
             HolderLookup.Provider registries
@@ -492,6 +529,11 @@ final class FoundryControllerProcessing {
         tag.putInt(
                 "ActiveMoltenAmount",
                 activeMoltenAmount
+        );
+
+        tag.putInt(
+                "ActiveInputSlot",
+                activeInputSlot
         );
 
         if (selectedOutputMetal != null) {
@@ -547,6 +589,19 @@ final class FoundryControllerProcessing {
                         )
                 );
 
+        activeInputSlot =
+                tag.contains("ActiveInputSlot")
+                        ? tag.getInt("ActiveInputSlot")
+                        : (activeMoltenMetal != null ? 0 : -1);
+
+        if (
+                activeInputSlot < 0
+                        || activeInputSlot
+                        >= FoundryControllerBlockEntity.INPUT_SLOT_COUNT
+        ) {
+            activeInputSlot = -1;
+        }
+
         selectedOutputMetal =
                 null;
 
@@ -580,6 +635,9 @@ final class FoundryControllerProcessing {
 
             activeMoltenAmount =
                     0;
+
+            activeInputSlot =
+                    -1;
 
             progress =
                     0;

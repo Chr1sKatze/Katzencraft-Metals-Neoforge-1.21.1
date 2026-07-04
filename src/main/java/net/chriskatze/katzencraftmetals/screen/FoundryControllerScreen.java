@@ -33,26 +33,16 @@ public class FoundryControllerScreen
                 title
         );
 
-        imageWidth =
-                FoundryControllerUiLayout.WIDTH;
-
-        imageHeight =
-                FoundryControllerUiLayout.HEIGHT;
+        imageWidth = FoundryControllerUiLayout.WIDTH;
+        imageHeight = FoundryControllerUiLayout.HEIGHT;
     }
 
     @Override
     protected void init() {
         super.init();
 
-        /*
-         * The complete interface owns its labels. Suppress the small default
-         * title and inventory labels from AbstractContainerScreen.
-         */
-        titleLabelX =
-                -1000;
-
-        inventoryLabelX =
-                -1000;
+        titleLabelX = -1000;
+        inventoryLabelX = -1000;
     }
 
     @Override
@@ -87,10 +77,7 @@ public class FoundryControllerScreen
             int mouseX,
             int mouseY
     ) {
-        /*
-         * Labels are rendered in absolute screen coordinates by the overview
-         * renderer so all three future tabs can share the same outer frame.
-         */
+        /* All labels belong to the authored texture or section renderers. */
     }
 
     @Override
@@ -113,6 +100,31 @@ public class FoundryControllerScreen
                 mouseX,
                 mouseY,
                 button
+        );
+    }
+
+    @Override
+    public boolean mouseScrolled(
+            double mouseX,
+            double mouseY,
+            double scrollX,
+            double scrollY
+    ) {
+        if (
+                overviewRenderer.mouseScrolled(
+                        mouseX,
+                        mouseY,
+                        scrollY
+                )
+        ) {
+            return true;
+        }
+
+        return super.mouseScrolled(
+                mouseX,
+                mouseY,
+                scrollX,
+                scrollY
         );
     }
 
@@ -166,10 +178,6 @@ public class FoundryControllerScreen
         return minecraft;
     }
 
-    Component controllerTitle() {
-        return title;
-    }
-
     FoundryControllerMenu controllerMenu() {
         return menu;
     }
@@ -184,11 +192,10 @@ public class FoundryControllerScreen
             return false;
         }
 
-        minecraft.gameMode
-                .handleInventoryButtonClick(
-                        menu.containerId,
-                        buttonId
-                );
+        minecraft.gameMode.handleInventoryButtonClick(
+                menu.containerId,
+                buttonId
+        );
 
         return true;
     }

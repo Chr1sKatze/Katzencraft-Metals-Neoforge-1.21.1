@@ -33,7 +33,7 @@ public class FoundryControllerBlockEntity
             ModMoltenMetals.IRON.id();
 
     public static final int INPUT_SLOT = 0;
-    public static final int INPUT_SLOT_COUNT = 1;
+    public static final int INPUT_SLOT_COUNT = 8;
 
     public static final int FUEL_SLOT_COUNT =
             FoundryControllerFuelSystem.FUEL_SLOT_COUNT;
@@ -59,6 +59,9 @@ public class FoundryControllerBlockEntity
     private final FoundryControllerFuelSystem fuelSystem =
             new FoundryControllerFuelSystem(this);
 
+    private final FoundryControllerProgression progression =
+            new FoundryControllerProgression();
+
     private final SimpleContainer inputInventory =
             new SimpleContainer(INPUT_SLOT_COUNT) {
 
@@ -67,7 +70,7 @@ public class FoundryControllerBlockEntity
                         int slot,
                         ItemStack stack
                 ) {
-                    return slot == INPUT_SLOT
+                    return isInputSlotUnlocked(slot)
                             && processing.canMelt(
                             stack
                     );
@@ -105,8 +108,28 @@ public class FoundryControllerBlockEntity
             BURN_TIME_DATA_INDEX
                     + 1;
 
-    public static final int DATA_COUNT =
+    public static final int TIER_DATA_INDEX =
             MAX_BURN_TIME_DATA_INDEX
+                    + 1;
+
+    public static final int EXPERIENCE_DATA_INDEX =
+            TIER_DATA_INDEX
+                    + 1;
+
+    public static final int TIER_EXPERIENCE_DATA_INDEX =
+            EXPERIENCE_DATA_INDEX
+                    + 1;
+
+    public static final int TIER_EXPERIENCE_NEEDED_DATA_INDEX =
+            TIER_EXPERIENCE_DATA_INDEX
+                    + 1;
+
+    public static final int ACTIVE_INPUT_SLOT_DATA_INDEX =
+            TIER_EXPERIENCE_NEEDED_DATA_INDEX
+                    + 1;
+
+    public static final int DATA_COUNT =
+            ACTIVE_INPUT_SLOT_DATA_INDEX
                     + 1;
 
     private final ContainerData data =
@@ -187,6 +210,26 @@ public class FoundryControllerBlockEntity
 
                     if (index == MAX_BURN_TIME_DATA_INDEX) {
                         return fuelSystem.getMaxBurnTime();
+                    }
+
+                    if (index == TIER_DATA_INDEX) {
+                        return progression.getTier();
+                    }
+
+                    if (index == EXPERIENCE_DATA_INDEX) {
+                        return progression.getExperience();
+                    }
+
+                    if (index == TIER_EXPERIENCE_DATA_INDEX) {
+                        return progression.getExperienceIntoTier();
+                    }
+
+                    if (index == TIER_EXPERIENCE_NEEDED_DATA_INDEX) {
+                        return progression.getExperienceNeededForTier();
+                    }
+
+                    if (index == ACTIVE_INPUT_SLOT_DATA_INDEX) {
+                        return processing.getActiveInputSlot();
                     }
 
                     return 0;
@@ -407,6 +450,57 @@ public class FoundryControllerBlockEntity
         return fuelSystem.getStoredCoalCount();
     }
 
+    public int getFoundryTier() {
+        return progression.getTier();
+    }
+
+    public int getFoundryExperience() {
+        return progression.getExperience();
+    }
+
+    public int getUnlockedInputSlotCount() {
+        return Math.min(
+                INPUT_SLOT_COUNT,
+                progression.getUnlockedInputSlots()
+        );
+    }
+
+    public int getUnlockedFuelSlotCount() {
+        return Math.min(
+                FUEL_SLOT_COUNT,
+                progression.getUnlockedFuelSlots()
+        );
+    }
+
+    public boolean isInputSlotUnlocked(
+            int slot
+    ) {
+        return slot >= 0
+                && slot < getUnlockedInputSlotCount();
+    }
+
+    public boolean isFuelSlotUnlocked(
+            int slot
+    ) {
+        return slot >= 0
+                && slot < getUnlockedFuelSlotCount();
+    }
+
+    public boolean addFoundryExperience(
+            int amount
+    ) {
+        boolean tierChanged =
+                progression.addExperience(
+                        amount
+                );
+
+        if (amount > 0) {
+            setChanged();
+        }
+
+        return tierChanged;
+    }
+
     @Nullable
     public ResourceLocation getActiveMoltenMetal() {
         return processing.getActiveMoltenMetal();
@@ -450,6 +544,10 @@ public class FoundryControllerBlockEntity
         processing.save(
                 tag,
                 registries
+        );
+
+        progression.save(
+                tag
         );
     }
 
@@ -501,6 +599,16 @@ public class FoundryControllerBlockEntity
                 tag,
                 registries
         );
+
+        progression.load(
+                tag
+        );
+
+        if (!tag.contains("FoundryProgressionVersion")) {
+            progression.migrateLegacyFuelAccess(
+                    fuelSystem.getHighestOccupiedSlot()
+            );
+        }
 
         processing.load(
                 tag,

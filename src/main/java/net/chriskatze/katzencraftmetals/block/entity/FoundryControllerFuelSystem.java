@@ -23,7 +23,7 @@ import java.util.Set;
  */
 final class FoundryControllerFuelSystem {
 
-    static final int FUEL_SLOT_COUNT = 3;
+    static final int FUEL_SLOT_COUNT = 4;
     static final int COAL_BURN_TIME = 1600;
 
     private final FoundryControllerBlockEntity controller;
@@ -36,7 +36,8 @@ final class FoundryControllerFuelSystem {
                         int slot,
                         ItemStack stack
                 ) {
-                    return stack.is(Items.COAL);
+                    return controller.isFuelSlotUnlocked(slot)
+                            && stack.is(Items.COAL);
                 }
 
                 @Override
@@ -77,7 +78,11 @@ final class FoundryControllerFuelSystem {
     }
 
     private boolean consumeCoal() {
-        for (int slot = 0; slot < FUEL_SLOT_COUNT; slot++) {
+        for (
+                int slot = 0;
+                slot < controller.getUnlockedFuelSlotCount();
+                slot++
+        ) {
             ItemStack stack =
                     inventory.getItem(slot);
 
@@ -108,7 +113,11 @@ final class FoundryControllerFuelSystem {
             return true;
         }
 
-        for (int slot = 0; slot < FUEL_SLOT_COUNT; slot++) {
+        for (
+                int slot = 0;
+                slot < controller.getUnlockedFuelSlotCount();
+                slot++
+        ) {
             if (
                     inventory.getItem(slot)
                             .is(Items.COAL)
@@ -147,6 +156,16 @@ final class FoundryControllerFuelSystem {
         }
 
         return coalCount;
+    }
+
+    int getHighestOccupiedSlot() {
+        for (int slot = FUEL_SLOT_COUNT - 1; slot >= 0; slot--) {
+            if (!inventory.getItem(slot).isEmpty()) {
+                return slot;
+            }
+        }
+
+        return -1;
     }
 
     SimpleContainer getInventory() {
@@ -306,7 +325,7 @@ final class FoundryControllerFuelSystem {
 
         for (
                 int targetSlot = 0;
-                targetSlot < FUEL_SLOT_COUNT
+                targetSlot < controller.getUnlockedFuelSlotCount()
                         && !sourceStack.isEmpty();
                 targetSlot++
         ) {

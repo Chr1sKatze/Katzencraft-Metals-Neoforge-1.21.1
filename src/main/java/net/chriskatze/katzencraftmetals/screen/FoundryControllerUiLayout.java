@@ -1,93 +1,91 @@
 package net.chriskatze.katzencraftmetals.screen;
 
-/**
- * Shared geometry for every Foundry Controller tab.
- *
- * The Overview now uses only two normal inventory rows plus the hotbar. The
- * saved row is given to the machine panels so labels and dynamic values have
- * enough breathing room at large Minecraft GUI scales.
- */
+/** Pixel coordinates for the user-authored 284 x 236 Controller texture. */
 final class FoundryControllerUiLayout {
 
-    static final int WIDTH = 260;
+    static final int WIDTH = 284;
     static final int HEIGHT = 236;
 
-    static final int TAB_Y = 42;
-    static final int TAB_HEIGHT = 15;
+    static final int XP_BAR_X = 30;
+    static final int XP_BAR_Y = 25;
+    static final int XP_BAR_WIDTH = 248;
+    static final int XP_BAR_HEIGHT = 8;
 
-    static final int OVERVIEW_TAB_X = 7;
-    static final int OVERVIEW_TAB_WIDTH = 78;
+    static final int STATUS_TEXT_X = 55;
+    static final int STATUS_TEXT_Y = 44;
 
-    static final int ALLOYS_TAB_X = 86;
-    static final int ALLOYS_TAB_WIDTH = 78;
+    static final int STATUS_PROGRESS_X = 184;
+    static final int STATUS_PROGRESS_Y = 44;
+    static final int STATUS_PROGRESS_WIDTH = 93;
+    static final int STATUS_PROGRESS_HEIGHT = 8;
 
-    static final int FAUCETS_TAB_X = 165;
-    static final int FAUCETS_TAB_WIDTH = 88;
+    static final int[] INPUT_SLOT_X = {
+            43,
+            43,
+            62,
+            62,
+            81,
+            81,
+            100,
+            100
+    };
 
-    static final int PANEL_Y = 60;
-    static final int PANEL_HEIGHT = 105;
+    static final int[] INPUT_SLOT_Y = {
+            78,
+            97,
+            78,
+            97,
+            78,
+            97,
+            78,
+            97
+    };
 
-    static final int PROCESS_X = 7;
-    static final int PROCESS_WIDTH = 78;
-
-    static final int TANK_X = 88;
-    static final int TANK_WIDTH = 58;
-
-    static final int METALS_X = 149;
-    static final int METALS_WIDTH = 104;
-
-    static final int INPUT_SLOT_X = 22;
-    static final int INPUT_SLOT_Y = 84;
-
-    static final int FUEL_SLOT_START_X = 13;
-    static final int FUEL_SLOT_Y = 124;
+    static final int FUEL_SLOT_START_X = 43;
+    static final int FUEL_SLOT_Y = 121;
     static final int SLOT_SPACING = 19;
 
-    static final int PLAYER_INVENTORY_X = 49;
-    static final int PLAYER_INVENTORY_Y = 177;
-    static final int PLAYER_HOTBAR_Y = 213;
+    static final int BURN_BAR_X = 43;
+    static final int BURN_BAR_Y = 143;
+    static final int BURN_BAR_WIDTH = 75;
+    static final int BURN_BAR_HEIGHT = 7;
 
-    static final int PROGRESS_X = 43;
-    static final int PROGRESS_Y = 90;
-    static final int PROGRESS_WIDTH = 20;
-    static final int PROGRESS_HEIGHT = 7;
+    static final int TEMPERATURE_GAUGE_X = 17;
+    static final int TEMPERATURE_GAUGE_Y = 79;
+    static final int TEMPERATURE_GAUGE_WIDTH = 16;
+    static final int TEMPERATURE_GAUGE_HEIGHT = 70;
 
-    static final int HEAT_X = 69;
-    static final int HEAT_Y = 82;
-    static final int HEAT_WIDTH = 9;
-    static final int HEAT_HEIGHT = 60;
+    static final int TANK_GAUGE_X = 137;
+    static final int TANK_GAUGE_Y = 79;
+    static final int TANK_GAUGE_WIDTH = 27;
+    static final int TANK_GAUGE_HEIGHT = 70;
 
-    static final int FUEL_BAR_X = 13;
-    static final int FUEL_BAR_Y = 156;
-    static final int FUEL_BAR_WIDTH = 58;
-    static final int FUEL_BAR_HEIGHT = 4;
-
-    static final int TANK_GAUGE_X = 98;
-    static final int TANK_GAUGE_Y = 76;
-    static final int TANK_GAUGE_WIDTH = 37;
-    static final int TANK_GAUGE_HEIGHT = 71;
-
-    static final int METAL_LIST_X = 154;
-    static final int METAL_LIST_Y = 74;
-    static final int METAL_LIST_WIDTH = 93;
+    static final int METAL_LIST_X = 182;
+    static final int METAL_LIST_Y = 78;
+    static final int METAL_LIST_WIDTH = 86;
     static final int METAL_ROW_HEIGHT = 22;
     static final int VISIBLE_METAL_ROWS = 4;
 
-    static final int METAL_SCROLL_X = 248;
-    static final int METAL_SCROLL_UP_Y = 74;
-    static final int METAL_SCROLL_DOWN_Y = 142;
-    static final int METAL_SCROLL_WIDTH = 4;
-    static final int METAL_SCROLL_BUTTON_HEIGHT = 12;
+    static final int METAL_SCROLL_X = 271;
+    static final int METAL_SCROLL_Y = 78;
+    static final int METAL_SCROLL_WIDTH = 5;
+    static final int METAL_SCROLL_HEIGHT = 86;
 
-    static final int METAL_DETAILS_X = 154;
-    static final int METAL_DETAILS_Y = 156;
-    static final int METAL_DETAILS_WIDTH = 98;
-    static final int METAL_DETAILS_HEIGHT = 7;
+    static final int PLAYER_INVENTORY_X = 8;
+    static final int PLAYER_INVENTORY_Y = 177;
 
-    static final int STATUS_PROGRESS_X = 166;
-    static final int STATUS_PROGRESS_Y = 29;
-    static final int STATUS_PROGRESS_WIDTH = 52;
-    static final int STATUS_PROGRESS_HEIGHT = 5;
+    static final int INGREDIENT_ONE_X = 182;
+    static final int INGREDIENT_TWO_X = 201;
+    static final int INGREDIENT_THREE_X = 220;
+    static final int RESULT_X = 260;
+    static final int RECIPE_SLOT_Y = 167;
+
+    static final int REQUIRED_TEMPERATURE_Y = 201;
+
+    static final int QUANTITY_MINUS_X = 181;
+    static final int QUANTITY_X = 194;
+    static final int QUANTITY_PLUS_X = 215;
+    static final int QUANTITY_Y = 217;
 
     private FoundryControllerUiLayout() {
     }

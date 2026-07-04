@@ -14,7 +14,6 @@ final class FoundryControllerUiDrawing {
 
     static final int ORANGE = 0xFFFF941F;
     static final int ORANGE_DARK = 0xFFB9550C;
-
     static final int GREEN = 0xFF62B34E;
     static final int RED = 0xFFD64B3F;
     static final int AMBER = 0xFFE2A43A;
@@ -60,14 +59,8 @@ final class FoundryControllerUiDrawing {
                                 / unitsPerOre
                 );
 
-        int whole =
-                hundredths / 100;
-
-        int fraction =
-                Math.floorMod(
-                        hundredths,
-                        100
-                );
+        int whole = hundredths / 100;
+        int fraction = Math.floorMod(hundredths, 100);
 
         if (fraction == 0) {
             return Integer.toString(whole);
