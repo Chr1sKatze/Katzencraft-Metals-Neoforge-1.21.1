@@ -49,6 +49,7 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
 
     public static final int SELECT_METAL_BUTTON_BASE = 50_000;
     public static final int START_ALLOY_BUTTON_BASE = 100_000;
+    public static final int STOP_ALLOY_BUTTON_ID = 200_000;
 
     private static final int ALLOY_BUTTON_QUANTITY_BASE = 100;
 
@@ -564,6 +565,16 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
         ) != 0;
     }
 
+    public int getActiveAlloyBatchCount() {
+        return Math.max(
+                0,
+                data.get(
+                        FoundryControllerBlockEntity
+                                .ACTIVE_ALLOY_BATCH_COUNT_DATA_INDEX
+                )
+        );
+    }
+
     public Optional<MoltenMetalDefinition> getActiveAlloyOutput() {
         return ModMoltenMetals.bySyncId(
                 data.get(
@@ -600,11 +611,19 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
                 + normalizedQuantity;
     }
 
+    public static int createStopAlloyButton() {
+        return STOP_ALLOY_BUTTON_ID;
+    }
+
     @Override
     public boolean clickMenuButton(
             Player player,
             int buttonId
     ) {
+        if (buttonId == STOP_ALLOY_BUTTON_ID) {
+            return blockEntity.stopAlloy();
+        }
+
         if (
                 buttonId >= SELECT_METAL_BUTTON_BASE
                         && buttonId < START_ALLOY_BUTTON_BASE

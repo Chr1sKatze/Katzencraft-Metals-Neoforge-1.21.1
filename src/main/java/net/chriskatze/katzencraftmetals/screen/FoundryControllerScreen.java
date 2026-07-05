@@ -386,7 +386,28 @@ public class FoundryControllerScreen
         alloyQuantityBox.setEditable(enabled);
 
         if (!enabled) {
-            alloyQuantityBox.setValue("");
+            int activeBatchCount =
+                    menu.isAlloyJobActive()
+                            ? menu.getActiveAlloyBatchCount()
+                            : 0;
+
+            alloyQuantityBox.setValue(
+                    activeBatchCount > 0
+                            ? Integer.toString(activeBatchCount)
+                            : ""
+            );
+
+            if (activeBatchCount > 0) {
+                alloyQuantityLimit =
+                        Math.max(
+                                1,
+                                Math.min(
+                                        FoundryControllerMenu.MAX_ALLOY_BATCHES,
+                                        activeBatchCount
+                                )
+                        );
+            }
+
             stopEditingAlloyQuantity();
             centerAlloyQuantityText();
             return;

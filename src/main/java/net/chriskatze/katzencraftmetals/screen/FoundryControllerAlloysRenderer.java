@@ -143,30 +143,72 @@ final class FoundryControllerAlloysRenderer {
             return false;
         }
 
-        List<Entry> entries = buildEntries();
+        boolean alloying =
+                menu().isAlloyJobActive();
 
-        for (
-                int visibleRow = 0;
-                visibleRow < FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS;
-                visibleRow++
+        /*
+         * During an active job, the main button becomes STOP and remains
+         * usable even though the quantity controls are locked.
+         */
+        if (
+                alloying
+                        && isMouseOverStart(
+                        mouseX,
+                        mouseY
+                )
         ) {
-            int index = scrollOffset + visibleRow;
-
-            if (index >= entries.size()) {
-                break;
-            }
-
-            if (!isMouseOverRow(mouseX, mouseY, visibleRow)) {
-                continue;
-            }
-
-            Entry entry = entries.get(index);
-            focusedRecipeId = entry.holder().id();
-            configureControls(entry, true);
+            press(ControlButton.START);
+            screen.playButtonClickSound();
+            screen.sendMenuButton(
+                    FoundryControllerMenu
+                            .createStopAlloyButton()
+            );
             return true;
         }
 
-        Entry focused = findFocusedEntry(entries);
+        List<Entry> entries = buildEntries();
+
+        if (!alloying) {
+            for (
+                    int visibleRow = 0;
+                    visibleRow
+                            < FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS;
+                    visibleRow++
+            ) {
+                int index =
+                        scrollOffset + visibleRow;
+
+                if (index >= entries.size()) {
+                    break;
+                }
+
+                if (
+                        !isMouseOverRow(
+                                mouseX,
+                                mouseY,
+                                visibleRow
+                        )
+                ) {
+                    continue;
+                }
+
+                Entry entry =
+                        entries.get(index);
+
+                focusedRecipeId =
+                        entry.holder().id();
+
+                configureControls(
+                        entry,
+                        true
+                );
+
+                return true;
+            }
+        }
+
+        Entry focused =
+                findFocusedEntry(entries);
 
         if (focused == null) {
             return false;
@@ -179,7 +221,7 @@ final class FoundryControllerAlloysRenderer {
 
         boolean enabled =
                 maximum > 0
-                        && !menu().isAlloyJobActive();
+                        && !alloying;
 
         if (isMouseOverMinus(mouseX, mouseY)) {
             if (enabled) {
@@ -326,6 +368,9 @@ final class FoundryControllerAlloysRenderer {
         FoundryAlloyRecipe recipe =
                 focused.holder().value();
 
+        int batchCount =
+                getPreviewBatchCount(focused);
+
         for (
                 int index = 0;
                 index < recipe.ingredients().size()
@@ -355,7 +400,10 @@ final class FoundryControllerAlloysRenderer {
                             )
                                     + ": "
                                     + FoundryControllerUiDrawing.formatOreAmount(
-                                    ingredient.amount(),
+                                    safeMultiply(
+                                            ingredient.amount(),
+                                            batchCount
+                                    ),
                                     definition.get().unitsPerOre()
                             )
                                     + " ore"
@@ -390,7 +438,10 @@ final class FoundryControllerAlloysRenderer {
                             )
                                     + ": "
                                     + FoundryControllerUiDrawing.formatOreAmount(
-                                    recipe.outputAmount(),
+                                    safeMultiply(
+                                            recipe.outputAmount(),
+                                            batchCount
+                                    ),
                                     output.unitsPerOre()
                             )
                                     + " ore"
@@ -512,18 +563,24 @@ final class FoundryControllerAlloysRenderer {
                         ? null
                         : entry.holder().value();
 
+        int batchCount =
+                getPreviewBatchCount(entry);
+
         for (
                 int index = 0;
                 index
-                        < FoundryControllerUiLayout.ALLOY_INGREDIENT_SLOT_X.length;
+                        < FoundryControllerUiLayout
+                        .ALLOY_INGREDIENT_SLOT_X.length;
                 index++
         ) {
             boolean used =
                     recipe != null
-                            && index < recipe.ingredients().size();
+                            && index
+                            < recipe.ingredients().size();
 
             int slotX =
-                    FoundryControllerUiLayout.ALLOY_INGREDIENT_SLOT_X[index];
+                    FoundryControllerUiLayout
+                            .ALLOY_INGREDIENT_SLOT_X[index];
 
             drawPreviewSlot(
                     graphics,
@@ -539,22 +596,58 @@ final class FoundryControllerAlloysRenderer {
             FoundryAlloyIngredient ingredient =
                     recipe.ingredients().get(index);
 
-            ModMoltenMetals.get(ingredient.metal())
-                    .map(
-                            FoundryControllerMetalsRenderer::getDisplayIcon
-                    )
-                    .filter(stack -> !stack.isEmpty())
-                    .ifPresent(
-                            stack -> graphics.renderItem(
-                                    stack,
-                                    screen.guiLeft() + slotX,
-                                    screen.guiTop()
-                                            + FoundryControllerUiLayout.ALLOY_RECIPE_SLOT_Y
-                            )
+            Optional<MoltenMetalDefinition> definition =
+                    ModMoltenMetals.get(
+                            ingredient.metal()
                     );
+
+            if (definition.isEmpty()) {
+                continue;
+            }
+
+            ItemStack stack =
+                    FoundryControllerMetalsRenderer
+                            .getDisplayIcon(
+                                    definition.get()
+                            );
+
+            if (stack.isEmpty()) {
+                continue;
+            }
+
+            int itemX =
+                    screen.guiLeft() + slotX;
+
+            int itemY =
+                    screen.guiTop()
+                            + FoundryControllerUiLayout
+                            .ALLOY_RECIPE_SLOT_Y;
+
+            graphics.renderItem(
+                    stack,
+                    itemX,
+                    itemY
+            );
+
+            graphics.renderItemDecorations(
+                    screen.uiFont(),
+                    stack,
+                    itemX,
+                    itemY,
+                    FoundryControllerUiDrawing
+                            .formatOreAmount(
+                                    safeMultiply(
+                                            ingredient.amount(),
+                                            batchCount
+                                    ),
+                                    definition.get()
+                                            .unitsPerOre()
+                            )
+            );
         }
 
-        boolean hasResult = entry != null;
+        boolean hasResult =
+                entry != null;
 
         drawPreviewSlot(
                 graphics,
@@ -568,19 +661,48 @@ final class FoundryControllerAlloysRenderer {
         }
 
         ItemStack output =
-                FoundryControllerMetalsRenderer.getDisplayIcon(
-                        entry.outputDefinition()
-                );
+                FoundryControllerMetalsRenderer
+                        .getDisplayIcon(
+                                entry.outputDefinition()
+                        );
 
-        if (!output.isEmpty()) {
-            graphics.renderItem(
-                    output,
-                    screen.guiLeft()
-                            + FoundryControllerUiLayout.ALLOY_RESULT_SLOT_X,
-                    screen.guiTop()
-                            + FoundryControllerUiLayout.ALLOY_RECIPE_SLOT_Y
-            );
+        if (output.isEmpty()) {
+            return;
         }
+
+        int resultX =
+                screen.guiLeft()
+                        + FoundryControllerUiLayout
+                        .ALLOY_RESULT_SLOT_X;
+
+        int resultY =
+                screen.guiTop()
+                        + FoundryControllerUiLayout
+                        .ALLOY_RECIPE_SLOT_Y;
+
+        graphics.renderItem(
+                output,
+                resultX,
+                resultY
+        );
+
+        graphics.renderItemDecorations(
+                screen.uiFont(),
+                output,
+                resultX,
+                resultY,
+                FoundryControllerUiDrawing
+                        .formatOreAmount(
+                                safeMultiply(
+                                        entry.holder()
+                                                .value()
+                                                .outputAmount(),
+                                        batchCount
+                                ),
+                                entry.outputDefinition()
+                                        .unitsPerOre()
+                        )
+        );
     }
 
     private void drawPreviewSlot(
@@ -625,12 +747,18 @@ final class FoundryControllerAlloysRenderer {
     ) {
         clearExpiredPress();
 
-        boolean enabled =
+        boolean alloying =
+                menu().isAlloyJobActive();
+
+        boolean startEnabled =
                 entry != null
                         && menu().getMaxCraftableBatches(
                         entry.holder().value()
                 ) > 0
-                        && !menu().isAlloyJobActive();
+                        && !alloying;
+
+        boolean mainButtonEnabled =
+                alloying || startEnabled;
 
         graphics.blit(
                 EDITBAR_TEXTURE,
@@ -655,7 +783,7 @@ final class FoundryControllerAlloysRenderer {
                 FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
                 FoundryControllerUiLayout.QUANTITY_MINUS_WIDTH,
                 FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT,
-                enabled,
+                startEnabled,
                 isMouseOverMinus(mouseX, mouseY),
                 isPressed(ControlButton.MINUS)
         );
@@ -669,7 +797,7 @@ final class FoundryControllerAlloysRenderer {
                 FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
                 FoundryControllerUiLayout.QUANTITY_PLUS_WIDTH,
                 FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT,
-                enabled,
+                startEnabled,
                 isMouseOverPlus(mouseX, mouseY),
                 isPressed(ControlButton.PLUS)
         );
@@ -686,7 +814,7 @@ final class FoundryControllerAlloysRenderer {
                 FoundryControllerUiLayout.START_Y,
                 FoundryControllerUiLayout.START_WIDTH,
                 FoundryControllerUiLayout.START_HEIGHT,
-                enabled,
+                mainButtonEnabled,
                 isMouseOverStart(mouseX, mouseY),
                 startPressed
         );
@@ -694,7 +822,11 @@ final class FoundryControllerAlloysRenderer {
         FoundryControllerUiDrawing.drawCentered(
                 graphics,
                 screen.uiFont(),
-                Component.literal("START"),
+                Component.literal(
+                        alloying
+                                ? "STOP"
+                                : "START"
+                ),
                 screen.guiLeft()
                         + FoundryControllerUiLayout.START_X,
                 screen.guiTop()
@@ -706,7 +838,9 @@ final class FoundryControllerAlloysRenderer {
                 ),
                 FoundryControllerUiLayout.START_WIDTH,
                 FoundryControllerUiLayout.START_HEIGHT,
-                enabled
+                alloying
+                        ? FoundryControllerUiDrawing.RED
+                        : startEnabled
                         ? FoundryControllerUiDrawing.GREEN
                         : FoundryControllerUiDrawing.MUTED_TEXT
         );
@@ -762,6 +896,18 @@ final class FoundryControllerAlloysRenderer {
             @Nullable Entry entry,
             boolean reset
     ) {
+        if (menu().isAlloyJobActive()) {
+            screen.configureAlloyQuantity(
+                    false,
+                    Math.max(
+                            1,
+                            menu().getActiveAlloyBatchCount()
+                    ),
+                    false
+            );
+            return;
+        }
+
         if (entry == null) {
             screen.configureAlloyQuantity(
                     false,
@@ -777,11 +923,41 @@ final class FoundryControllerAlloysRenderer {
                 );
 
         screen.configureAlloyQuantity(
-                maximum > 0
-                        && !menu().isAlloyJobActive(),
+                maximum > 0,
                 Math.max(1, maximum),
                 reset
         );
+    }
+
+    private int getPreviewBatchCount(
+            @Nullable Entry entry
+    ) {
+        if (menu().isAlloyJobActive()) {
+            return Math.max(
+                    1,
+                    menu().getActiveAlloyBatchCount()
+            );
+        }
+
+        return entry == null
+                ? 1
+                : Math.max(
+                1,
+                screen.getAlloyQuantity()
+        );
+    }
+
+    private static int safeMultiply(
+            int first,
+            int second
+    ) {
+        long result =
+                (long) first
+                        * second;
+
+        return result > Integer.MAX_VALUE
+                ? Integer.MAX_VALUE
+                : (int) result;
     }
 
     private List<Entry> buildEntries() {

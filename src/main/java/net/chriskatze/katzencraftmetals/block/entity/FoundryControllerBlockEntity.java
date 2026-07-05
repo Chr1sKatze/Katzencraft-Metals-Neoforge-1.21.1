@@ -150,8 +150,12 @@ public class FoundryControllerBlockEntity
             ACTIVE_ALLOY_OUTPUT_DATA_INDEX
                     + 1;
 
-    public static final int DISCOVERED_METAL_DATA_START =
+    public static final int ACTIVE_ALLOY_BATCH_COUNT_DATA_INDEX =
             ALLOY_ACTIVE_DATA_INDEX
+                    + 1;
+
+    public static final int DISCOVERED_METAL_DATA_START =
+            ACTIVE_ALLOY_BATCH_COUNT_DATA_INDEX
                     + 1;
 
     public static final int DATA_COUNT =
@@ -271,6 +275,12 @@ public class FoundryControllerBlockEntity
                     if (index == ALLOY_ACTIVE_DATA_INDEX) {
                         return alloying.hasActiveJob()
                                 ? 1
+                                : 0;
+                    }
+
+                    if (index == ACTIVE_ALLOY_BATCH_COUNT_DATA_INDEX) {
+                        return alloying.hasActiveJob()
+                                ? alloying.getBatchCount()
                                 : 0;
                     }
 
@@ -546,6 +556,10 @@ public class FoundryControllerBlockEntity
                 recipeIndex,
                 batchCount
         );
+    }
+
+    public boolean stopAlloy() {
+        return alloying.stop();
     }
 
     public boolean isAlloying() {
