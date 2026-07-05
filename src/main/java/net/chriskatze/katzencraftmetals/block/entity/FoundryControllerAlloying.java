@@ -254,6 +254,12 @@ final class FoundryControllerAlloying {
         FoundryControllerFuelSystem fuel =
                 controller.getFuelSystem();
 
+        if (!fuel.hasAvailableFuel()) {
+            statusCode = FoundryControllerProcessing.STATUS_MISSING_FUEL;
+            controller.getTemperatureSystem().coolTick();
+            return;
+        }
+
         if (!fuel.canReachTemperature(requiredTemperature)) {
             statusCode =
                     FoundryControllerProcessing
@@ -263,13 +269,7 @@ final class FoundryControllerAlloying {
             return;
         }
 
-        if (!fuel.hasAvailableFuel()) {
-            statusCode = FoundryControllerProcessing.STATUS_MISSING_FUEL;
-            controller.getTemperatureSystem().coolTick();
-            return;
-        }
-
-        if (!fuel.supplyBurnTick()) {
+        if (!fuel.supplyBurnTick(requiredTemperature)) {
             statusCode = FoundryControllerProcessing.STATUS_MISSING_FUEL;
             controller.getTemperatureSystem().coolTick();
             return;

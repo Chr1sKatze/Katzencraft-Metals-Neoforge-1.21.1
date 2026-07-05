@@ -4,6 +4,7 @@ import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
+import net.chriskatze.katzencraftmetals.fuel.FoundryFuels;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyCatalog;
@@ -19,7 +20,6 @@ import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
 
@@ -228,7 +228,7 @@ public class FoundryControllerMenu
                                 ItemStack stack
                         ) {
                             return isFuelSlotUnlocked(fuelSlot)
-                                    && stack.is(Items.COAL);
+                                    && FoundryFuels.isFuel(stack);
                         }
 
                         @Override
@@ -459,8 +459,9 @@ public class FoundryControllerMenu
                 slot++
         ) {
             if (
-                    fuelContainer.getItem(slot)
-                            .is(Items.COAL)
+                    FoundryFuels.isFuel(
+                            fuelContainer.getItem(slot)
+                    )
             ) {
                 return true;
             }
@@ -756,7 +757,7 @@ public class FoundryControllerMenu
             ) {
                 return ItemStack.EMPTY;
             }
-        } else if (stack.is(Items.COAL)) {
+        } else if (FoundryFuels.isFuel(stack)) {
             if (
                     !moveItemStackTo(
                             stack,

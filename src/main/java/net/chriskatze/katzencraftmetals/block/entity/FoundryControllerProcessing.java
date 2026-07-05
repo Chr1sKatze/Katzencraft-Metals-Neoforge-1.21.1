@@ -253,19 +253,19 @@ final class FoundryControllerProcessing {
 
         FoundryControllerFuelSystem fuel = controller.getFuelSystem();
 
-        if (!fuel.canReachTemperature(requiredTemperature)) {
-            statusCode = STATUS_TEMPERATURE_TOO_LOW;
-            controller.getTemperatureSystem().coolTick();
-            return;
-        }
-
         if (!fuel.hasAvailableFuel()) {
             statusCode = STATUS_MISSING_FUEL;
             controller.getTemperatureSystem().coolTick();
             return;
         }
 
-        if (!fuel.supplyBurnTick()) {
+        if (!fuel.canReachTemperature(requiredTemperature)) {
+            statusCode = STATUS_TEMPERATURE_TOO_LOW;
+            controller.getTemperatureSystem().coolTick();
+            return;
+        }
+
+        if (!fuel.supplyBurnTick(requiredTemperature)) {
             statusCode = STATUS_MISSING_FUEL;
             controller.getTemperatureSystem().coolTick();
             return;
