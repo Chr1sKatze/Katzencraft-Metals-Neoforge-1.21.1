@@ -12,6 +12,12 @@ final class FoundryControllerProcessRenderer {
                     "textures/gui/foundry_controller_unlocked_slot.png"
             );
 
+    private static final ResourceLocation LOCKED_SLOT_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(
+                    KatzencraftMetalsMod.MODID,
+                    "textures/gui/foundry_controller_slot_locked.png"
+            );
+
     private final FoundryControllerScreen screen;
 
     FoundryControllerProcessRenderer(
@@ -23,53 +29,58 @@ final class FoundryControllerProcessRenderer {
     void render(
             GuiGraphics graphics
     ) {
-        renderUnlockedSlotFrames(graphics);
+        renderSlotFrames(graphics);
         renderActiveInputOutline(graphics);
         renderBurnTime(graphics);
         renderProcessProgress(graphics);
     }
 
-    private void renderUnlockedSlotFrames(
+    private void renderSlotFrames(
             GuiGraphics graphics
     ) {
-        for (
-                int slot = 0;
-                slot < screen.controllerMenu()
+        int unlockedInputs =
+                screen.controllerMenu()
                         .getUnlockedInputSlotCount();
-                slot++
-        ) {
-            graphics.blit(
-                    UNLOCKED_SLOT_TEXTURE,
-                    screen.guiLeft()
-                            + FoundryControllerUiLayout.INPUT_SLOT_X[slot]
-                            - 1,
-                    screen.guiTop()
-                            + FoundryControllerUiLayout.INPUT_SLOT_Y[slot]
-                            - 1,
-                    0.0f,
-                    0.0f,
-                    18,
-                    18,
-                    18,
-                    18
-            );
-        }
 
         for (
                 int slot = 0;
-                slot < screen.controllerMenu()
-                        .getUnlockedFuelSlotCount();
+                slot < FoundryControllerUiLayout.INPUT_SLOT_X.length;
                 slot++
         ) {
+            drawSlotFrame(
+                    graphics,
+                    FoundryControllerUiLayout.INPUT_SLOT_X[slot],
+                    FoundryControllerUiLayout.INPUT_SLOT_Y[slot],
+                    slot < unlockedInputs
+            );
+        }
+
+        int unlockedFuelSlots =
+                screen.controllerMenu()
+                        .getUnlockedFuelSlotCount();
+
+        for (int slot = 0; slot < 4; slot++) {
+            drawSlotFrame(
+                    graphics,
+                    FoundryControllerUiLayout.FUEL_SLOT_START_X
+                            + slot * FoundryControllerUiLayout.SLOT_SPACING,
+                    FoundryControllerUiLayout.FUEL_SLOT_Y,
+                    slot < unlockedFuelSlots
+            );
+        }
+    }
+
+    private void drawSlotFrame(
+            GuiGraphics graphics,
+            int slotX,
+            int slotY,
+            boolean unlocked
+    ) {
+        if (unlocked) {
             graphics.blit(
                     UNLOCKED_SLOT_TEXTURE,
-                    screen.guiLeft()
-                            + FoundryControllerUiLayout.FUEL_SLOT_START_X
-                            + slot * FoundryControllerUiLayout.SLOT_SPACING
-                            - 1,
-                    screen.guiTop()
-                            + FoundryControllerUiLayout.FUEL_SLOT_Y
-                            - 1,
+                    screen.guiLeft() + slotX - 1,
+                    screen.guiTop() + slotY - 1,
                     0.0f,
                     0.0f,
                     18,
@@ -77,7 +88,20 @@ final class FoundryControllerProcessRenderer {
                     18,
                     18
             );
+            return;
         }
+
+        graphics.blit(
+                LOCKED_SLOT_TEXTURE,
+                screen.guiLeft() + slotX,
+                screen.guiTop() + slotY,
+                0.0f,
+                0.0f,
+                16,
+                16,
+                16,
+                16
+        );
     }
 
     private void renderActiveInputOutline(
@@ -204,7 +228,9 @@ final class FoundryControllerProcessRenderer {
             graphics.fill(
                     left + 1,
                     top,
-                    left + FoundryControllerUiLayout.PROGRESS_GAUGE_WIDTH - 1,
+                    left
+                            + FoundryControllerUiLayout.PROGRESS_GAUGE_WIDTH
+                            - 1,
                     top + 1,
                     0xFFFFC34A
             );

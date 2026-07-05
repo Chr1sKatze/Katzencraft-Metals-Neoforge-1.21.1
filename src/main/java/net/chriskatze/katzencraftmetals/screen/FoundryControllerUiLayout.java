@@ -1,90 +1,103 @@
 package net.chriskatze.katzencraftmetals.screen;
 
-/** Pixel coordinates for the user-authored 284 x 236 Controller texture. */
+/** Pixel coordinates for the user-authored 282 x 232 Controller texture. */
 final class FoundryControllerUiLayout {
 
-    static final int WIDTH = 284;
-    static final int HEIGHT = 236;
+    static final int WIDTH = 282;
+    static final int HEIGHT = 232;
 
     static final int XP_BAR_X = 30;
     static final int XP_BAR_Y = 25;
-    static final int XP_BAR_WIDTH = 248;
+    static final int XP_BAR_WIDTH = 138;
     static final int XP_BAR_HEIGHT = 8;
 
     static final int STATUS_TEXT_X = 52;
-    static final int STATUS_TEXT_Y = 220;
+    static final int STATUS_TEXT_Y = 218;
 
     static final int[] INPUT_SLOT_X = {
-            43, 43, 62, 62, 81, 81, 100, 100
+            41, 41, 60, 60, 79, 79, 98, 98
     };
 
     static final int[] INPUT_SLOT_Y = {
-            60, 79, 60, 79, 60, 79, 60, 79
+            56, 75, 56, 75, 56, 75, 56, 75
     };
 
-    static final int FUEL_SLOT_START_X = 43;
-    static final int FUEL_SLOT_Y = 103;
+    static final int FUEL_SLOT_START_X = 41;
+    static final int FUEL_SLOT_Y = 99;
     static final int SLOT_SPACING = 19;
 
-    static final int BURN_BAR_X = 43;
-    static final int BURN_BAR_Y = 127;
-    static final int BURN_BAR_WIDTH = 75;
-    static final int BURN_BAR_HEIGHT = 7;
+    static final int BURN_BAR_X = 41;
+    /* Exact inside of the authored burn-time frame: x 41..113, y 120..127. */
+    static final int BURN_BAR_Y = 120;
+    static final int BURN_BAR_WIDTH = 73;
+    static final int BURN_BAR_HEIGHT = 8;
 
     /* Shared vertical progress display for melting and alloying. */
-    static final int PROGRESS_GAUGE_X = 16;
-    static final int PROGRESS_GAUGE_Y = 59;
+    static final int PROGRESS_GAUGE_X = 18;
+    static final int PROGRESS_GAUGE_Y = 56;
     static final int PROGRESS_GAUGE_WIDTH = 5;
-    static final int PROGRESS_GAUGE_HEIGHT = 69;
+    static final int PROGRESS_GAUGE_HEIGHT = 64;
 
-    static final int TANK_GAUGE_X = 137;
-    static final int TANK_GAUGE_Y = 60;
+    static final int TANK_GAUGE_X = 135;
+    static final int TANK_GAUGE_Y = 56;
     static final int TANK_GAUGE_WIDTH = 27;
     static final int TANK_GAUGE_HEIGHT = 70;
 
-    static final int TANK_COUNT_X = 126;
-    static final int TANK_COUNT_Y = 135;
+    static final int TANK_COUNT_X = 124;
+    static final int TANK_COUNT_Y = 131;
     static final int TANK_COUNT_WIDTH = 46;
     static final int TANK_COUNT_HEIGHT = 12;
 
-    static final int METAL_LIST_X = 182;
-    static final int METAL_LIST_Y = 59;
+    static final int METAL_LIST_X = 179;
+    static final int METAL_LIST_Y = 37;
     static final int METAL_LIST_WIDTH = 86;
-    static final int METAL_ROW_HEIGHT = 22;
-    static final int VISIBLE_METAL_ROWS = 3;
+    static final int METAL_ROW_HEIGHT = 19;
+    static final int METAL_ROW_STRIDE = 21;
+    static final int VISIBLE_METAL_ROWS = 4;
 
-    static final int METAL_SCROLL_X = 271;
-    static final int METAL_SCROLL_Y = 59;
-    static final int METAL_SCROLL_WIDTH = 5;
-    static final int METAL_SCROLL_HEIGHT = 64;
+    static final int METAL_SCROLL_X = 267;
+    static final int METAL_SCROLL_Y = 37;
+    static final int METAL_SCROLL_WIDTH = 6;
+    static final int METAL_SCROLL_HEIGHT = 82;
 
-    static final int ALLOY_LIST_X = 182;
-    static final int ALLOY_LIST_Y = 148;
+    static final int ALLOY_LIST_X = 179;
+    static final int ALLOY_LIST_Y = 137;
     static final int ALLOY_LIST_WIDTH = 86;
-    static final int ALLOY_ROW_HEIGHT = 22;
-    static final int VISIBLE_ALLOY_ROWS = 3;
+    static final int ALLOY_ROW_HEIGHT = 19;
+    static final int ALLOY_ROW_STRIDE = 21;
+    static final int VISIBLE_ALLOY_ROWS = 2;
 
-    static final int ALLOY_SCROLL_X = 271;
-    static final int ALLOY_SCROLL_Y = 148;
-    static final int ALLOY_SCROLL_WIDTH = 5;
-    static final int ALLOY_SCROLL_HEIGHT = 65;
+    static final int ALLOY_SCROLL_X = 267;
+    static final int ALLOY_SCROLL_Y = 137;
+    static final int ALLOY_SCROLL_WIDTH = 6;
+    static final int ALLOY_SCROLL_HEIGHT = 40;
 
-    static final int PLAYER_INVENTORY_X = 8;
-    static final int PLAYER_INVENTORY_Y = 159;
+    static final int[] ALLOY_INGREDIENT_SLOT_X = {
+            180, 199, 218
+    };
 
-    static final int QUANTITY_MINUS_X = 181;
-    static final int QUANTITY_X = 194;
-    static final int QUANTITY_PLUS_X = 215;
-    static final int QUANTITY_Y = 217;
+    static final int ALLOY_RECIPE_SLOT_Y = 184;
+    static final int ALLOY_RESULT_SLOT_X = 256;
+
+    static final int PLAYER_INVENTORY_X = 7;
+    static final int PLAYER_INVENTORY_Y = 155;
+
+    static final int QUANTITY_MINUS_X = 179;
+    static final int QUANTITY_X = 193;
+    static final int QUANTITY_PLUS_X = 213;
+    static final int QUANTITY_Y = 209;
 
     static final int QUANTITY_MINUS_WIDTH = 11;
-    static final int QUANTITY_WIDTH = 19;
+    static final int QUANTITY_WIDTH = 17;
     static final int QUANTITY_PLUS_WIDTH = 11;
+    static final int QUANTITY_HEIGHT = 10;
+    static final int QUANTITY_BUTTON_Y = 207;
+    static final int QUANTITY_BUTTON_HEIGHT = 15;
 
-    static final int START_X = 234;
-    static final int START_Y = 217;
-    static final int START_WIDTH = 43;
-    static final int START_HEIGHT = 11;
+    static final int START_X = 226;
+    static final int START_Y = 207;
+    static final int START_WIDTH = 49;
+    static final int START_HEIGHT = 15;
 
     private FoundryControllerUiLayout() {
     }

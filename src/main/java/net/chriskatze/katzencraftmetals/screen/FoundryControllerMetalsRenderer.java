@@ -14,7 +14,7 @@ import net.minecraft.world.item.Items;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Renders stored molten metals only. Alloy recipes are handled separately. */
+/** Renders the stored molten-metal selection list. */
 final class FoundryControllerMetalsRenderer {
 
     private final FoundryControllerScreen screen;
@@ -40,7 +40,8 @@ final class FoundryControllerMetalsRenderer {
             int index = scrollOffset + visibleRow;
 
             if (index >= entries.size()) {
-                break;
+                renderBlankRow(graphics, visibleRow);
+                continue;
             }
 
             renderEntry(
@@ -50,9 +51,16 @@ final class FoundryControllerMetalsRenderer {
             );
         }
 
-        renderScrollbar(
+        FoundryControllerListDrawing.drawScrollbar(
                 graphics,
-                entries.size()
+                screen.guiLeft()
+                        + FoundryControllerUiLayout.METAL_SCROLL_X,
+                screen.guiTop()
+                        + FoundryControllerUiLayout.METAL_SCROLL_Y,
+                FoundryControllerUiLayout.METAL_SCROLL_HEIGHT,
+                entries.size(),
+                FoundryControllerUiLayout.VISIBLE_METAL_ROWS,
+                scrollOffset
         );
     }
 
@@ -78,20 +86,7 @@ final class FoundryControllerMetalsRenderer {
                 break;
             }
 
-            if (
-                    !FoundryControllerUiLayout.contains(
-                            mouseX,
-                            mouseY,
-                            screen.guiLeft(),
-                            screen.guiTop(),
-                            FoundryControllerUiLayout.METAL_LIST_X,
-                            FoundryControllerUiLayout.METAL_LIST_Y
-                                    + visibleRow
-                                    * FoundryControllerUiLayout.METAL_ROW_HEIGHT,
-                            FoundryControllerUiLayout.METAL_LIST_WIDTH,
-                            FoundryControllerUiLayout.METAL_ROW_HEIGHT
-                    )
-            ) {
+            if (!isMouseOverRow(mouseX, mouseY, visibleRow)) {
                 continue;
             }
 
@@ -130,9 +125,9 @@ final class FoundryControllerMetalsRenderer {
                         screen.guiTop(),
                         FoundryControllerUiLayout.METAL_LIST_X,
                         FoundryControllerUiLayout.METAL_LIST_Y,
-                        FoundryControllerUiLayout.METAL_LIST_WIDTH
+                        FoundryControllerUiLayout.METAL_SCROLL_X
                                 + FoundryControllerUiLayout.METAL_SCROLL_WIDTH
-                                + 4,
+                                - FoundryControllerUiLayout.METAL_LIST_X,
                         FoundryControllerUiLayout.METAL_SCROLL_HEIGHT
                 )
         ) {
@@ -174,41 +169,29 @@ final class FoundryControllerMetalsRenderer {
                 break;
             }
 
-            if (
-                    FoundryControllerUiLayout.contains(
-                            mouseX,
-                            mouseY,
-                            screen.guiLeft(),
-                            screen.guiTop(),
-                            FoundryControllerUiLayout.METAL_LIST_X,
-                            FoundryControllerUiLayout.METAL_LIST_Y
-                                    + visibleRow
-                                    * FoundryControllerUiLayout.METAL_ROW_HEIGHT,
-                            FoundryControllerUiLayout.METAL_LIST_WIDTH,
-                            FoundryControllerUiLayout.METAL_ROW_HEIGHT
-                    )
-            ) {
-                MoltenMetalDefinition definition = entries.get(index);
-                int amount = menu().getMetalAmount(definition);
-
-                graphics.renderTooltip(
-                        screen.uiFont(),
-                        Component.literal(
-                                "Select "
-                                        + displayName(definition.id())
-                                        + " for output ("
-                                        + FoundryControllerUiDrawing.formatOreAmount(
-                                        amount,
-                                        definition.unitsPerOre()
-                                )
-                                        + " ore)"
-                        ),
-                        mouseX,
-                        mouseY
-                );
-
-                return;
+            if (!isMouseOverRow(mouseX, mouseY, visibleRow)) {
+                continue;
             }
+
+            MoltenMetalDefinition definition = entries.get(index);
+            int amount = menu().getMetalAmount(definition);
+
+            graphics.renderTooltip(
+                    screen.uiFont(),
+                    Component.literal(
+                            displayName(definition.id())
+                                    + ": "
+                                    + FoundryControllerUiDrawing.formatOreAmount(
+                                    amount,
+                                    definition.unitsPerOre()
+                            )
+                                    + " ore"
+                    ),
+                    mouseX,
+                    mouseY
+            );
+
+            return;
         }
     }
 
@@ -225,7 +208,7 @@ final class FoundryControllerMetalsRenderer {
                 screen.guiTop()
                         + FoundryControllerUiLayout.METAL_LIST_Y
                         + visibleRow
-                        * FoundryControllerUiLayout.METAL_ROW_HEIGHT;
+                        * FoundryControllerUiLayout.METAL_ROW_STRIDE;
 
         boolean selected =
                 menu().getSelectedMetalDefinition()
@@ -236,11 +219,12 @@ final class FoundryControllerMetalsRenderer {
                         )
                         .orElse(false);
 
-        drawRowFrame(
+        FoundryControllerListDrawing.drawRow(
                 graphics,
                 left,
                 top,
-                selected
+                selected,
+                true
         );
 
         ItemStack icon = getDisplayIcon(definition);
@@ -252,37 +236,42 @@ final class FoundryControllerMetalsRenderer {
                     top + 2
             );
         }
+    }
 
-        int textColor =
-                selected
-                        ? FoundryControllerUiDrawing.DARK_TEXT
-                        : FoundryControllerUiDrawing.TEXT;
 
-        int secondaryColor =
-                selected
-                        ? 0xFF4A4A4A
-                        : FoundryControllerUiDrawing.MUTED_TEXT;
-
-        graphics.drawString(
-                screen.uiFont(),
-                displayName(definition.id()),
-                left + 24,
-                top + 2,
-                textColor,
-                false
+    private void renderBlankRow(
+            GuiGraphics graphics,
+            int visibleRow
+    ) {
+        FoundryControllerListDrawing.drawRow(
+                graphics,
+                screen.guiLeft()
+                        + FoundryControllerUiLayout.METAL_LIST_X,
+                screen.guiTop()
+                        + FoundryControllerUiLayout.METAL_LIST_Y
+                        + visibleRow
+                        * FoundryControllerUiLayout.METAL_ROW_STRIDE,
+                false,
+                true
         );
+    }
 
-        graphics.drawString(
-                screen.uiFont(),
-                FoundryControllerUiDrawing.formatOreAmount(
-                        menu().getMetalAmount(definition),
-                        definition.unitsPerOre()
-                )
-                        + " ore",
-                left + 24,
-                top + 11,
-                secondaryColor,
-                false
+    private boolean isMouseOverRow(
+            double mouseX,
+            double mouseY,
+            int visibleRow
+    ) {
+        return FoundryControllerUiLayout.contains(
+                mouseX,
+                mouseY,
+                screen.guiLeft(),
+                screen.guiTop(),
+                FoundryControllerUiLayout.METAL_LIST_X,
+                FoundryControllerUiLayout.METAL_LIST_Y
+                        + visibleRow
+                        * FoundryControllerUiLayout.METAL_ROW_STRIDE,
+                FoundryControllerUiLayout.METAL_LIST_WIDTH,
+                FoundryControllerUiLayout.METAL_ROW_HEIGHT
         );
     }
 
@@ -318,192 +307,13 @@ final class FoundryControllerMetalsRenderer {
                 );
     }
 
-    private void renderScrollbar(
-            GuiGraphics graphics,
-            int entryCount
-    ) {
-        int left =
-                screen.guiLeft()
-                        + FoundryControllerUiLayout.METAL_SCROLL_X;
-
-        int top =
-                screen.guiTop()
-                        + FoundryControllerUiLayout.METAL_SCROLL_Y;
-
-        int width =
-                FoundryControllerUiLayout.METAL_SCROLL_WIDTH;
-
-        int height =
-                FoundryControllerUiLayout.METAL_SCROLL_HEIGHT;
-
-        drawScrollbar(
-                graphics,
-                left,
-                top,
-                width,
-                height,
-                entryCount,
-                FoundryControllerUiLayout.VISIBLE_METAL_ROWS,
-                scrollOffset
-        );
-    }
-
-    static void drawScrollbar(
-            GuiGraphics graphics,
-            int left,
-            int top,
-            int width,
-            int height,
-            int entryCount,
-            int visibleRows,
-            int offset
-    ) {
-        graphics.fill(
-                left,
-                top,
-                left + width,
-                top + height,
-                0xFF151515
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 1,
-                left + width - 1,
-                top + height - 1,
-                0xFF2B2B2B
-        );
-
-        int maxOffset =
-                Math.max(
-                        0,
-                        entryCount
-                                - visibleRows
-                );
-
-        int thumbHeight =
-                maxOffset <= 0
-                        ? 14
-                        : Math.max(
-                        10,
-                        height
-                                * visibleRows
-                                / Math.max(1, entryCount)
-                );
-
-        int travel =
-                Math.max(
-                        0,
-                        height
-                                - thumbHeight
-                                - 2
-                );
-
-        int thumbY =
-                top + 1
-                        + (
-                        maxOffset <= 0
-                                ? travel / 2
-                                : travel
-                                * offset
-                                / maxOffset
-                );
-
-        graphics.fill(
-                left + 1,
-                thumbY,
-                left + width - 1,
-                thumbY + thumbHeight,
-                maxOffset <= 0
-                        ? 0xFF626262
-                        : 0xFFA5A5A5
-        );
-    }
-
-    static void drawRowFrame(
-            GuiGraphics graphics,
-            int left,
-            int top,
-            int width,
-            int height,
-            boolean selected,
-            boolean enabled
-    ) {
-        int right = left + width;
-        int bottom = top + height - 2;
-
-        graphics.fill(
-                left,
-                top,
-                right,
-                bottom,
-                0xFF000000
-        );
-
-        int background =
-                selected
-                        ? 0xFFB5B5B5
-                        : enabled
-                        ? 0xFF232323
-                        : 0xFF191919;
-
-        graphics.fill(
-                left + 1,
-                top + 1,
-                right - 1,
-                bottom - 1,
-                background
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 1,
-                right - 1,
-                top + 2,
-                selected
-                        ? 0xFFE2E2E2
-                        : enabled
-                        ? 0xFF777777
-                        : 0xFF454545
-        );
-
-        if (selected) {
-            graphics.fill(
-                    left + 1,
-                    top + 1,
-                    left + 3,
-                    bottom - 1,
-                    FoundryControllerUiDrawing.ORANGE
-            );
-        }
-    }
-
-    private static void drawRowFrame(
-            GuiGraphics graphics,
-            int left,
-            int top,
-            boolean selected
-    ) {
-        drawRowFrame(
-                graphics,
-                left,
-                top,
-                FoundryControllerUiLayout.METAL_LIST_WIDTH,
-                FoundryControllerUiLayout.METAL_ROW_HEIGHT,
-                selected,
-                true
-        );
-    }
-
     static ItemStack getDisplayIcon(
             MoltenMetalDefinition definition
     ) {
         ResourceLocation candidateId =
                 ResourceLocation.fromNamespaceAndPath(
-                        definition.id()
-                                .getNamespace(),
-                        definition.id()
-                                .getPath()
+                        definition.id().getNamespace(),
+                        definition.id().getPath()
                                 + "_ingot"
                 );
 
@@ -524,18 +334,13 @@ final class FoundryControllerMetalsRenderer {
     ) {
         String path =
                 id.getPath()
-                        .replace(
-                                '_',
-                                ' '
-                        );
+                        .replace('_', ' ');
 
         if (path.isEmpty()) {
             return "";
         }
 
-        return Character.toUpperCase(
-                path.charAt(0)
-        )
+        return Character.toUpperCase(path.charAt(0))
                 + path.substring(1);
     }
 
