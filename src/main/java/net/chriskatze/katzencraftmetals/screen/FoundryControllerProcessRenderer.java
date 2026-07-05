@@ -2,7 +2,6 @@ package net.chriskatze.katzencraftmetals.screen;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 
 final class FoundryControllerProcessRenderer {
@@ -27,7 +26,7 @@ final class FoundryControllerProcessRenderer {
         renderUnlockedSlotFrames(graphics);
         renderActiveInputOutline(graphics);
         renderBurnTime(graphics);
-        renderTemperature(graphics);
+        renderProcessProgress(graphics);
     }
 
     private void renderUnlockedSlotFrames(
@@ -169,57 +168,46 @@ final class FoundryControllerProcessRenderer {
         );
     }
 
-    private void renderTemperature(
+    private void renderProcessProgress(
             GuiGraphics graphics
     ) {
-        int fill = screen.controllerMenu().getScaledTemperature(
-                FoundryControllerUiLayout.TEMPERATURE_GAUGE_HEIGHT
+        int fill =
+                screen.controllerMenu()
+                        .getScaledProgress(
+                                FoundryControllerUiLayout.PROGRESS_GAUGE_HEIGHT
+                        );
+
+        if (fill <= 0) {
+            return;
+        }
+
+        int left =
+                screen.guiLeft()
+                        + FoundryControllerUiLayout.PROGRESS_GAUGE_X;
+
+        int bottom =
+                screen.guiTop()
+                        + FoundryControllerUiLayout.PROGRESS_GAUGE_Y
+                        + FoundryControllerUiLayout.PROGRESS_GAUGE_HEIGHT;
+
+        int top = bottom - fill;
+
+        graphics.fill(
+                left,
+                top,
+                left + FoundryControllerUiLayout.PROGRESS_GAUGE_WIDTH,
+                bottom,
+                FoundryControllerUiDrawing.ORANGE
         );
 
-        int left = screen.guiLeft() + FoundryControllerUiLayout.TEMPERATURE_GAUGE_X;
-        int bottom = screen.guiTop()
-                + FoundryControllerUiLayout.TEMPERATURE_GAUGE_Y
-                + FoundryControllerUiLayout.TEMPERATURE_GAUGE_HEIGHT;
-
-        if (fill > 0) {
-            int top = bottom - fill;
+        if (fill > 2) {
             graphics.fill(
-                    left,
+                    left + 1,
                     top,
-                    left + FoundryControllerUiLayout.TEMPERATURE_GAUGE_WIDTH,
-                    bottom,
-                    getTemperatureColor()
+                    left + FoundryControllerUiLayout.PROGRESS_GAUGE_WIDTH - 1,
+                    top + 1,
+                    0xFFFFC34A
             );
         }
-
-        Component temperature = Component.literal(
-                screen.controllerMenu().getCurrentTemperature() + "°C"
-        );
-
-        FoundryControllerUiDrawing.drawCentered(
-                graphics,
-                screen.uiFont(),
-                temperature,
-                screen.guiLeft() + 2,
-                screen.guiTop() + 152,
-                34,
-                12,
-                FoundryControllerUiDrawing.TEXT
-        );
     }
-
-    private int getTemperatureColor() {
-        int current = screen.controllerMenu().getCurrentTemperature();
-        int maximum = screen.controllerMenu().getMaximumTemperature();
-        float ratio = maximum <= 0 ? 0.0f : Math.min(1.0f, current / (float) maximum);
-
-        if (ratio < 0.33f) {
-            return 0xFFCC5A24;
-        }
-        if (ratio < 0.66f) {
-            return 0xFFFF941F;
-        }
-        return 0xFFFFC34A;
-    }
-
 }

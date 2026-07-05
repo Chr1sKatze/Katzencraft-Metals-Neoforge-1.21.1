@@ -26,7 +26,6 @@ public record FoundryAlloyRecipe(
         List<FoundryAlloyIngredient> ingredients,
         ResourceLocation outputMetal,
         int outputAmount,
-        int requiredTemperature,
         int processingTime,
         int experience,
         int requiredTier
@@ -49,7 +48,6 @@ public record FoundryAlloyRecipe(
 
         if (
                 outputAmount <= 0
-                        || requiredTemperature < 0
                         || processingTime <= 0
                         || experience < 0
                         || requiredTier < 1
@@ -119,9 +117,6 @@ public record FoundryAlloyRecipe(
                                         Codec.intRange(1, Integer.MAX_VALUE)
                                                 .fieldOf("output_amount")
                                                 .forGetter(FoundryAlloyRecipe::outputAmount),
-                                        Codec.intRange(0, Integer.MAX_VALUE)
-                                                .fieldOf("required_temperature")
-                                                .forGetter(FoundryAlloyRecipe::requiredTemperature),
                                         Codec.intRange(1, Integer.MAX_VALUE)
                                                 .optionalFieldOf("processing_time", 100)
                                                 .forGetter(FoundryAlloyRecipe::processingTime),
@@ -131,7 +126,10 @@ public record FoundryAlloyRecipe(
                                         Codec.intRange(1, 4)
                                                 .optionalFieldOf("required_tier", 1)
                                                 .forGetter(FoundryAlloyRecipe::requiredTier)
-                                ).apply(instance, FoundryAlloyRecipe::new)
+                                ).apply(
+                                        instance,
+                                        FoundryAlloyRecipe::new
+                                )
                 );
 
         public static final StreamCodec<
@@ -140,7 +138,9 @@ public record FoundryAlloyRecipe(
                 > STREAM_CODEC =
                 StreamCodec.of(
                         (buffer, recipe) -> {
-                            buffer.writeVarInt(recipe.ingredients().size());
+                            buffer.writeVarInt(
+                                    recipe.ingredients().size()
+                            );
 
                             for (
                                     FoundryAlloyIngredient ingredient :
@@ -152,15 +152,25 @@ public record FoundryAlloyRecipe(
                                 );
                             }
 
-                            buffer.writeResourceLocation(recipe.outputMetal());
-                            buffer.writeVarInt(recipe.outputAmount());
-                            buffer.writeVarInt(recipe.requiredTemperature());
-                            buffer.writeVarInt(recipe.processingTime());
-                            buffer.writeVarInt(recipe.experience());
-                            buffer.writeVarInt(recipe.requiredTier());
+                            buffer.writeResourceLocation(
+                                    recipe.outputMetal()
+                            );
+                            buffer.writeVarInt(
+                                    recipe.outputAmount()
+                            );
+                            buffer.writeVarInt(
+                                    recipe.processingTime()
+                            );
+                            buffer.writeVarInt(
+                                    recipe.experience()
+                            );
+                            buffer.writeVarInt(
+                                    recipe.requiredTier()
+                            );
                         },
                         buffer -> {
-                            int ingredientCount = buffer.readVarInt();
+                            int ingredientCount =
+                                    buffer.readVarInt();
 
                             if (
                                     ingredientCount < 1
@@ -173,9 +183,15 @@ public record FoundryAlloyRecipe(
                             }
 
                             java.util.ArrayList<FoundryAlloyIngredient> ingredients =
-                                    new java.util.ArrayList<>(ingredientCount);
+                                    new java.util.ArrayList<>(
+                                            ingredientCount
+                                    );
 
-                            for (int index = 0; index < ingredientCount; index++) {
+                            for (
+                                    int index = 0;
+                                    index < ingredientCount;
+                                    index++
+                            ) {
                                 ingredients.add(
                                         FoundryAlloyIngredient.STREAM_CODEC.decode(
                                                 buffer
@@ -186,7 +202,6 @@ public record FoundryAlloyRecipe(
                             return new FoundryAlloyRecipe(
                                     ingredients,
                                     buffer.readResourceLocation(),
-                                    buffer.readVarInt(),
                                     buffer.readVarInt(),
                                     buffer.readVarInt(),
                                     buffer.readVarInt(),

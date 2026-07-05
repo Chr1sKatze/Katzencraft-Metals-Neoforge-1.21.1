@@ -6,8 +6,7 @@ import net.minecraft.world.item.ItemStack;
 /** One fuel type understood by the Foundry Controller. */
 public record FoundryFuelDefinition(
         Item item,
-        int burnTime,
-        int maximumTemperature
+        int burnTime
 ) {
 
     public FoundryFuelDefinition {
@@ -20,12 +19,6 @@ public record FoundryFuelDefinition(
         if (burnTime <= 0) {
             throw new IllegalArgumentException(
                     "Foundry fuel burn time must be positive."
-            );
-        }
-
-        if (maximumTemperature <= 0) {
-            throw new IllegalArgumentException(
-                    "Foundry fuel maximum temperature must be positive."
             );
         }
     }

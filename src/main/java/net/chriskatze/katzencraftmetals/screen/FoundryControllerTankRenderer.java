@@ -172,10 +172,12 @@ final class FoundryControllerTankRenderer {
                 graphics,
                 screen.uiFont(),
                 count,
-                screen.guiLeft() + 127,
-                screen.guiTop() + 152,
-                44,
-                12,
+                screen.guiLeft()
+                        + FoundryControllerUiLayout.TANK_COUNT_X,
+                screen.guiTop()
+                        + FoundryControllerUiLayout.TANK_COUNT_Y,
+                FoundryControllerUiLayout.TANK_COUNT_WIDTH,
+                FoundryControllerUiLayout.TANK_COUNT_HEIGHT,
                 FoundryControllerUiDrawing.TEXT
         );
     }

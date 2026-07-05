@@ -62,9 +62,6 @@ public class FoundryControllerBlockEntity
     private final FoundryControllerProgression progression =
             new FoundryControllerProgression();
 
-    private final FoundryControllerTemperature temperature =
-            new FoundryControllerTemperature(this);
-
     private final FoundryControllerAlloying alloying =
             new FoundryControllerAlloying(this);
 
@@ -77,9 +74,7 @@ public class FoundryControllerBlockEntity
                         ItemStack stack
                 ) {
                     return isInputSlotUnlocked(slot)
-                            && processing.canMelt(
-                            stack
-                    );
+                            && processing.canMelt(stack);
                 }
 
                 @Override
@@ -134,26 +129,21 @@ public class FoundryControllerBlockEntity
             TIER_EXPERIENCE_NEEDED_DATA_INDEX
                     + 1;
 
-    public static final int CURRENT_TEMPERATURE_DATA_INDEX =
-            ACTIVE_INPUT_SLOT_DATA_INDEX + 1;
-
-    public static final int MAXIMUM_TEMPERATURE_DATA_INDEX =
-            CURRENT_TEMPERATURE_DATA_INDEX + 1;
-
-    public static final int REQUIRED_TEMPERATURE_DATA_INDEX =
-            MAXIMUM_TEMPERATURE_DATA_INDEX + 1;
-
     public static final int STATUS_DATA_INDEX =
-            REQUIRED_TEMPERATURE_DATA_INDEX + 1;
+            ACTIVE_INPUT_SLOT_DATA_INDEX
+                    + 1;
 
     public static final int ACTIVE_ALLOY_OUTPUT_DATA_INDEX =
-            STATUS_DATA_INDEX + 1;
+            STATUS_DATA_INDEX
+                    + 1;
 
     public static final int ALLOY_ACTIVE_DATA_INDEX =
-            ACTIVE_ALLOY_OUTPUT_DATA_INDEX + 1;
+            ACTIVE_ALLOY_OUTPUT_DATA_INDEX
+                    + 1;
 
     public static final int DATA_COUNT =
-            ALLOY_ACTIVE_DATA_INDEX + 1;
+            ALLOY_ACTIVE_DATA_INDEX
+                    + 1;
 
     private final ContainerData data =
             new ContainerData() {
@@ -186,20 +176,13 @@ public class FoundryControllerBlockEntity
                                         - METAL_DATA_START;
 
                         ResourceLocation metal =
-                                ModMoltenMetals.bySyncId(
-                                                syncId
-                                        )
-                                        .map(
-                                                definition ->
-                                                        definition.id()
-                                        )
+                                ModMoltenMetals.bySyncId(syncId)
+                                        .map(definition -> definition.id())
                                         .orElse(null);
 
                         return network != null
                                 && metal != null
-                                ? network.getMoltenAmount(
-                                metal
-                        )
+                                ? network.getMoltenAmount(metal)
                                 : 0;
                     }
 
@@ -207,15 +190,11 @@ public class FoundryControllerBlockEntity
                         ResourceLocation selected =
                                 network != null
                                         ? processing
-                                        .getSelectedOutputMetalOrDefault(
-                                                network
-                                        )
+                                        .getSelectedOutputMetalOrDefault(network)
                                         : null;
 
                         return selected != null
-                                ? ModMoltenMetals.getSyncId(
-                                selected
-                        )
+                                ? ModMoltenMetals.getSyncId(selected)
                                 : -1;
                     }
 
@@ -261,20 +240,6 @@ public class FoundryControllerBlockEntity
                                 : processing.getActiveInputSlot();
                     }
 
-                    if (index == CURRENT_TEMPERATURE_DATA_INDEX) {
-                        return temperature.getCurrentTemperature();
-                    }
-
-                    if (index == MAXIMUM_TEMPERATURE_DATA_INDEX) {
-                        return temperature.getTierMaximumTemperature();
-                    }
-
-                    if (index == REQUIRED_TEMPERATURE_DATA_INDEX) {
-                        return alloying.hasActiveJob()
-                                ? alloying.getRequiredTemperature()
-                                : processing.getRequiredTemperature();
-                    }
-
                     if (index == STATUS_DATA_INDEX) {
                         return alloying.hasActiveJob()
                                 ? alloying.getStatusCode()
@@ -305,17 +270,12 @@ public class FoundryControllerBlockEntity
                         int value
                 ) {
                     if (index == 0) {
-                        processing.setProgressFromMenuData(
-                                value
-                        );
-
+                        processing.setProgressFromMenuData(value);
                         return;
                     }
 
                     if (index == 1) {
-                        processing.setMaxProgressFromMenuData(
-                                value
-                        );
+                        processing.setMaxProgressFromMenuData(value);
                     }
                 }
 
@@ -345,9 +305,7 @@ public class FoundryControllerBlockEntity
     }
 
     public Direction getFacing() {
-        return FoundryControllerNetwork.getFacing(
-                this
-        );
+        return FoundryControllerNetwork.getFacing(this);
     }
 
     public boolean isValidTankAttachmentPosition(
@@ -372,32 +330,23 @@ public class FoundryControllerBlockEntity
 
     public List<BlockPos> getValidTankAttachmentPositions() {
         return FoundryControllerNetwork
-                .getValidTankAttachmentPositions(
-                        this
-                );
+                .getValidTankAttachmentPositions(this);
     }
 
     @Nullable
     public FoundryTankNetwork getOwnedTankNetwork() {
         return FoundryControllerNetwork
-                .getOwnedTankNetwork(
-                        this
-                );
+                .getOwnedTankNetwork(this);
     }
 
     public boolean ensureTankNetwork() {
         return FoundryControllerNetwork
-                .ensureTankNetwork(
-                        this
-                );
+                .ensureTankNetwork(this);
     }
 
     public void releaseFoundry() {
         alloying.cancelAndRefund();
-
-        FoundryControllerNetwork.releaseFoundry(
-                this
-        );
+        FoundryControllerNetwork.releaseFoundry(this);
     }
 
     // =========================
@@ -407,9 +356,7 @@ public class FoundryControllerBlockEntity
     public boolean canMelt(
             ItemStack stack
     ) {
-        return processing.canMelt(
-                stack
-        );
+        return processing.canMelt(stack);
     }
 
     @Nullable
@@ -420,9 +367,7 @@ public class FoundryControllerBlockEntity
     public boolean setSelectedOutputMetal(
             ResourceLocation metal
     ) {
-        return processing.setSelectedOutputMetal(
-                metal
-        );
+        return processing.setSelectedOutputMetal(metal);
     }
 
     @Nullable
@@ -430,9 +375,7 @@ public class FoundryControllerBlockEntity
             FoundryTankNetwork network
     ) {
         return processing
-                .getSelectedOutputMetalOrDefault(
-                        network
-                );
+                .getSelectedOutputMetalOrDefault(network);
     }
 
     public static void serverTick(
@@ -491,10 +434,6 @@ public class FoundryControllerBlockEntity
         return fuelSystem;
     }
 
-    FoundryControllerTemperature getTemperatureSystem() {
-        return temperature;
-    }
-
     public boolean startAlloy(
             int recipeIndex,
             int batchCount
@@ -507,14 +446,6 @@ public class FoundryControllerBlockEntity
 
     public boolean isAlloying() {
         return alloying.hasActiveJob();
-    }
-
-    public int getCurrentTemperature() {
-        return temperature.getCurrentTemperature();
-    }
-
-    public int getMaximumTemperature() {
-        return temperature.getTierMaximumTemperature();
     }
 
     public ContainerData getData() {
@@ -589,9 +520,7 @@ public class FoundryControllerBlockEntity
             int amount
     ) {
         boolean tierChanged =
-                progression.addExperience(
-                        amount
-                );
+                progression.addExperience(amount);
 
         if (amount > 0) {
             setChanged();
@@ -630,9 +559,7 @@ public class FoundryControllerBlockEntity
 
         tag.put(
                 "InputInventory",
-                inputInventory.createTag(
-                        registries
-                )
+                inputInventory.createTag(registries)
         );
 
         fuelSystem.save(
@@ -645,11 +572,7 @@ public class FoundryControllerBlockEntity
                 registries
         );
 
-        progression.save(
-                tag
-        );
-
-        temperature.save(tag);
+        progression.save(tag);
         alloying.save(tag);
     }
 
@@ -667,9 +590,7 @@ public class FoundryControllerBlockEntity
             try {
                 controllerId =
                         UUID.fromString(
-                                tag.getString(
-                                        "ControllerId"
-                                )
+                                tag.getString("ControllerId")
                         );
             } catch (IllegalArgumentException ignored) {
                 controllerId =
@@ -702,9 +623,7 @@ public class FoundryControllerBlockEntity
                 registries
         );
 
-        progression.load(
-                tag
-        );
+        progression.load(tag);
 
         if (!tag.contains("FoundryProgressionVersion")) {
             progression.migrateLegacyFuelAccess(
@@ -717,7 +636,6 @@ public class FoundryControllerBlockEntity
                 registries
         );
 
-        temperature.load(tag);
         alloying.load(tag);
     }
 }

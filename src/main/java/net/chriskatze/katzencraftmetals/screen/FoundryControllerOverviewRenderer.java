@@ -2,13 +2,14 @@ package net.chriskatze.katzencraftmetals.screen;
 
 import net.minecraft.client.gui.GuiGraphics;
 
-/** Coordinates the independently sized sections of the final Controller UI. */
+/** Coordinates the independently sized sections of the Controller UI. */
 final class FoundryControllerOverviewRenderer {
 
     private final FoundryControllerHeaderStatusRenderer headerRenderer;
     private final FoundryControllerProcessRenderer processRenderer;
     private final FoundryControllerTankRenderer tankRenderer;
     private final FoundryControllerMetalsRenderer metalsRenderer;
+    private final FoundryControllerAlloysRenderer alloysRenderer;
 
     FoundryControllerOverviewRenderer(
             FoundryControllerScreen screen
@@ -24,6 +25,9 @@ final class FoundryControllerOverviewRenderer {
 
         this.metalsRenderer =
                 new FoundryControllerMetalsRenderer(screen);
+
+        this.alloysRenderer =
+                new FoundryControllerAlloysRenderer(screen);
     }
 
     void render(
@@ -35,6 +39,7 @@ final class FoundryControllerOverviewRenderer {
         processRenderer.render(graphics);
         tankRenderer.render(graphics);
         metalsRenderer.render(graphics);
+        alloysRenderer.render(graphics);
     }
 
     boolean mouseClicked(
@@ -42,7 +47,17 @@ final class FoundryControllerOverviewRenderer {
             double mouseY,
             int button
     ) {
-        return metalsRenderer.mouseClicked(
+        if (
+                metalsRenderer.mouseClicked(
+                        mouseX,
+                        mouseY,
+                        button
+                )
+        ) {
+            return true;
+        }
+
+        return alloysRenderer.mouseClicked(
                 mouseX,
                 mouseY,
                 button
@@ -54,7 +69,17 @@ final class FoundryControllerOverviewRenderer {
             double mouseY,
             double scrollDelta
     ) {
-        return metalsRenderer.mouseScrolled(
+        if (
+                metalsRenderer.mouseScrolled(
+                        mouseX,
+                        mouseY,
+                        scrollDelta
+                )
+        ) {
+            return true;
+        }
+
+        return alloysRenderer.mouseScrolled(
                 mouseX,
                 mouseY,
                 scrollDelta
@@ -67,6 +92,12 @@ final class FoundryControllerOverviewRenderer {
             int mouseY
     ) {
         metalsRenderer.renderTooltips(
+                graphics,
+                mouseX,
+                mouseY
+        );
+
+        alloysRenderer.renderTooltips(
                 graphics,
                 mouseX,
                 mouseY

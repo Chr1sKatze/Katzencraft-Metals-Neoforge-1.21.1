@@ -18,9 +18,6 @@ import java.util.Optional;
 /** One persistent, explicitly started alloy job owned by a Controller. */
 final class FoundryControllerAlloying {
 
-    static final int STATUS_HEATING_FOR_ALLOY = 7;
-    static final int STATUS_ALLOYING = 8;
-
     private final FoundryControllerBlockEntity controller;
 
     @Nullable
@@ -36,9 +33,9 @@ final class FoundryControllerAlloying {
     private int batchCount;
     private int progress;
     private int maxProgress = 1;
-    private int requiredTemperature;
     private int experience;
-    private int statusCode = FoundryControllerProcessing.STATUS_READY;
+    private int statusCode =
+            FoundryControllerProcessing.STATUS_READY;
 
     FoundryControllerAlloying(
             FoundryControllerBlockEntity controller
@@ -76,10 +73,11 @@ final class FoundryControllerAlloying {
                 holder.value();
 
         if (
-                recipe.requiredTier() > controller.getFoundryTier()
-                        || !ModMoltenMetals.contains(recipe.outputMetal())
-                        || recipe.requiredTemperature()
-                        > controller.getMaximumTemperature()
+                recipe.requiredTier()
+                        > controller.getFoundryTier()
+                        || !ModMoltenMetals.contains(
+                        recipe.outputMetal()
+                )
         ) {
             return false;
         }
@@ -94,7 +92,8 @@ final class FoundryControllerAlloying {
             return false;
         }
 
-        network = controller.getOwnedTankNetwork();
+        network =
+                controller.getOwnedTankNetwork();
 
         if (network == null) {
             return false;
@@ -130,7 +129,23 @@ final class FoundryControllerAlloying {
                         requestedBatches
                 );
 
-        if (totalOutput <= 0) {
+        int totalProgress =
+                safeMultiply(
+                        recipe.processingTime(),
+                        requestedBatches
+                );
+
+        int totalExperience =
+                safeMultiply(
+                        recipe.experience(),
+                        requestedBatches
+                );
+
+        if (
+                totalOutput <= 0
+                        || totalProgress <= 0
+                        || totalExperience < 0
+        ) {
             return false;
         }
 
@@ -186,19 +201,10 @@ final class FoundryControllerAlloying {
         outputAmount = totalOutput;
         batchCount = requestedBatches;
         progress = 0;
-        maxProgress = safeMultiply(
-                recipe.processingTime(),
-                requestedBatches
-        );
-        requiredTemperature = recipe.requiredTemperature();
-        experience = safeMultiply(
-                recipe.experience(),
-                requestedBatches
-        );
-        statusCode = controller.getTemperatureSystem()
-                .isHotEnough(requiredTemperature)
-                ? STATUS_ALLOYING
-                : STATUS_HEATING_FOR_ALLOY;
+        maxProgress = totalProgress;
+        experience = totalExperience;
+        statusCode =
+                FoundryControllerProcessing.STATUS_ALLOYING;
 
         controller.setChanged();
         return true;
@@ -216,8 +222,8 @@ final class FoundryControllerAlloying {
         }
 
         if (!controller.ensureTankNetwork()) {
-            statusCode = FoundryControllerProcessing.STATUS_NO_TANKS;
-            controller.getTemperatureSystem().coolTick();
+            statusCode =
+                    FoundryControllerProcessing.STATUS_NO_TANKS;
             return;
         }
 
@@ -225,8 +231,8 @@ final class FoundryControllerAlloying {
                 controller.getOwnedTankNetwork();
 
         if (network == null) {
-            statusCode = FoundryControllerProcessing.STATUS_NO_TANKS;
-            controller.getTemperatureSystem().coolTick();
+            statusCode =
+                    FoundryControllerProcessing.STATUS_NO_TANKS;
             return;
         }
 
@@ -246,8 +252,8 @@ final class FoundryControllerAlloying {
                         outputAmount
                 )
         ) {
-            statusCode = FoundryControllerProcessing.STATUS_TANK_FULL;
-            controller.getTemperatureSystem().coolTick();
+            statusCode =
+                    FoundryControllerProcessing.STATUS_TANK_FULL;
             return;
         }
 
@@ -255,40 +261,20 @@ final class FoundryControllerAlloying {
                 controller.getFuelSystem();
 
         if (!fuel.hasAvailableFuel()) {
-            statusCode = FoundryControllerProcessing.STATUS_MISSING_FUEL;
-            controller.getTemperatureSystem().coolTick();
-            return;
-        }
-
-        if (!fuel.canReachTemperature(requiredTemperature)) {
             statusCode =
-                    FoundryControllerProcessing
-                            .STATUS_TEMPERATURE_TOO_LOW;
-
-            controller.getTemperatureSystem().coolTick();
+                    FoundryControllerProcessing.STATUS_MISSING_FUEL;
             return;
         }
 
-        if (!fuel.supplyBurnTick(requiredTemperature)) {
-            statusCode = FoundryControllerProcessing.STATUS_MISSING_FUEL;
-            controller.getTemperatureSystem().coolTick();
+        if (!fuel.supplyBurnTick()) {
+            statusCode =
+                    FoundryControllerProcessing.STATUS_MISSING_FUEL;
             return;
         }
 
-        controller.getTemperatureSystem().heatTick(
-                fuel.getActiveFuelMaximumTemperature()
-        );
+        statusCode =
+                FoundryControllerProcessing.STATUS_ALLOYING;
 
-        if (
-                !controller.getTemperatureSystem()
-                        .isHotEnough(requiredTemperature)
-        ) {
-            statusCode = STATUS_HEATING_FOR_ALLOY;
-            controller.setChanged();
-            return;
-        }
-
-        statusCode = STATUS_ALLOYING;
         progress++;
 
         if (progress < maxProgress) {
@@ -303,7 +289,8 @@ final class FoundryControllerAlloying {
                 );
 
         if (inserted != outputAmount) {
-            statusCode = FoundryControllerProcessing.STATUS_TANK_FULL;
+            statusCode =
+                    FoundryControllerProcessing.STATUS_TANK_FULL;
             return;
         }
 
@@ -418,9 +405,9 @@ final class FoundryControllerAlloying {
         batchCount = 0;
         progress = 0;
         maxProgress = 1;
-        requiredTemperature = 0;
         experience = 0;
-        statusCode = FoundryControllerProcessing.STATUS_READY;
+        statusCode =
+                FoundryControllerProcessing.STATUS_READY;
     }
 
     boolean hasActiveJob() {
@@ -434,11 +421,10 @@ final class FoundryControllerAlloying {
     }
 
     int getMaxProgress() {
-        return Math.max(1, maxProgress);
-    }
-
-    int getRequiredTemperature() {
-        return requiredTemperature;
+        return Math.max(
+                1,
+                maxProgress
+        );
     }
 
     int getStatusCode() {
@@ -489,11 +475,6 @@ final class FoundryControllerAlloying {
         tag.putInt(
                 "ActiveAlloyMaxProgress",
                 maxProgress
-        );
-
-        tag.putInt(
-                "ActiveAlloyRequiredTemperature",
-                requiredTemperature
         );
 
         tag.putInt(
@@ -555,40 +536,44 @@ final class FoundryControllerAlloying {
         activeRecipeId = recipeId;
         outputMetal = loadedOutput;
         outputAmount = loadedOutputAmount;
-        batchCount = Math.max(
-                1,
-                tag.getInt(
-                        "ActiveAlloyBatchCount"
-                )
-        );
-        progress = Math.max(
-                0,
-                tag.getInt(
-                        "ActiveAlloyProgress"
-                )
-        );
-        maxProgress = Math.max(
-                1,
-                tag.getInt(
-                        "ActiveAlloyMaxProgress"
-                )
-        );
-        progress = Math.min(
-                progress,
-                maxProgress
-        );
-        requiredTemperature = Math.max(
-                0,
-                tag.getInt(
-                        "ActiveAlloyRequiredTemperature"
-                )
-        );
-        experience = Math.max(
-                0,
-                tag.getInt(
-                        "ActiveAlloyExperience"
-                )
-        );
+
+        batchCount =
+                Math.max(
+                        1,
+                        tag.getInt(
+                                "ActiveAlloyBatchCount"
+                        )
+                );
+
+        progress =
+                Math.max(
+                        0,
+                        tag.getInt(
+                                "ActiveAlloyProgress"
+                        )
+                );
+
+        maxProgress =
+                Math.max(
+                        1,
+                        tag.getInt(
+                                "ActiveAlloyMaxProgress"
+                        )
+                );
+
+        progress =
+                Math.min(
+                        progress,
+                        maxProgress
+                );
+
+        experience =
+                Math.max(
+                        0,
+                        tag.getInt(
+                                "ActiveAlloyExperience"
+                        )
+                );
 
         CompoundTag reserved =
                 tag.getCompound(
@@ -618,6 +603,7 @@ final class FoundryControllerAlloying {
             return;
         }
 
-        statusCode = STATUS_HEATING_FOR_ALLOY;
+        statusCode =
+                FoundryControllerProcessing.STATUS_ALLOYING;
     }
 }

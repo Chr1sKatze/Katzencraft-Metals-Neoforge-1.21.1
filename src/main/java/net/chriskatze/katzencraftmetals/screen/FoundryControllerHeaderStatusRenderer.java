@@ -4,6 +4,7 @@ import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 
 final class FoundryControllerHeaderStatusRenderer {
 
@@ -119,29 +120,6 @@ final class FoundryControllerHeaderStatusRenderer {
                 status.color(),
                 false
         );
-
-        int progress =
-                menu().getScaledProgress(
-                        FoundryControllerUiLayout.STATUS_PROGRESS_WIDTH
-                );
-
-        if (progress > 0) {
-            int left =
-                    screen.guiLeft()
-                            + FoundryControllerUiLayout.STATUS_PROGRESS_X;
-
-            int top =
-                    screen.guiTop()
-                            + FoundryControllerUiLayout.STATUS_PROGRESS_Y;
-
-            graphics.fill(
-                    left,
-                    top,
-                    left + progress,
-                    top + FoundryControllerUiLayout.STATUS_PROGRESS_HEIGHT,
-                    FoundryControllerUiDrawing.ORANGE
-            );
-        }
     }
 
     private FoundryStatus resolveStatus() {
@@ -159,14 +137,6 @@ final class FoundryControllerHeaderStatusRenderer {
                     FoundryControllerUiDrawing.RED
             );
             case 4 -> new FoundryStatus(
-                    Component.literal("TEMPERATURE TOO LOW"),
-                    FoundryControllerUiDrawing.RED
-            );
-            case 5 -> new FoundryStatus(
-                    Component.literal("HEATING TO " + menu().getRequiredTemperature() + "°C"),
-                    FoundryControllerUiDrawing.ORANGE
-            );
-            case 6 -> new FoundryStatus(
                     Component.literal("MELTING ").append(
                             menu().getInputMoltenMetalDefinition()
                                     .<Component>map(
@@ -183,29 +153,8 @@ final class FoundryControllerHeaderStatusRenderer {
                     ),
                     FoundryControllerUiDrawing.ORANGE
             );
-            case 7 -> new FoundryStatus(
-                    Component.literal(
-                            "HEATING FOR "
-                    ).append(
-                            menu().getActiveAlloyOutput()
-                                    .<Component>map(
-                                            definition ->
-                                                    Component.literal(
-                                                            displayName(
-                                                                    definition.id()
-                                                            )
-                                                    )
-                                    )
-                                    .orElse(
-                                            Component.literal("ALLOY")
-                                    )
-                    ),
-                    FoundryControllerUiDrawing.ORANGE
-            );
-            case 8 -> new FoundryStatus(
-                    Component.literal(
-                            "ALLOYING "
-                    ).append(
+            case 5 -> new FoundryStatus(
+                    Component.literal("ALLOYING ").append(
                             menu().getActiveAlloyOutput()
                                     .<Component>map(
                                             definition ->
@@ -229,7 +178,7 @@ final class FoundryControllerHeaderStatusRenderer {
     }
 
     private static String displayName(
-            net.minecraft.resources.ResourceLocation id
+            ResourceLocation id
     ) {
         String path =
                 id.getPath()

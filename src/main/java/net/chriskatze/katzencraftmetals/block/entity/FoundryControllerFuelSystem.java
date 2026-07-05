@@ -26,13 +26,10 @@ final class FoundryControllerFuelSystem {
 
     /*
      * Kept for compatibility with older callers and saves that still use the
-     * old Coal-specific names.
+     * old Coal-specific name.
      */
     static final int COAL_BURN_TIME =
             FoundryFuels.COAL.burnTime();
-
-    static final int COAL_MAXIMUM_TEMPERATURE =
-            FoundryFuels.COAL.maximumTemperature();
 
     private final FoundryControllerBlockEntity controller;
 
@@ -57,7 +54,6 @@ final class FoundryControllerFuelSystem {
 
     private int burnTimeRemaining;
     private int maxBurnTime;
-    private int activeFuelMaximumTemperature;
 
     FoundryControllerFuelSystem(
             FoundryControllerBlockEntity controller
@@ -66,16 +62,12 @@ final class FoundryControllerFuelSystem {
     }
 
     /**
-     * Supplies one active burn tick.
+     * Supplies one burn tick to the currently running Foundry operation.
      *
-     * A running low-temperature fuel is never silently deleted. If a hotter
-     * job is queued while a weaker fuel cycle is still active, the old cycle
-     * finishes first. The next cycle then selects the weakest stored fuel that
-     * can reach the requested temperature.
+     * When no cycle is active, the first valid fuel in unlocked slot order is
+     * consumed. Fuel now differs only by burn duration.
      */
-    boolean supplyBurnTick(
-            int requiredTemperature
-    ) {
+    boolean supplyBurnTick() {
         if (
                 controller.getLevel() == null
                         || controller.getLevel().isClientSide()
@@ -85,9 +77,7 @@ final class FoundryControllerFuelSystem {
 
         if (
                 burnTimeRemaining <= 0
-                        && !consumeBestFuel(
-                        requiredTemperature
-                )
+                        && !consumeNextFuel()
         ) {
             return false;
         }
@@ -102,15 +92,7 @@ final class FoundryControllerFuelSystem {
         return true;
     }
 
-    private boolean consumeBestFuel(
-            int requiredTemperature
-    ) {
-        int bestSlot =
-                -1;
-
-        FoundryFuelDefinition bestDefinition =
-                null;
-
+    private boolean consumeNextFuel() {
         for (
                 int slot = 0;
                 slot < controller.getUnlockedFuelSlotCount();
@@ -129,54 +111,22 @@ final class FoundryControllerFuelSystem {
             FoundryFuelDefinition definition =
                     definitionOptional.get();
 
-            if (
-                    definition.maximumTemperature()
-                            < requiredTemperature
-            ) {
-                continue;
-            }
+            inventory.removeItem(
+                    slot,
+                    1
+            );
 
-            if (
-                    bestDefinition == null
-                            || definition.maximumTemperature()
-                            < bestDefinition.maximumTemperature()
-                            || (
-                            definition.maximumTemperature()
-                                    == bestDefinition.maximumTemperature()
-                                    && slot < bestSlot
-                    )
-            ) {
-                bestSlot =
-                        slot;
+            burnTimeRemaining =
+                    definition.burnTime();
 
-                bestDefinition =
-                        definition;
-            }
+            maxBurnTime =
+                    definition.burnTime();
+
+            controller.setChanged();
+            return true;
         }
 
-        if (
-                bestSlot < 0
-                        || bestDefinition == null
-        ) {
-            return false;
-        }
-
-        inventory.removeItem(
-                bestSlot,
-                1
-        );
-
-        burnTimeRemaining =
-                bestDefinition.burnTime();
-
-        maxBurnTime =
-                bestDefinition.burnTime();
-
-        activeFuelMaximumTemperature =
-                bestDefinition.maximumTemperature();
-
-        controller.setChanged();
-        return true;
+        return false;
     }
 
     boolean hasAvailableFuel() {
@@ -201,48 +151,6 @@ final class FoundryControllerFuelSystem {
         return false;
     }
 
-    boolean canReachTemperature(
-            int requiredTemperature
-    ) {
-        if (
-                requiredTemperature
-                        > controller.getTemperatureSystem()
-                        .getTierMaximumTemperature()
-        ) {
-            return false;
-        }
-
-        if (
-                burnTimeRemaining > 0
-                        && activeFuelMaximumTemperature
-                        >= requiredTemperature
-        ) {
-            return true;
-        }
-
-        for (
-                int slot = 0;
-                slot < controller.getUnlockedFuelSlotCount();
-                slot++
-        ) {
-            Optional<FoundryFuelDefinition> definition =
-                    FoundryFuels.find(
-                            inventory.getItem(slot)
-                    );
-
-            if (
-                    definition.isPresent()
-                            && definition.get()
-                            .maximumTemperature()
-                            >= requiredTemperature
-            ) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     boolean isBurning() {
         return burnTimeRemaining > 0;
     }
@@ -255,24 +163,15 @@ final class FoundryControllerFuelSystem {
         return maxBurnTime;
     }
 
-    int getActiveFuelMaximumTemperature() {
-        return Math.max(
-                FoundryControllerTemperature.AMBIENT_TEMPERATURE,
-                activeFuelMaximumTemperature
-        );
-    }
-
     int getStoredFuelCount() {
-        int count =
-                0;
+        int count = 0;
 
         for (int slot = 0; slot < FUEL_SLOT_COUNT; slot++) {
             ItemStack stack =
                     inventory.getItem(slot);
 
             if (FoundryFuels.isFuel(stack)) {
-                count +=
-                        stack.getCount();
+                count += stack.getCount();
             }
         }
 
@@ -404,9 +303,9 @@ final class FoundryControllerFuelSystem {
             long combinedMaximum =
                     (long) maxBurnTime
                             + Math.max(
-                                    legacyBurnTime,
-                                    legacyMaxBurnTime
-                            );
+                            legacyBurnTime,
+                            legacyMaxBurnTime
+                    );
 
             burnTimeRemaining =
                     (int) Math.min(
@@ -421,12 +320,6 @@ final class FoundryControllerFuelSystem {
                                     combinedRemaining,
                                     combinedMaximum
                             )
-                    );
-
-            activeFuelMaximumTemperature =
-                    Math.max(
-                            activeFuelMaximumTemperature,
-                            COAL_MAXIMUM_TEMPERATURE
                     );
 
             controller.setChanged();
@@ -547,9 +440,7 @@ final class FoundryControllerFuelSystem {
     ) {
         tag.put(
                 "FuelInventory",
-                inventory.createTag(
-                        registries
-                )
+                inventory.createTag(registries)
         );
 
         tag.putInt(
@@ -560,11 +451,6 @@ final class FoundryControllerFuelSystem {
         tag.putInt(
                 "MaxBurnTime",
                 maxBurnTime
-        );
-
-        tag.putInt(
-                "ActiveFuelMaximumTemperature",
-                activeFuelMaximumTemperature
         );
     }
 
@@ -604,19 +490,5 @@ final class FoundryControllerFuelSystem {
                                 "MaxBurnTime"
                         )
                 );
-
-        activeFuelMaximumTemperature =
-                burnTimeRemaining > 0
-                        ? Math.max(
-                        FoundryControllerTemperature.AMBIENT_TEMPERATURE,
-                        tag.contains(
-                                "ActiveFuelMaximumTemperature"
-                        )
-                                ? tag.getInt(
-                                "ActiveFuelMaximumTemperature"
-                        )
-                                : COAL_MAXIMUM_TEMPERATURE
-                )
-                        : 0;
     }
 }
