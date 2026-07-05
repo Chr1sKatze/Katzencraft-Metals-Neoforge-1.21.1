@@ -14,6 +14,10 @@ final class FoundryControllerUiLayout {
     static final int STATUS_TEXT_X = 52;
     static final int STATUS_TEXT_Y = 218;
 
+    /*
+     * Actual 16 x 16 item-slot positions. The authored 18 x 18 frames begin
+     * one pixel above and left of these coordinates.
+     */
     static final int[] INPUT_SLOT_X = {
             41, 41, 60, 60, 79, 79, 98, 98
     };
@@ -27,12 +31,10 @@ final class FoundryControllerUiLayout {
     static final int SLOT_SPACING = 19;
 
     static final int BURN_BAR_X = 41;
-    /* Exact inside of the authored burn-time frame: x 41..113, y 120..127. */
     static final int BURN_BAR_Y = 120;
     static final int BURN_BAR_WIDTH = 73;
     static final int BURN_BAR_HEIGHT = 8;
 
-    /* Shared vertical progress display for melting and alloying. */
     static final int PROGRESS_GAUGE_X = 18;
     static final int PROGRESS_GAUGE_Y = 56;
     static final int PROGRESS_GAUGE_WIDTH = 5;

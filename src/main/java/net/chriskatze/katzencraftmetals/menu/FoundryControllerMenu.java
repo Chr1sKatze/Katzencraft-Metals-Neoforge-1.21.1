@@ -26,8 +26,7 @@ import net.minecraft.world.item.crafting.SingleRecipeInput;
 import java.util.List;
 import java.util.Optional;
 
-public class FoundryControllerMenu
-        extends AbstractContainerMenu {
+public class FoundryControllerMenu extends AbstractContainerMenu {
 
     private static final int INPUT_SLOT_COUNT =
             FoundryControllerBlockEntity.INPUT_SLOT_COUNT;
@@ -36,8 +35,7 @@ public class FoundryControllerMenu
             FoundryControllerBlockEntity.FUEL_SLOT_COUNT;
 
     private static final int MACHINE_SLOT_COUNT =
-            INPUT_SLOT_COUNT
-                    + FUEL_SLOT_COUNT;
+            INPUT_SLOT_COUNT + FUEL_SLOT_COUNT;
 
     private static final int DATA_COUNT =
             FoundryControllerBlockEntity.DATA_COUNT;
@@ -55,34 +53,24 @@ public class FoundryControllerMenu
 
     public static final int MAX_ALLOY_BATCHES = 99;
 
+    /*
+     * These are the actual Minecraft Slot positions inside the authored
+     * 18 x 18 frames. The frame itself begins one pixel above and left.
+     */
     private static final int[] INPUT_SLOT_X = {
-            43,
-            43,
-            62,
-            62,
-            81,
-            81,
-            100,
-            100
+            41, 41, 60, 60, 79, 79, 98, 98
     };
 
     private static final int[] INPUT_SLOT_Y = {
-            60,
-            79,
-            60,
-            79,
-            60,
-            79,
-            60,
-            79
+            56, 75, 56, 75, 56, 75, 56, 75
     };
 
-    private static final int FUEL_SLOT_START_X = 43;
-    private static final int FUEL_SLOT_Y = 103;
+    private static final int FUEL_SLOT_START_X = 41;
+    private static final int FUEL_SLOT_Y = 99;
     private static final int SLOT_SPACING = 19;
 
-    private static final int PLAYER_INVENTORY_X = 8;
-    private static final int PLAYER_INVENTORY_Y = 159;
+    private static final int PLAYER_INVENTORY_X = 7;
+    private static final int PLAYER_INVENTORY_Y = 155;
 
     private final FoundryControllerBlockEntity blockEntity;
     private final Container inputContainer;
@@ -98,13 +86,8 @@ public class FoundryControllerMenu
         this(
                 containerId,
                 playerInventory,
-                getBlockEntity(
-                        playerInventory,
-                        extraData
-                ),
-                new SimpleContainerData(
-                        DATA_COUNT
-                )
+                getBlockEntity(playerInventory, extraData),
+                new SimpleContainerData(DATA_COUNT)
         );
     }
 
@@ -133,39 +116,20 @@ public class FoundryControllerMenu
         );
 
         this.blockEntity = blockEntity;
-        this.inputContainer =
-                blockEntity.getInputInventory();
-        this.fuelContainer =
-                blockEntity.getFuelInventory();
+        this.inputContainer = blockEntity.getInputInventory();
+        this.fuelContainer = blockEntity.getFuelInventory();
         this.data = data;
-        this.access =
-                ContainerLevelAccess.create(
-                        blockEntity.getLevel(),
-                        blockEntity.getBlockPos()
-                );
-
-        checkContainerSize(
-                inputContainer,
-                INPUT_SLOT_COUNT
+        this.access = ContainerLevelAccess.create(
+                blockEntity.getLevel(),
+                blockEntity.getBlockPos()
         );
 
-        checkContainerSize(
-                fuelContainer,
-                FUEL_SLOT_COUNT
-        );
+        checkContainerSize(inputContainer, INPUT_SLOT_COUNT);
+        checkContainerSize(fuelContainer, FUEL_SLOT_COUNT);
+        checkContainerDataCount(data, DATA_COUNT);
 
-        checkContainerDataCount(
-                data,
-                DATA_COUNT
-        );
-
-        inputContainer.startOpen(
-                playerInventory.player
-        );
-
-        fuelContainer.startOpen(
-                playerInventory.player
-        );
+        inputContainer.startOpen(playerInventory.player);
+        fuelContainer.startOpen(playerInventory.player);
 
         addDataSlots(data);
         addInputSlots();
@@ -174,11 +138,7 @@ public class FoundryControllerMenu
     }
 
     private void addInputSlots() {
-        for (
-                int slot = 0;
-                slot < INPUT_SLOT_COUNT;
-                slot++
-        ) {
+        for (int slot = 0; slot < INPUT_SLOT_COUNT; slot++) {
             final int inputSlot = slot;
 
             addSlot(
@@ -188,26 +148,20 @@ public class FoundryControllerMenu
                             INPUT_SLOT_X[inputSlot],
                             INPUT_SLOT_Y[inputSlot]
                     ) {
-
                         @Override
-                        public boolean mayPlace(
-                                ItemStack stack
-                        ) {
-                            return isInputSlotUnlocked(
-                                    inputSlot
-                            )
+                        public boolean mayPlace(ItemStack stack) {
+                            return isInputSlotUnlocked(inputSlot)
                                     && blockEntity.canMelt(stack);
                         }
 
                         @Override
-                        public boolean mayPickup(
-                                Player player
-                        ) {
-                            /*
-                             * Existing items remain removable even if a legacy
-                             * save loads them into a currently locked slot.
-                             */
-                            return true;
+                        public boolean mayPickup(Player player) {
+                            return isInputSlotUnlocked(inputSlot);
+                        }
+
+                        @Override
+                        public boolean isActive() {
+                            return isInputSlotUnlocked(inputSlot);
                         }
                     }
             );
@@ -215,37 +169,30 @@ public class FoundryControllerMenu
     }
 
     private void addFuelSlots() {
-        for (
-                int slot = 0;
-                slot < FUEL_SLOT_COUNT;
-                slot++
-        ) {
+        for (int slot = 0; slot < FUEL_SLOT_COUNT; slot++) {
             final int fuelSlot = slot;
 
             addSlot(
                     new Slot(
                             fuelContainer,
                             fuelSlot,
-                            FUEL_SLOT_START_X
-                                    + fuelSlot * SLOT_SPACING,
+                            FUEL_SLOT_START_X + fuelSlot * SLOT_SPACING,
                             FUEL_SLOT_Y
                     ) {
-
                         @Override
-                        public boolean mayPlace(
-                                ItemStack stack
-                        ) {
-                            return isFuelSlotUnlocked(
-                                    fuelSlot
-                            )
+                        public boolean mayPlace(ItemStack stack) {
+                            return isFuelSlotUnlocked(fuelSlot)
                                     && FoundryFuels.isFuel(stack);
                         }
 
                         @Override
-                        public boolean mayPickup(
-                                Player player
-                        ) {
-                            return true;
+                        public boolean mayPickup(Player player) {
+                            return isFuelSlotUnlocked(fuelSlot);
+                        }
+
+                        @Override
+                        public boolean isActive() {
+                            return isFuelSlotUnlocked(fuelSlot);
                         }
                     }
             );
@@ -256,24 +203,18 @@ public class FoundryControllerMenu
             Inventory playerInventory,
             FriendlyByteBuf extraData
     ) {
-        var pos =
-                extraData.readBlockPos();
+        var pos = extraData.readBlockPos();
 
-        var blockEntity =
-                playerInventory.player
-                        .level()
-                        .getBlockEntity(pos);
+        var blockEntity = playerInventory.player
+                .level()
+                .getBlockEntity(pos);
 
-        if (
-                blockEntity
-                        instanceof FoundryControllerBlockEntity controller
-        ) {
+        if (blockEntity instanceof FoundryControllerBlockEntity controller) {
             return controller;
         }
 
         throw new IllegalStateException(
-                "FoundryControllerBlockEntity missing at "
-                        + pos
+                "FoundryControllerBlockEntity missing at " + pos
         );
     }
 
@@ -285,19 +226,11 @@ public class FoundryControllerMenu
         return data.get(1);
     }
 
-    public int getScaledProgress(
-            int size
-    ) {
-        int progress =
-                getProgress();
+    public int getScaledProgress(int size) {
+        int progress = getProgress();
+        int maxProgress = getMaxProgress();
 
-        int maxProgress =
-                getMaxProgress();
-
-        if (
-                progress <= 0
-                        || maxProgress <= 0
-        ) {
+        if (progress <= 0 || maxProgress <= 0) {
             return 0;
         }
 
@@ -305,16 +238,13 @@ public class FoundryControllerMenu
                 0,
                 Math.min(
                         size,
-                        progress
-                                * size
-                                / maxProgress
+                        progress * size / maxProgress
                 )
         );
     }
 
     public int getProgressPercent() {
-        int maxProgress =
-                getMaxProgress();
+        int maxProgress = getMaxProgress();
 
         if (maxProgress <= 0) {
             return 0;
@@ -324,40 +254,28 @@ public class FoundryControllerMenu
                 0,
                 Math.min(
                         100,
-                        getProgress()
-                                * 100
-                                / maxProgress
+                        getProgress() * 100 / maxProgress
                 )
         );
     }
 
     public int getBurnTimeRemaining() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .BURN_TIME_DATA_INDEX
+                FoundryControllerBlockEntity.BURN_TIME_DATA_INDEX
         );
     }
 
     public int getMaxBurnTime() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .MAX_BURN_TIME_DATA_INDEX
+                FoundryControllerBlockEntity.MAX_BURN_TIME_DATA_INDEX
         );
     }
 
-    public int getScaledBurnTime(
-            int size
-    ) {
-        int burnTime =
-                getBurnTimeRemaining();
+    public int getScaledBurnTime(int size) {
+        int burnTime = getBurnTimeRemaining();
+        int maxBurnTime = getMaxBurnTime();
 
-        int maxBurnTime =
-                getMaxBurnTime();
-
-        if (
-                burnTime <= 0
-                        || maxBurnTime <= 0
-        ) {
+        if (burnTime <= 0 || maxBurnTime <= 0) {
             return 0;
         }
 
@@ -365,38 +283,32 @@ public class FoundryControllerMenu
                 0,
                 Math.min(
                         size,
-                        burnTime
-                                * size
-                                / maxBurnTime
+                        burnTime * size / maxBurnTime
                 )
         );
     }
 
     public int getProcessingStatus() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .STATUS_DATA_INDEX
+                FoundryControllerBlockEntity.STATUS_DATA_INDEX
         );
     }
 
     public int getFoundryTier() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .TIER_DATA_INDEX
+                FoundryControllerBlockEntity.TIER_DATA_INDEX
         );
     }
 
     public int getFoundryExperience() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .EXPERIENCE_DATA_INDEX
+                FoundryControllerBlockEntity.EXPERIENCE_DATA_INDEX
         );
     }
 
     public int getTierExperience() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .TIER_EXPERIENCE_DATA_INDEX
+                FoundryControllerBlockEntity.TIER_EXPERIENCE_DATA_INDEX
         );
     }
 
@@ -410,9 +322,7 @@ public class FoundryControllerMenu
         );
     }
 
-    public int getScaledExperience(
-            int width
-    ) {
+    public int getScaledExperience(int width) {
         if (getFoundryTier() >= 4) {
             return width;
         }
@@ -448,24 +358,19 @@ public class FoundryControllerMenu
         );
     }
 
-    public boolean isInputSlotUnlocked(
-            int slot
-    ) {
+    public boolean isInputSlotUnlocked(int slot) {
         return slot >= 0
                 && slot < getUnlockedInputSlotCount();
     }
 
-    public boolean isFuelSlotUnlocked(
-            int slot
-    ) {
+    public boolean isFuelSlotUnlocked(int slot) {
         return slot >= 0
                 && slot < getUnlockedFuelSlotCount();
     }
 
     public int getActiveInputSlot() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .ACTIVE_INPUT_SLOT_DATA_INDEX
+                FoundryControllerBlockEntity.ACTIVE_INPUT_SLOT_DATA_INDEX
         );
     }
 
@@ -474,16 +379,8 @@ public class FoundryControllerMenu
             return true;
         }
 
-        for (
-                int slot = 0;
-                slot < getUnlockedFuelSlotCount();
-                slot++
-        ) {
-            if (
-                    FoundryFuels.isFuel(
-                            fuelContainer.getItem(slot)
-                    )
-            ) {
+        for (int slot = 0; slot < getUnlockedFuelSlotCount(); slot++) {
+            if (FoundryFuels.isFuel(fuelContainer.getItem(slot))) {
                 return true;
             }
         }
@@ -492,23 +389,14 @@ public class FoundryControllerMenu
     }
 
     public ItemStack getInputStack() {
-        int activeSlot =
-                getActiveInputSlot();
+        int activeSlot = getActiveInputSlot();
 
-        if (
-                activeSlot >= 0
-                        && activeSlot < INPUT_SLOT_COUNT
-        ) {
+        if (activeSlot >= 0 && activeSlot < INPUT_SLOT_COUNT) {
             return inputContainer.getItem(activeSlot);
         }
 
-        for (
-                int slot = 0;
-                slot < getUnlockedInputSlotCount();
-                slot++
-        ) {
-            ItemStack stack =
-                    inputContainer.getItem(slot);
+        for (int slot = 0; slot < getUnlockedInputSlotCount(); slot++) {
+            ItemStack stack = inputContainer.getItem(slot);
 
             if (!stack.isEmpty()) {
                 return stack;
@@ -519,13 +407,9 @@ public class FoundryControllerMenu
     }
 
     public Optional<MoltenMetalDefinition> getInputMoltenMetalDefinition() {
-        ItemStack input =
-                getInputStack();
+        ItemStack input = getInputStack();
 
-        if (
-                input.isEmpty()
-                        || blockEntity.getLevel() == null
-        ) {
+        if (input.isEmpty() || blockEntity.getLevel() == null) {
             return Optional.empty();
         }
 
@@ -536,31 +420,19 @@ public class FoundryControllerMenu
                         new SingleRecipeInput(input),
                         blockEntity.getLevel()
                 )
-                .map(
-                        holder ->
-                                holder.value()
-                                        .moltenMetal()
-                )
-                .flatMap(
-                        ModMoltenMetals::get
-                );
+                .map(holder -> holder.value().moltenMetal())
+                .flatMap(ModMoltenMetals::get);
     }
 
-    public int getMetalAmount(
-            MoltenMetalDefinition definition
-    ) {
-        int syncId =
-                ModMoltenMetals.getSyncId(
-                        definition.id()
-                );
+    public int getMetalAmount(MoltenMetalDefinition definition) {
+        int syncId = ModMoltenMetals.getSyncId(definition.id());
 
         if (syncId < 0) {
             return 0;
         }
 
         return data.get(
-                FoundryControllerBlockEntity.METAL_DATA_START
-                        + syncId
+                FoundryControllerBlockEntity.METAL_DATA_START + syncId
         );
     }
 
@@ -575,28 +447,24 @@ public class FoundryControllerMenu
 
     public int getTotalMoltenAmount() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .TOTAL_AMOUNT_DATA_INDEX
+                FoundryControllerBlockEntity.TOTAL_AMOUNT_DATA_INDEX
         );
     }
 
     public int getTankCapacity() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .CAPACITY_DATA_INDEX
+                FoundryControllerBlockEntity.CAPACITY_DATA_INDEX
         );
     }
 
     public int getTankCount() {
-        int capacity =
-                getTankCapacity();
+        int capacity = getTankCapacity();
 
         if (capacity <= 0) {
             return 0;
         }
 
-        return capacity
-                / FoundryTankBlockEntity.CAPACITY;
+        return capacity / FoundryTankBlockEntity.CAPACITY;
     }
 
     public int getMaximumTankCount() {
@@ -606,89 +474,61 @@ public class FoundryControllerMenu
     public List<RecipeHolder<FoundryAlloyRecipe>> getAlloyRecipes() {
         return blockEntity.getLevel() == null
                 ? List.of()
-                : FoundryAlloyCatalog.getRecipes(
-                blockEntity.getLevel()
-        );
+                : FoundryAlloyCatalog.getRecipes(blockEntity.getLevel());
     }
 
-    public int getMaxCraftableBatches(
-            FoundryAlloyRecipe recipe
-    ) {
+    public int getMaxCraftableBatches(FoundryAlloyRecipe recipe) {
         if (
                 recipe == null
-                        || recipe.requiredTier()
-                        > getFoundryTier()
+                        || recipe.requiredTier() > getFoundryTier()
                         || blockEntity.getLevel() == null
-                        || ModMoltenMetals.get(
-                        recipe.outputMetal()
-                ).isEmpty()
+                        || ModMoltenMetals.get(recipe.outputMetal()).isEmpty()
         ) {
             return 0;
         }
 
-        int maximum =
-                MAX_ALLOY_BATCHES;
-
+        int maximum = MAX_ALLOY_BATCHES;
         int totalInputPerBatch = 0;
 
-        for (
-                var ingredient :
-                recipe.ingredients()
-        ) {
+        for (var ingredient : recipe.ingredients()) {
             Optional<MoltenMetalDefinition> definition =
-                    ModMoltenMetals.get(
-                            ingredient.metal()
-                    );
+                    ModMoltenMetals.get(ingredient.metal());
 
             if (definition.isEmpty()) {
                 return 0;
             }
 
-            int available =
-                    getMetalAmount(
-                            definition.get()
-                    );
+            int available = getMetalAmount(definition.get());
 
-            maximum =
-                    Math.min(
-                            maximum,
-                            available
-                                    / ingredient.amount()
-                    );
+            maximum = Math.min(
+                    maximum,
+                    available / ingredient.amount()
+            );
 
-            totalInputPerBatch +=
-                    ingredient.amount();
+            totalInputPerBatch += ingredient.amount();
         }
 
         int netGrowthPerBatch =
-                recipe.outputAmount()
-                        - totalInputPerBatch;
+                recipe.outputAmount() - totalInputPerBatch;
 
         if (netGrowthPerBatch > 0) {
-            int free =
-                    Math.max(
-                            0,
-                            getTankCapacity()
-                                    - getTotalMoltenAmount()
-                    );
+            int free = Math.max(
+                    0,
+                    getTankCapacity() - getTotalMoltenAmount()
+            );
 
-            maximum =
-                    Math.min(
-                            maximum,
-                            free / netGrowthPerBatch
-                    );
+            maximum = Math.min(
+                    maximum,
+                    free / netGrowthPerBatch
+            );
         }
 
-        return Math.max(
-                0,
-                maximum
-        );
+        return Math.max(0, maximum);
     }
 
     public boolean isAlloyJobActive() {
         return data.get(
-                FoundryControllerBlockEntity
-                        .ALLOY_ACTIVE_DATA_INDEX
+                FoundryControllerBlockEntity.ALLOY_ACTIVE_DATA_INDEX
         ) != 0;
     }
 
@@ -704,33 +544,27 @@ public class FoundryControllerMenu
     public static int createSelectMetalButton(
             MoltenMetalDefinition definition
     ) {
-        int syncId =
-                ModMoltenMetals.getSyncId(
-                        definition.id()
-                );
+        int syncId = ModMoltenMetals.getSyncId(definition.id());
 
         return syncId < 0
                 ? -1
-                : SELECT_METAL_BUTTON_BASE
-                + syncId;
+                : SELECT_METAL_BUTTON_BASE + syncId;
     }
 
     public static int createStartAlloyButton(
             int recipeIndex,
             int quantity
     ) {
-        int normalizedQuantity =
-                Math.max(
-                        1,
-                        Math.min(
-                                MAX_ALLOY_BATCHES,
-                                quantity
-                        )
-                );
+        int normalizedQuantity = Math.max(
+                1,
+                Math.min(
+                        MAX_ALLOY_BATCHES,
+                        quantity
+                )
+        );
 
         return START_ALLOY_BUTTON_BASE
-                + recipeIndex
-                * ALLOY_BUTTON_QUANTITY_BASE
+                + recipeIndex * ALLOY_BUTTON_QUANTITY_BASE
                 + normalizedQuantity;
     }
 
@@ -744,8 +578,7 @@ public class FoundryControllerMenu
                         && buttonId < START_ALLOY_BUTTON_BASE
         ) {
             int syncId =
-                    buttonId
-                            - SELECT_METAL_BUTTON_BASE;
+                    buttonId - SELECT_METAL_BUTTON_BASE;
 
             return ModMoltenMetals.bySyncId(syncId)
                     .map(
@@ -762,16 +595,13 @@ public class FoundryControllerMenu
         }
 
         int encoded =
-                buttonId
-                        - START_ALLOY_BUTTON_BASE;
+                buttonId - START_ALLOY_BUTTON_BASE;
 
         int recipeIndex =
-                encoded
-                        / ALLOY_BUTTON_QUANTITY_BASE;
+                encoded / ALLOY_BUTTON_QUANTITY_BASE;
 
         int quantity =
-                encoded
-                        % ALLOY_BUTTON_QUANTITY_BASE;
+                encoded % ALLOY_BUTTON_QUANTITY_BASE;
 
         return quantity >= 1
                 && quantity <= MAX_ALLOY_BATCHES
@@ -782,9 +612,7 @@ public class FoundryControllerMenu
     }
 
     @Override
-    public boolean stillValid(
-            Player player
-    ) {
+    public boolean stillValid(Player player) {
         return stillValid(
                 access,
                 player,
@@ -797,18 +625,14 @@ public class FoundryControllerMenu
             Player player,
             int index
     ) {
-        Slot slot =
-                slots.get(index);
+        Slot slot = slots.get(index);
 
         if (!slot.hasItem()) {
             return ItemStack.EMPTY;
         }
 
-        ItemStack stack =
-                slot.getItem();
-
-        ItemStack originalStack =
-                stack.copy();
+        ItemStack stack = slot.getItem();
+        ItemStack originalStack = stack.copy();
 
         if (index < MACHINE_SLOT_COUNT) {
             if (
@@ -850,32 +674,21 @@ public class FoundryControllerMenu
         }
 
         if (stack.isEmpty()) {
-            slot.setByPlayer(
-                    ItemStack.EMPTY
-            );
+            slot.setByPlayer(ItemStack.EMPTY);
         } else {
             slot.setChanged();
         }
 
-        if (
-                stack.getCount()
-                        == originalStack.getCount()
-        ) {
+        if (stack.getCount() == originalStack.getCount()) {
             return ItemStack.EMPTY;
         }
 
-        slot.onTake(
-                player,
-                stack
-        );
-
+        slot.onTake(player, stack);
         return originalStack;
     }
 
     @Override
-    public void removed(
-            Player player
-    ) {
+    public void removed(Player player) {
         super.removed(player);
 
         inputContainer.stopOpen(player);
@@ -890,13 +703,9 @@ public class FoundryControllerMenu
                 addSlot(
                         new Slot(
                                 playerInventory,
-                                column
-                                        + row * 9
-                                        + 9,
-                                PLAYER_INVENTORY_X
-                                        + column * 18,
-                                PLAYER_INVENTORY_Y
-                                        + row * 18
+                                column + row * 9 + 9,
+                                PLAYER_INVENTORY_X + column * 18,
+                                PLAYER_INVENTORY_Y + row * 18
                         )
                 );
             }
