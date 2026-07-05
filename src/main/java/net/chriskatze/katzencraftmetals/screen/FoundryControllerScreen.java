@@ -435,9 +435,16 @@ public class FoundryControllerScreen
         String value = alloyQuantityBox.getValue();
         int textWidth = font.width(value);
 
-        int centeredX =
+        int editBarLeft =
                 leftPos
-                        + FoundryControllerUiLayout.QUANTITY_EDITBAR_X
+                        + FoundryControllerUiLayout.QUANTITY_EDITBAR_X;
+
+        int editBarRight =
+                editBarLeft
+                        + FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH;
+
+        int centeredX =
+                editBarLeft
                         + (
                         FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH
                                 - textWidth
@@ -448,10 +455,16 @@ public class FoundryControllerScreen
                 topPos
                         + FoundryControllerUiLayout.QUANTITY_TEXT_Y
         );
+
+        /*
+         * Keep enough editable width for a second digit and the cursor.
+         * Making the widget only as wide as the current text caused EditBox
+         * to scroll horizontally as soon as the value reached 10.
+         */
         alloyQuantityBox.setWidth(
                 Math.max(
                         1,
-                        textWidth + 1
+                        editBarRight - centeredX
                 )
         );
     }
