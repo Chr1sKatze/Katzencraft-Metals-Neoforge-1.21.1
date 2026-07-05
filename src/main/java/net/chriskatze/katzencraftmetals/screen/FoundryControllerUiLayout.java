@@ -101,11 +101,12 @@ final class FoundryControllerUiLayout {
      * The EditBox has no border of its own. Its x position is adjusted at
      * runtime so the entered number is horizontally centered in the edit bar.
      */
-    static final int QUANTITY_TEXT_Y = 209;
+    static final int QUANTITY_TEXT_Y = 211;
     static final int QUANTITY_TEXT_HEIGHT = 10;
 
     static final int START_X = 226;
     static final int START_Y = 207;
+    static final int START_TEXT_Y = 208;
     static final int START_WIDTH = 49;
     static final int START_HEIGHT = 15;
 

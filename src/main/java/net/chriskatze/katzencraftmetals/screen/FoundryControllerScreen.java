@@ -160,6 +160,7 @@ public class FoundryControllerScreen
                         FoundryControllerUiLayout.QUANTITY_EDITBAR_HEIGHT
                 )
         ) {
+            setFocused(alloyQuantityBox);
             alloyQuantityBox.setFocused(true);
             return true;
         }
@@ -168,6 +169,57 @@ public class FoundryControllerScreen
                 mouseX,
                 mouseY,
                 button
+        );
+    }
+
+    @Override
+    public boolean charTyped(
+            char codePoint,
+            int modifiers
+    ) {
+        if (
+                alloyQuantityBox != null
+                        && alloyQuantityEnabled
+                        && alloyQuantityBox.isFocused()
+                        && alloyQuantityBox.charTyped(
+                        codePoint,
+                        modifiers
+                )
+        ) {
+            centerAlloyQuantityText();
+            return true;
+        }
+
+        return super.charTyped(
+                codePoint,
+                modifiers
+        );
+    }
+
+    @Override
+    public boolean keyPressed(
+            int keyCode,
+            int scanCode,
+            int modifiers
+    ) {
+        if (
+                alloyQuantityBox != null
+                        && alloyQuantityEnabled
+                        && alloyQuantityBox.isFocused()
+                        && alloyQuantityBox.keyPressed(
+                        keyCode,
+                        scanCode,
+                        modifiers
+                )
+        ) {
+            centerAlloyQuantityText();
+            return true;
+        }
+
+        return super.keyPressed(
+                keyCode,
+                scanCode,
+                modifiers
         );
     }
 

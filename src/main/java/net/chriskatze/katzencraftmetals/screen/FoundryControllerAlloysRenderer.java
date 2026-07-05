@@ -668,7 +668,7 @@ final class FoundryControllerAlloysRenderer {
                 screen.guiLeft()
                         + FoundryControllerUiLayout.START_X,
                 screen.guiTop()
-                        + FoundryControllerUiLayout.START_Y
+                        + FoundryControllerUiLayout.START_TEXT_Y
                         + (
                         startPressed
                                 ? 1
