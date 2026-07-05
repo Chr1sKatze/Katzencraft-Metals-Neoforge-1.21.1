@@ -136,18 +136,9 @@ public class FoundryControllerScreen
             double mouseY,
             int button
     ) {
-        if (
-                overviewRenderer.mouseClicked(
-                        mouseX,
-                        mouseY,
-                        button
-                )
-        ) {
-            return true;
-        }
-
-        if (
+        boolean overQuantityEditBar =
                 button == 0
+                        && alloyQuantityBox != null
                         && alloyQuantityEnabled
                         && FoundryControllerUiLayout.contains(
                         mouseX,
@@ -158,10 +149,43 @@ public class FoundryControllerScreen
                         FoundryControllerUiLayout.QUANTITY_EDITBAR_Y,
                         FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH,
                         FoundryControllerUiLayout.QUANTITY_EDITBAR_HEIGHT
-                )
-        ) {
+                );
+
+        if (overQuantityEditBar) {
             setFocused(alloyQuantityBox);
             alloyQuantityBox.setFocused(true);
+
+            /*
+             * Select the complete current value. Typing "99" therefore
+             * replaces "1" instead of trying to append to it as "199".
+             */
+            alloyQuantityBox.setCursorPosition(
+                    alloyQuantityBox.getValue().length()
+            );
+            alloyQuantityBox.setHighlightPos(0);
+            return true;
+        }
+
+        /*
+         * Commit before forwarding the click. This means START receives the
+         * clamped amount, and +/- operate on the clamped value first.
+         */
+        if (
+                button == 0
+                        && alloyQuantityBox != null
+                        && alloyQuantityBox.isFocused()
+        ) {
+            commitAlloyQuantity();
+            stopEditingAlloyQuantity();
+        }
+
+        if (
+                overviewRenderer.mouseClicked(
+                        mouseX,
+                        mouseY,
+                        button
+                )
+        ) {
             return true;
         }
 
@@ -206,14 +230,27 @@ public class FoundryControllerScreen
                 alloyQuantityBox != null
                         && alloyQuantityEnabled
                         && alloyQuantityBox.isFocused()
-                        && alloyQuantityBox.keyPressed(
-                        keyCode,
-                        scanCode,
-                        modifiers
-                )
         ) {
-            centerAlloyQuantityText();
-            return true;
+            /*
+             * GLFW_KEY_ENTER = 257
+             * GLFW_KEY_KP_ENTER = 335
+             */
+            if (keyCode == 257 || keyCode == 335) {
+                commitAlloyQuantity();
+                stopEditingAlloyQuantity();
+                return true;
+            }
+
+            if (
+                    alloyQuantityBox.keyPressed(
+                            keyCode,
+                            scanCode,
+                            modifiers
+                    )
+            ) {
+                centerAlloyQuantityText();
+                return true;
+            }
         }
 
         return super.keyPressed(
@@ -350,24 +387,33 @@ public class FoundryControllerScreen
 
         if (!enabled) {
             alloyQuantityBox.setValue("");
+            stopEditingAlloyQuantity();
             centerAlloyQuantityText();
             return;
         }
 
-        if (
-                reset
-                        || alloyQuantityBox.getValue().isEmpty()
-        ) {
+        if (reset) {
             alloyQuantityBox.setValue("1");
-        } else {
-            alloyQuantityBox.setValue(
-                    Integer.toString(
-                            getAlloyQuantity()
-                    )
-            );
+            stopEditingAlloyQuantity();
+            centerAlloyQuantityText();
+            return;
         }
 
-        centerAlloyQuantityText();
+        /*
+         * configureAlloyQuantity() runs during normal rendering.
+         * Preserve the raw text while the user is editing. For example,
+         * "99" must remain visible even when only 24 batches are possible.
+         */
+        if (alloyQuantityBox.isFocused()) {
+            centerAlloyQuantityText();
+            return;
+        }
+
+        /*
+         * Outside edit mode, keep the displayed amount valid if available
+         * materials or tank space changed.
+         */
+        commitAlloyQuantity();
     }
 
     void changeAlloyQuantity(
@@ -380,19 +426,32 @@ public class FoundryControllerScreen
             return;
         }
 
-        int next =
-                Math.max(
-                        1,
-                        Math.min(
-                                alloyQuantityLimit,
-                                getAlloyQuantity() + delta
-                        )
-                );
+        /*
+         * getAlloyQuantity() clamps the raw typed value first.
+         * Example with a limit of 24:
+         *   raw 99 + minus -> 24 -> 23
+         *   raw 99 + plus  -> 24 -> 1
+         */
+        int current = getAlloyQuantity();
+        int next = current;
+
+        if (delta < 0) {
+            next =
+                    current <= 1
+                            ? alloyQuantityLimit
+                            : current - 1;
+        } else if (delta > 0) {
+            next =
+                    current >= alloyQuantityLimit
+                            ? 1
+                            : current + 1;
+        }
 
         alloyQuantityBox.setValue(
                 Integer.toString(next)
         );
 
+        stopEditingAlloyQuantity();
         centerAlloyQuantityText();
     }
 
@@ -425,6 +484,32 @@ public class FoundryControllerScreen
         );
 
         return true;
+    }
+
+    private void commitAlloyQuantity() {
+        if (alloyQuantityBox == null) {
+            return;
+        }
+
+        alloyQuantityBox.setValue(
+                Integer.toString(
+                        getAlloyQuantity()
+                )
+        );
+
+        centerAlloyQuantityText();
+    }
+
+    private void stopEditingAlloyQuantity() {
+        if (alloyQuantityBox == null) {
+            return;
+        }
+
+        alloyQuantityBox.setFocused(false);
+
+        if (getFocused() == alloyQuantityBox) {
+            setFocused(null);
+        }
     }
 
     private void centerAlloyQuantityText() {
