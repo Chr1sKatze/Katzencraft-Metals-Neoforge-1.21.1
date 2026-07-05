@@ -7,8 +7,10 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.player.Inventory;
 
 public class FoundryControllerScreen
@@ -53,11 +55,11 @@ public class FoundryControllerScreen
                 new EditBox(
                         font,
                         leftPos
-                                + FoundryControllerUiLayout.QUANTITY_X,
+                                + FoundryControllerUiLayout.QUANTITY_EDITBAR_X,
                         topPos
-                                + FoundryControllerUiLayout.QUANTITY_Y,
-                        FoundryControllerUiLayout.QUANTITY_WIDTH,
-                        10,
+                                + FoundryControllerUiLayout.QUANTITY_TEXT_Y,
+                        FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH,
+                        FoundryControllerUiLayout.QUANTITY_TEXT_HEIGHT,
                         Component.literal(
                                 "Alloy batch amount"
                         )
@@ -89,9 +91,8 @@ public class FoundryControllerScreen
                 }
         );
 
-        addRenderableWidget(
-                alloyQuantityBox
-        );
+        addRenderableWidget(alloyQuantityBox);
+        centerAlloyQuantityText();
     }
 
     @Override
@@ -145,6 +146,24 @@ public class FoundryControllerScreen
             return true;
         }
 
+        if (
+                button == 0
+                        && alloyQuantityEnabled
+                        && FoundryControllerUiLayout.contains(
+                        mouseX,
+                        mouseY,
+                        leftPos,
+                        topPos,
+                        FoundryControllerUiLayout.QUANTITY_EDITBAR_X,
+                        FoundryControllerUiLayout.QUANTITY_EDITBAR_Y,
+                        FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH,
+                        FoundryControllerUiLayout.QUANTITY_EDITBAR_HEIGHT
+                )
+        ) {
+            alloyQuantityBox.setFocused(true);
+            return true;
+        }
+
         return super.mouseClicked(
                 mouseX,
                 mouseY,
@@ -184,6 +203,8 @@ public class FoundryControllerScreen
             int mouseY,
             float partialTick
     ) {
+        centerAlloyQuantityText();
+
         renderBackground(
                 graphics,
                 mouseX,
@@ -272,15 +293,12 @@ public class FoundryControllerScreen
                         )
                 );
 
-        alloyQuantityEnabled =
-                enabled;
-
-        alloyQuantityBox.setEditable(
-                enabled
-        );
+        alloyQuantityEnabled = enabled;
+        alloyQuantityBox.setEditable(enabled);
 
         if (!enabled) {
             alloyQuantityBox.setValue("");
+            centerAlloyQuantityText();
             return;
         }
 
@@ -296,6 +314,8 @@ public class FoundryControllerScreen
                     )
             );
         }
+
+        centerAlloyQuantityText();
     }
 
     void changeAlloyQuantity(
@@ -313,13 +333,27 @@ public class FoundryControllerScreen
                         1,
                         Math.min(
                                 alloyQuantityLimit,
-                                getAlloyQuantity()
-                                        + delta
+                                getAlloyQuantity() + delta
                         )
                 );
 
         alloyQuantityBox.setValue(
                 Integer.toString(next)
+        );
+
+        centerAlloyQuantityText();
+    }
+
+    void playButtonClickSound() {
+        if (minecraft == null) {
+            return;
+        }
+
+        minecraft.getSoundManager().play(
+                SimpleSoundInstance.forUI(
+                        SoundEvents.UI_BUTTON_CLICK,
+                        1.0F
+                )
         );
     }
 
@@ -339,5 +373,34 @@ public class FoundryControllerScreen
         );
 
         return true;
+    }
+
+    private void centerAlloyQuantityText() {
+        if (alloyQuantityBox == null) {
+            return;
+        }
+
+        String value = alloyQuantityBox.getValue();
+        int textWidth = font.width(value);
+
+        int centeredX =
+                leftPos
+                        + FoundryControllerUiLayout.QUANTITY_EDITBAR_X
+                        + (
+                        FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH
+                                - textWidth
+                ) / 2;
+
+        alloyQuantityBox.setX(centeredX);
+        alloyQuantityBox.setY(
+                topPos
+                        + FoundryControllerUiLayout.QUANTITY_TEXT_Y
+        );
+        alloyQuantityBox.setWidth(
+                Math.max(
+                        1,
+                        textWidth + 1
+                )
+        );
     }
 }

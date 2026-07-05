@@ -39,7 +39,11 @@ final class FoundryControllerOverviewRenderer {
         processRenderer.render(graphics);
         tankRenderer.render(graphics);
         metalsRenderer.render(graphics);
-        alloysRenderer.render(graphics);
+        alloysRenderer.render(
+                graphics,
+                mouseX,
+                mouseY
+        );
     }
 
     boolean mouseClicked(

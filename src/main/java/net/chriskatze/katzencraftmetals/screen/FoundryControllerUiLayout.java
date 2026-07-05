@@ -85,16 +85,24 @@ final class FoundryControllerUiLayout {
     static final int PLAYER_INVENTORY_Y = 155;
 
     static final int QUANTITY_MINUS_X = 179;
-    static final int QUANTITY_X = 193;
     static final int QUANTITY_PLUS_X = 213;
-    static final int QUANTITY_Y = 209;
 
-    static final int QUANTITY_MINUS_WIDTH = 11;
-    static final int QUANTITY_WIDTH = 17;
-    static final int QUANTITY_PLUS_WIDTH = 11;
-    static final int QUANTITY_HEIGHT = 10;
     static final int QUANTITY_BUTTON_Y = 207;
+    static final int QUANTITY_MINUS_WIDTH = 11;
+    static final int QUANTITY_PLUS_WIDTH = 11;
     static final int QUANTITY_BUTTON_HEIGHT = 15;
+
+    static final int QUANTITY_EDITBAR_X = 192;
+    static final int QUANTITY_EDITBAR_Y = 207;
+    static final int QUANTITY_EDITBAR_WIDTH = 19;
+    static final int QUANTITY_EDITBAR_HEIGHT = 15;
+
+    /*
+     * The EditBox has no border of its own. Its x position is adjusted at
+     * runtime so the entered number is horizontally centered in the edit bar.
+     */
+    static final int QUANTITY_TEXT_Y = 209;
+    static final int QUANTITY_TEXT_HEIGHT = 10;
 
     static final int START_X = 226;
     static final int START_Y = 207;

@@ -21,22 +21,51 @@ import java.util.Optional;
 final class FoundryControllerAlloysRenderer {
 
     private static final ResourceLocation UNLOCKED_SLOT_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(
-                    KatzencraftMetalsMod.MODID,
-                    "textures/gui/foundry_controller_unlocked_slot.png"
-            );
+            texture("foundry_controller_unlocked_slot.png");
 
     private static final ResourceLocation LOCKED_SLOT_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(
-                    KatzencraftMetalsMod.MODID,
-                    "textures/gui/foundry_controller_slot_locked.png"
-            );
+            texture("foundry_controller_slot_locked.png");
+
+    private static final ResourceLocation MINUS_BUTTON_TEXTURE =
+            texture("foundry_controller_minus_button.png");
+
+    private static final ResourceLocation MINUS_BUTTON_HOVER_TEXTURE =
+            texture("foundry_controller_minus_button_hover.png");
+
+    private static final ResourceLocation MINUS_BUTTON_PRESSED_TEXTURE =
+            texture("foundry_controller_minus_button_pressed.png");
+
+    private static final ResourceLocation PLUS_BUTTON_TEXTURE =
+            texture("foundry_controller_plus_button.png");
+
+    private static final ResourceLocation PLUS_BUTTON_HOVER_TEXTURE =
+            texture("foundry_controller_plus_button_hover.png");
+
+    private static final ResourceLocation PLUS_BUTTON_PRESSED_TEXTURE =
+            texture("foundry_controller_plus_button_pressed.png");
+
+    private static final ResourceLocation EDITBAR_TEXTURE =
+            texture("foundry_controller_alloy_editbar.png");
+
+    private static final ResourceLocation START_BUTTON_TEXTURE =
+            texture("foundry_controller_alloy_button.png");
+
+    private static final ResourceLocation START_BUTTON_HOVER_TEXTURE =
+            texture("foundry_controller_alloy_button_hover.png");
+
+    private static final ResourceLocation START_BUTTON_PRESSED_TEXTURE =
+            texture("foundry_controller_alloy_button_pressed.png");
+
+    private static final long PRESSED_DISPLAY_TIME_MS = 120L;
 
     private final FoundryControllerScreen screen;
     private int scrollOffset;
 
     @Nullable
     private ResourceLocation focusedRecipeId;
+
+    private ControlButton pressedControl = ControlButton.NONE;
+    private long pressedUntil;
 
     FoundryControllerAlloysRenderer(
             FoundryControllerScreen screen
@@ -45,7 +74,9 @@ final class FoundryControllerAlloysRenderer {
     }
 
     void render(
-            GuiGraphics graphics
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY
     ) {
         List<Entry> entries = buildEntries();
 
@@ -84,9 +115,23 @@ final class FoundryControllerAlloysRenderer {
         );
 
         Entry focused = findFocusedEntry(entries);
-        renderRecipePreview(graphics, focused);
-        configureControls(focused, false);
-        renderStartLabel(graphics, focused);
+
+        renderRecipePreview(
+                graphics,
+                focused
+        );
+
+        configureControls(
+                focused,
+                false
+        );
+
+        renderControls(
+                graphics,
+                focused,
+                mouseX,
+                mouseY
+        );
     }
 
     boolean mouseClicked(
@@ -136,59 +181,33 @@ final class FoundryControllerAlloysRenderer {
                 maximum > 0
                         && !menu().isAlloyJobActive();
 
-        if (
-                FoundryControllerUiLayout.contains(
-                        mouseX,
-                        mouseY,
-                        screen.guiLeft(),
-                        screen.guiTop(),
-                        FoundryControllerUiLayout.QUANTITY_MINUS_X,
-                        FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
-                        FoundryControllerUiLayout.QUANTITY_MINUS_WIDTH,
-                        FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT
-                )
-        ) {
+        if (isMouseOverMinus(mouseX, mouseY)) {
             if (enabled) {
+                press(ControlButton.MINUS);
+                screen.playButtonClickSound();
                 screen.changeAlloyQuantity(-1);
             }
 
             return true;
         }
 
-        if (
-                FoundryControllerUiLayout.contains(
-                        mouseX,
-                        mouseY,
-                        screen.guiLeft(),
-                        screen.guiTop(),
-                        FoundryControllerUiLayout.QUANTITY_PLUS_X,
-                        FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
-                        FoundryControllerUiLayout.QUANTITY_PLUS_WIDTH,
-                        FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT
-                )
-        ) {
+        if (isMouseOverPlus(mouseX, mouseY)) {
             if (enabled) {
+                press(ControlButton.PLUS);
+                screen.playButtonClickSound();
                 screen.changeAlloyQuantity(1);
             }
 
             return true;
         }
 
-        if (
-                FoundryControllerUiLayout.contains(
-                        mouseX,
-                        mouseY,
-                        screen.guiLeft(),
-                        screen.guiTop(),
-                        FoundryControllerUiLayout.START_X,
-                        FoundryControllerUiLayout.START_Y,
-                        FoundryControllerUiLayout.START_WIDTH,
-                        FoundryControllerUiLayout.START_HEIGHT
-                )
-        ) {
+        if (isMouseOverStart(mouseX, mouseY)) {
             if (!enabled) {
                 return true;
             }
+
+            press(ControlButton.START);
+            screen.playButtonClickSound();
 
             int quantity =
                     Math.min(
@@ -281,6 +300,7 @@ final class FoundryControllerAlloysRenderer {
             }
 
             Entry entry = entries.get(index);
+
             int maximum =
                     menu().getMaxCraftableBatches(
                             entry.holder().value()
@@ -310,7 +330,8 @@ final class FoundryControllerAlloysRenderer {
             return;
         }
 
-        FoundryAlloyRecipe recipe = focused.holder().value();
+        FoundryAlloyRecipe recipe =
+                focused.holder().value();
 
         for (
                 int index = 0;
@@ -365,7 +386,8 @@ final class FoundryControllerAlloysRenderer {
                         16
                 )
         ) {
-            MoltenMetalDefinition output = focused.outputDefinition();
+            MoltenMetalDefinition output =
+                    focused.outputDefinition();
 
             graphics.renderTooltip(
                     screen.uiFont(),
@@ -433,7 +455,6 @@ final class FoundryControllerAlloysRenderer {
             );
         }
     }
-
 
     private void renderBlankRow(
             GuiGraphics graphics,
@@ -512,21 +533,23 @@ final class FoundryControllerAlloysRenderer {
                 hasResult
         );
 
-        if (hasResult) {
-            ItemStack output =
-                    FoundryControllerMetalsRenderer.getDisplayIcon(
-                            entry.outputDefinition()
-                    );
+        if (!hasResult) {
+            return;
+        }
 
-            if (!output.isEmpty()) {
-                graphics.renderItem(
-                        output,
-                        screen.guiLeft()
-                                + FoundryControllerUiLayout.ALLOY_RESULT_SLOT_X,
-                        screen.guiTop()
-                                + FoundryControllerUiLayout.ALLOY_RECIPE_SLOT_Y
+        ItemStack output =
+                FoundryControllerMetalsRenderer.getDisplayIcon(
+                        entry.outputDefinition()
                 );
-            }
+
+        if (!output.isEmpty()) {
+            graphics.renderItem(
+                    output,
+                    screen.guiLeft()
+                            + FoundryControllerUiLayout.ALLOY_RESULT_SLOT_X,
+                    screen.guiTop()
+                            + FoundryControllerUiLayout.ALLOY_RECIPE_SLOT_Y
+            );
         }
     }
 
@@ -564,16 +587,79 @@ final class FoundryControllerAlloysRenderer {
         );
     }
 
-    private void renderStartLabel(
+    private void renderControls(
             GuiGraphics graphics,
-            @Nullable Entry entry
+            @Nullable Entry entry,
+            int mouseX,
+            int mouseY
     ) {
+        clearExpiredPress();
+
         boolean enabled =
                 entry != null
                         && menu().getMaxCraftableBatches(
                         entry.holder().value()
                 ) > 0
                         && !menu().isAlloyJobActive();
+
+        graphics.blit(
+                EDITBAR_TEXTURE,
+                screen.guiLeft()
+                        + FoundryControllerUiLayout.QUANTITY_EDITBAR_X,
+                screen.guiTop()
+                        + FoundryControllerUiLayout.QUANTITY_EDITBAR_Y,
+                0.0f,
+                0.0f,
+                FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH,
+                FoundryControllerUiLayout.QUANTITY_EDITBAR_HEIGHT,
+                FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH,
+                FoundryControllerUiLayout.QUANTITY_EDITBAR_HEIGHT
+        );
+
+        drawControlButton(
+                graphics,
+                MINUS_BUTTON_TEXTURE,
+                MINUS_BUTTON_HOVER_TEXTURE,
+                MINUS_BUTTON_PRESSED_TEXTURE,
+                FoundryControllerUiLayout.QUANTITY_MINUS_X,
+                FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
+                FoundryControllerUiLayout.QUANTITY_MINUS_WIDTH,
+                FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT,
+                enabled,
+                isMouseOverMinus(mouseX, mouseY),
+                isPressed(ControlButton.MINUS)
+        );
+
+        drawControlButton(
+                graphics,
+                PLUS_BUTTON_TEXTURE,
+                PLUS_BUTTON_HOVER_TEXTURE,
+                PLUS_BUTTON_PRESSED_TEXTURE,
+                FoundryControllerUiLayout.QUANTITY_PLUS_X,
+                FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
+                FoundryControllerUiLayout.QUANTITY_PLUS_WIDTH,
+                FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT,
+                enabled,
+                isMouseOverPlus(mouseX, mouseY),
+                isPressed(ControlButton.PLUS)
+        );
+
+        boolean startPressed =
+                isPressed(ControlButton.START);
+
+        drawControlButton(
+                graphics,
+                START_BUTTON_TEXTURE,
+                START_BUTTON_HOVER_TEXTURE,
+                START_BUTTON_PRESSED_TEXTURE,
+                FoundryControllerUiLayout.START_X,
+                FoundryControllerUiLayout.START_Y,
+                FoundryControllerUiLayout.START_WIDTH,
+                FoundryControllerUiLayout.START_HEIGHT,
+                enabled,
+                isMouseOverStart(mouseX, mouseY),
+                startPressed
+        );
 
         FoundryControllerUiDrawing.drawCentered(
                 graphics,
@@ -582,13 +668,64 @@ final class FoundryControllerAlloysRenderer {
                 screen.guiLeft()
                         + FoundryControllerUiLayout.START_X,
                 screen.guiTop()
-                        + FoundryControllerUiLayout.START_Y,
+                        + FoundryControllerUiLayout.START_Y
+                        + (
+                        startPressed
+                                ? 1
+                                : 0
+                ),
                 FoundryControllerUiLayout.START_WIDTH,
                 FoundryControllerUiLayout.START_HEIGHT,
                 enabled
                         ? FoundryControllerUiDrawing.GREEN
                         : FoundryControllerUiDrawing.MUTED_TEXT
         );
+    }
+
+    private void drawControlButton(
+            GuiGraphics graphics,
+            ResourceLocation normalTexture,
+            ResourceLocation hoverTexture,
+            ResourceLocation pressedTexture,
+            int relativeX,
+            int relativeY,
+            int width,
+            int height,
+            boolean enabled,
+            boolean hovered,
+            boolean pressed
+    ) {
+        ResourceLocation texture =
+                pressed
+                        ? pressedTexture
+                        : hovered && enabled
+                        ? hoverTexture
+                        : normalTexture;
+
+        int left = screen.guiLeft() + relativeX;
+        int top = screen.guiTop() + relativeY;
+
+        graphics.blit(
+                texture,
+                left,
+                top,
+                0.0f,
+                0.0f,
+                width,
+                height,
+                width,
+                height
+        );
+
+        if (!enabled) {
+            graphics.fill(
+                    left + 1,
+                    top + 1,
+                    left + width - 1,
+                    top + height - 1,
+                    0x66000000
+            );
+        }
     }
 
     private void configureControls(
@@ -619,12 +756,16 @@ final class FoundryControllerAlloysRenderer {
 
     private List<Entry> buildEntries() {
         List<Entry> entries = new ArrayList<>();
+
         List<RecipeHolder<FoundryAlloyRecipe>> recipes =
                 menu().getAlloyRecipes();
 
         for (int index = 0; index < recipes.size(); index++) {
-            RecipeHolder<FoundryAlloyRecipe> holder = recipes.get(index);
-            FoundryAlloyRecipe recipe = holder.value();
+            RecipeHolder<FoundryAlloyRecipe> holder =
+                    recipes.get(index);
+
+            FoundryAlloyRecipe recipe =
+                    holder.value();
 
             if (recipe.requiredTier() > menu().getFoundryTier()) {
                 continue;
@@ -680,15 +821,27 @@ final class FoundryControllerAlloysRenderer {
                                 .outputMetal()
                                 .equals(activeOutput)
                 ) {
-                    focusedRecipeId = entry.holder().id();
-                    configureControls(entry, true);
+                    focusedRecipeId =
+                            entry.holder().id();
+
+                    configureControls(
+                            entry,
+                            true
+                    );
                     return;
                 }
             }
         }
 
-        focusedRecipeId = entries.get(0).holder().id();
-        configureControls(entries.get(0), true);
+        focusedRecipeId =
+                entries.get(0)
+                        .holder()
+                        .id();
+
+        configureControls(
+                entries.get(0),
+                true
+        );
     }
 
     @Nullable
@@ -700,7 +853,11 @@ final class FoundryControllerAlloysRenderer {
         }
 
         for (Entry entry : entries) {
-            if (entry.holder().id().equals(focusedRecipeId)) {
+            if (
+                    entry.holder()
+                            .id()
+                            .equals(focusedRecipeId)
+            ) {
                 return entry;
             }
         }
@@ -747,6 +904,79 @@ final class FoundryControllerAlloysRenderer {
         );
     }
 
+    private boolean isMouseOverMinus(
+            double mouseX,
+            double mouseY
+    ) {
+        return FoundryControllerUiLayout.contains(
+                mouseX,
+                mouseY,
+                screen.guiLeft(),
+                screen.guiTop(),
+                FoundryControllerUiLayout.QUANTITY_MINUS_X,
+                FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
+                FoundryControllerUiLayout.QUANTITY_MINUS_WIDTH,
+                FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT
+        );
+    }
+
+    private boolean isMouseOverPlus(
+            double mouseX,
+            double mouseY
+    ) {
+        return FoundryControllerUiLayout.contains(
+                mouseX,
+                mouseY,
+                screen.guiLeft(),
+                screen.guiTop(),
+                FoundryControllerUiLayout.QUANTITY_PLUS_X,
+                FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
+                FoundryControllerUiLayout.QUANTITY_PLUS_WIDTH,
+                FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT
+        );
+    }
+
+    private boolean isMouseOverStart(
+            double mouseX,
+            double mouseY
+    ) {
+        return FoundryControllerUiLayout.contains(
+                mouseX,
+                mouseY,
+                screen.guiLeft(),
+                screen.guiTop(),
+                FoundryControllerUiLayout.START_X,
+                FoundryControllerUiLayout.START_Y,
+                FoundryControllerUiLayout.START_WIDTH,
+                FoundryControllerUiLayout.START_HEIGHT
+        );
+    }
+
+    private void press(
+            ControlButton control
+    ) {
+        pressedControl = control;
+        pressedUntil =
+                System.currentTimeMillis()
+                        + PRESSED_DISPLAY_TIME_MS;
+    }
+
+    private void clearExpiredPress() {
+        if (
+                pressedControl != ControlButton.NONE
+                        && System.currentTimeMillis() >= pressedUntil
+        ) {
+            pressedControl = ControlButton.NONE;
+        }
+    }
+
+    private boolean isPressed(
+            ControlButton control
+    ) {
+        return pressedControl == control
+                && System.currentTimeMillis() < pressedUntil;
+    }
+
     private void clampScroll(
             int count
     ) {
@@ -767,10 +997,16 @@ final class FoundryControllerAlloysRenderer {
     private static String recipeSummary(
             FoundryAlloyRecipe recipe
     ) {
-        StringBuilder result = new StringBuilder();
+        StringBuilder result =
+                new StringBuilder();
 
-        for (int index = 0; index < recipe.ingredients().size(); index++) {
-            FoundryAlloyIngredient ingredient = recipe.ingredients().get(index);
+        for (
+                int index = 0;
+                index < recipe.ingredients().size();
+                index++
+        ) {
+            FoundryAlloyIngredient ingredient =
+                    recipe.ingredients().get(index);
 
             if (index > 0) {
                 result.append(" + ");
@@ -793,8 +1029,24 @@ final class FoundryControllerAlloysRenderer {
         return result.toString();
     }
 
+    private static ResourceLocation texture(
+            String fileName
+    ) {
+        return ResourceLocation.fromNamespaceAndPath(
+                KatzencraftMetalsMod.MODID,
+                "textures/gui/" + fileName
+        );
+    }
+
     private FoundryControllerMenu menu() {
         return screen.controllerMenu();
+    }
+
+    private enum ControlButton {
+        NONE,
+        MINUS,
+        PLUS,
+        START
     }
 
     private record Entry(
