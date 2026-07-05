@@ -40,10 +40,10 @@ final class FoundryControllerUiLayout {
     static final int PROGRESS_GAUGE_WIDTH = 5;
     static final int PROGRESS_GAUGE_HEIGHT = 64;
 
-    static final int TANK_GAUGE_X = 134;
-    static final int TANK_GAUGE_Y = 56;
+    static final int TANK_GAUGE_X = 133;
+    static final int TANK_GAUGE_Y = 55;
     static final int TANK_GAUGE_WIDTH = 28;
-    static final int TANK_GAUGE_HEIGHT = 70;
+    static final int TANK_GAUGE_HEIGHT = 73;
 
     static final int TANK_COUNT_X = 124;
     static final int TANK_COUNT_Y = 131;
