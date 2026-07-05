@@ -700,8 +700,18 @@ final class FoundryControllerAlloying {
         return statusCode;
     }
 
+    /**
+     * Returns the number of batches that have not completed yet.
+     *
+     * The Controller synchronizes this value to the menu, so the quantity box
+     * and the ingredient/output amounts in the recipe preview count down after
+     * each completed batch.
+     */
     int getBatchCount() {
-        return batchCount;
+        return Math.max(
+                0,
+                batchCount - completedBatches
+        );
     }
 
     @Nullable
