@@ -301,21 +301,14 @@ final class FoundryControllerAlloysRenderer {
 
             Entry entry = entries.get(index);
 
-            int maximum =
-                    menu().getMaxCraftableBatches(
-                            entry.holder().value()
-                    );
-
-            String suffix =
-                    maximum > 0
-                            ? " (up to " + maximum + ")"
-                            : " (missing materials or space)";
-
             graphics.renderTooltip(
                     screen.uiFont(),
                     Component.literal(
-                            recipeSummary(entry.holder().value())
-                                    + suffix
+                            FoundryControllerMetalsRenderer.displayName(
+                                    entry.holder()
+                                            .value()
+                                            .outputMetal()
+                            )
                     ),
                     mouseX,
                     mouseY

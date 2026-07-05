@@ -77,36 +77,10 @@ final class FoundryControllerMetalsRenderer {
             double mouseY,
             int button
     ) {
-        if (button != 0) {
-            return false;
-        }
-
-        List<MoltenMetalDefinition> entries = buildEntries();
-
-        for (
-                int visibleRow = 0;
-                visibleRow < FoundryControllerUiLayout.VISIBLE_METAL_ROWS;
-                visibleRow++
-        ) {
-            int index = scrollOffset + visibleRow;
-
-            if (index >= entries.size()) {
-                break;
-            }
-
-            if (!isMouseOverRow(mouseX, mouseY, visibleRow)) {
-                continue;
-            }
-
-            int buttonId =
-                    FoundryControllerMenu.createSelectMetalButton(
-                            entries.get(index)
-                    );
-
-            return buttonId >= 0
-                    && screen.sendMenuButton(buttonId);
-        }
-
+        /*
+         * The metal list is display-only. Faucet output selection is handled
+         * elsewhere, so clicking a stored-metal row intentionally does nothing.
+         */
         return false;
     }
 
@@ -164,43 +138,7 @@ final class FoundryControllerMetalsRenderer {
             int mouseX,
             int mouseY
     ) {
-        List<MoltenMetalDefinition> entries = buildEntries();
-
-        for (
-                int visibleRow = 0;
-                visibleRow < FoundryControllerUiLayout.VISIBLE_METAL_ROWS;
-                visibleRow++
-        ) {
-            int index = scrollOffset + visibleRow;
-
-            if (index >= entries.size()) {
-                break;
-            }
-
-            if (!isMouseOverRow(mouseX, mouseY, visibleRow)) {
-                continue;
-            }
-
-            MoltenMetalDefinition definition = entries.get(index);
-            int amount = menu().getMetalAmount(definition);
-
-            graphics.renderTooltip(
-                    screen.uiFont(),
-                    Component.literal(
-                            displayName(definition.id())
-                                    + ": "
-                                    + FoundryControllerUiDrawing.formatOreAmount(
-                                    amount,
-                                    definition.unitsPerOre()
-                            )
-                                    + " ore"
-                    ),
-                    mouseX,
-                    mouseY
-            );
-
-            return;
-        }
+        /* Stored-metal rows intentionally have no hover tooltip. */
     }
 
     private void renderEntry(
@@ -218,20 +156,11 @@ final class FoundryControllerMetalsRenderer {
                         + visibleRow
                         * FoundryControllerUiLayout.METAL_ROW_STRIDE;
 
-        boolean selected =
-                menu().getSelectedMetalDefinition()
-                        .map(
-                                selectedDefinition ->
-                                        selectedDefinition.id()
-                                                .equals(definition.id())
-                        )
-                        .orElse(false);
-
         FoundryControllerListDrawing.drawRow(
                 graphics,
                 left,
                 top,
-                selected,
+                false,
                 true
         );
 
