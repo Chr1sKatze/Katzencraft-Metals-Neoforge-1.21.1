@@ -2,6 +2,7 @@ package net.chriskatze.katzencraftmetals.block.entity;
 
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
+import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyRecipe;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -64,6 +66,13 @@ public class FoundryControllerBlockEntity
 
     private final FoundryControllerAlloying alloying =
             new FoundryControllerAlloying(this);
+
+    /**
+     * Every registered molten metal that has existed in this controller's
+     * attached tank network at least once.
+     */
+    private final Set<ResourceLocation> discoveredMoltenMetals =
+            new HashSet<>();
 
     private final SimpleContainer inputInventory =
             new SimpleContainer(INPUT_SLOT_COUNT) {
@@ -141,9 +150,13 @@ public class FoundryControllerBlockEntity
             ACTIVE_ALLOY_OUTPUT_DATA_INDEX
                     + 1;
 
-    public static final int DATA_COUNT =
+    public static final int DISCOVERED_METAL_DATA_START =
             ALLOY_ACTIVE_DATA_INDEX
                     + 1;
+
+    public static final int DATA_COUNT =
+            DISCOVERED_METAL_DATA_START
+                    + METAL_DATA_COUNT;
 
     private final ContainerData data =
             new ContainerData() {
@@ -261,6 +274,25 @@ public class FoundryControllerBlockEntity
                                 : 0;
                     }
 
+                    if (
+                            index >= DISCOVERED_METAL_DATA_START
+                                    && index < DATA_COUNT
+                    ) {
+                        int syncId =
+                                index
+                                        - DISCOVERED_METAL_DATA_START;
+
+                        ResourceLocation metal =
+                                ModMoltenMetals.bySyncId(syncId)
+                                        .map(definition -> definition.id())
+                                        .orElse(null);
+
+                        return metal != null
+                                && discoveredMoltenMetals.contains(metal)
+                                ? 1
+                                : 0;
+                    }
+
                     return 0;
                 }
 
@@ -344,6 +376,67 @@ public class FoundryControllerBlockEntity
                 .ensureTankNetwork(this);
     }
 
+    public boolean hasDiscoveredMoltenMetal(
+            ResourceLocation metal
+    ) {
+        return metal != null
+                && discoveredMoltenMetals.contains(metal);
+    }
+
+    public boolean isAlloyRecipeUnlocked(
+            FoundryAlloyRecipe recipe
+    ) {
+        if (recipe == null || recipe.ingredients().isEmpty()) {
+            return false;
+        }
+
+        for (var ingredient : recipe.ingredients()) {
+            if (
+                    !hasDiscoveredMoltenMetal(
+                            ingredient.metal()
+                    )
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void discoverCurrentTankMetals() {
+        FoundryTankNetwork network =
+                getOwnedTankNetwork();
+
+        if (network == null) {
+            return;
+        }
+
+        network.ensureMoltenContentsMigrated();
+
+        boolean changed = false;
+
+        for (
+                var entry :
+                network.getMoltenContents().entrySet()
+        ) {
+            if (
+                    entry.getValue() > 0
+                            && ModMoltenMetals.contains(
+                            entry.getKey()
+                    )
+            ) {
+                changed |=
+                        discoveredMoltenMetals.add(
+                                entry.getKey()
+                        );
+            }
+        }
+
+        if (changed) {
+            setChanged();
+        }
+    }
+
     public void releaseFoundry() {
         alloying.cancelAndRefund();
         FoundryControllerNetwork.releaseFoundry(this);
@@ -384,6 +477,10 @@ public class FoundryControllerBlockEntity
             BlockState state,
             FoundryControllerBlockEntity controller
     ) {
+        if (!level.isClientSide()) {
+            controller.discoverCurrentTankMetals();
+        }
+
         if (controller.alloying.hasActiveJob()) {
             controller.alloying.tick(
                     level,
@@ -394,6 +491,13 @@ public class FoundryControllerBlockEntity
                     level,
                     pos
             );
+        }
+
+        /*
+         * Melting or alloying may have inserted a new metal during this tick.
+         */
+        if (!level.isClientSide()) {
+            controller.discoverCurrentTankMetals();
         }
     }
 
@@ -557,6 +661,24 @@ public class FoundryControllerBlockEntity
                 controllerId.toString()
         );
 
+        CompoundTag discoveredTag =
+                new CompoundTag();
+
+        for (
+                ResourceLocation metal :
+                discoveredMoltenMetals
+        ) {
+            discoveredTag.putBoolean(
+                    metal.toString(),
+                    true
+            );
+        }
+
+        tag.put(
+                "DiscoveredMoltenMetals",
+                discoveredTag
+        );
+
         tag.put(
                 "InputInventory",
                 inputInventory.createTag(registries)
@@ -599,6 +721,33 @@ public class FoundryControllerBlockEntity
         } else {
             controllerId =
                     UUID.randomUUID();
+        }
+
+        discoveredMoltenMetals.clear();
+
+        if (
+                tag.contains(
+                        "DiscoveredMoltenMetals",
+                        Tag.TAG_COMPOUND
+                )
+        ) {
+            CompoundTag discoveredTag =
+                    tag.getCompound(
+                            "DiscoveredMoltenMetals"
+                    );
+
+            for (String key : discoveredTag.getAllKeys()) {
+                ResourceLocation metal =
+                        ResourceLocation.tryParse(key);
+
+                if (
+                        metal != null
+                                && discoveredTag.getBoolean(key)
+                                && ModMoltenMetals.contains(metal)
+                ) {
+                    discoveredMoltenMetals.add(metal);
+                }
+            }
         }
 
         inputInventory.removeAllItems();

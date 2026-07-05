@@ -11,6 +11,7 @@ import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyCatalog;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyRecipe;
 import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
@@ -477,9 +478,40 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
                 : FoundryAlloyCatalog.getRecipes(blockEntity.getLevel());
     }
 
+    public boolean hasDiscoveredMetal(
+            ResourceLocation metal
+    ) {
+        int syncId =
+                ModMoltenMetals.getSyncId(metal);
+
+        return syncId >= 0
+                && data.get(
+                FoundryControllerBlockEntity
+                        .DISCOVERED_METAL_DATA_START
+                        + syncId
+        ) != 0;
+    }
+
+    public boolean isAlloyRecipeUnlocked(
+            FoundryAlloyRecipe recipe
+    ) {
+        if (recipe == null || recipe.ingredients().isEmpty()) {
+            return false;
+        }
+
+        for (var ingredient : recipe.ingredients()) {
+            if (!hasDiscoveredMetal(ingredient.metal())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public int getMaxCraftableBatches(FoundryAlloyRecipe recipe) {
         if (
                 recipe == null
+                        || !isAlloyRecipeUnlocked(recipe)
                         || recipe.requiredTier() > getFoundryTier()
                         || blockEntity.getLevel() == null
                         || ModMoltenMetals.get(recipe.outputMetal()).isEmpty()
@@ -603,8 +635,27 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
         int quantity =
                 encoded % ALLOY_BUTTON_QUANTITY_BASE;
 
-        return quantity >= 1
-                && quantity <= MAX_ALLOY_BATCHES
+        if (
+                quantity < 1
+                        || quantity > MAX_ALLOY_BATCHES
+        ) {
+            return false;
+        }
+
+        List<RecipeHolder<FoundryAlloyRecipe>> recipes =
+                getAlloyRecipes();
+
+        if (
+                recipeIndex < 0
+                        || recipeIndex >= recipes.size()
+        ) {
+            return false;
+        }
+
+        FoundryAlloyRecipe recipe =
+                recipes.get(recipeIndex).value();
+
+        return isAlloyRecipeUnlocked(recipe)
                 && blockEntity.startAlloy(
                 recipeIndex,
                 quantity

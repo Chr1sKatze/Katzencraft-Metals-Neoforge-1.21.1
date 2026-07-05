@@ -767,7 +767,10 @@ final class FoundryControllerAlloysRenderer {
             FoundryAlloyRecipe recipe =
                     holder.value();
 
-            if (recipe.requiredTier() > menu().getFoundryTier()) {
+            if (
+                    recipe.requiredTier() > menu().getFoundryTier()
+                            || !menu().isAlloyRecipeUnlocked(recipe)
+            ) {
                 continue;
             }
 
