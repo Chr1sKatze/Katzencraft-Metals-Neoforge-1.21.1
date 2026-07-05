@@ -9,6 +9,7 @@ import net.minecraft.resources.ResourceLocation;
 final class FoundryControllerHeaderStatusRenderer {
 
     private static final float XP_TEXT_SCALE = 0.75F;
+    private static final float STATUS_TEXT_SCALE = 0.75F;
 
     private static final int XP_FRAME = 0xFF171A15;
     private static final int XP_TRACK = 0xFF292E25;
@@ -24,6 +25,30 @@ final class FoundryControllerHeaderStatusRenderer {
 
     private static final int XP_SEGMENT = 0x66000000;
     private static final int XP_FILL_EDGE = 0xAAFFFFFF;
+
+    /*
+     * The authored GUI already leaves a status area at the bottom-left.
+     * This plate begins where the dynamic status text previously began, so the
+     * left-hand authored label remains untouched.
+     */
+    private static final int STATUS_PANEL_X = 48;
+    private static final int STATUS_PANEL_Y = 216;
+    private static final int STATUS_PANEL_WIDTH = 122;
+    private static final int STATUS_PANEL_HEIGHT = 12;
+
+    private static final int STATUS_FRAME = 0xFF171815;
+    private static final int STATUS_BACKGROUND = 0xFF252821;
+    private static final int STATUS_BACKGROUND_TOP = 0xFF393C32;
+    private static final int STATUS_BACKGROUND_BOTTOM = 0xFF11130F;
+    private static final int STATUS_DIVIDER = 0xFF11130F;
+    private static final int STATUS_RIVET = 0xFF606357;
+
+    private static final int STATUS_LAMP_FRAME = 0xFF0D0E0C;
+    private static final int STATUS_LAMP_HIGHLIGHT = 0xCCFFFFFF;
+
+    private static final int STATUS_TEXT_X_OFFSET = 18;
+    private static final int STATUS_TEXT_RIGHT_PADDING = 5;
+    private static final int STATUS_ACTIVITY_WIDTH = 13;
 
     private final FoundryControllerScreen screen;
 
@@ -298,35 +323,338 @@ final class FoundryControllerHeaderStatusRenderer {
     private void renderStatus(
             GuiGraphics graphics
     ) {
-        FoundryStatus status = resolveStatus();
+        FoundryStatus status =
+                resolveStatus();
+
+        int left =
+                screen.guiLeft()
+                        + STATUS_PANEL_X;
+
+        int top =
+                screen.guiTop()
+                        + STATUS_PANEL_Y;
+
+        int right =
+                left
+                        + STATUS_PANEL_WIDTH;
+
+        int bottom =
+                top
+                        + STATUS_PANEL_HEIGHT;
+
+        /*
+         * A compact, recessed metal plate matching the visual treatment of the
+         * XP bar.
+         */
+        graphics.fill(
+                left,
+                top,
+                right,
+                bottom,
+                STATUS_FRAME
+        );
+
+        graphics.fill(
+                left + 1,
+                top + 1,
+                right - 1,
+                bottom - 1,
+                STATUS_BACKGROUND
+        );
+
+        graphics.fill(
+                left + 1,
+                top + 1,
+                right - 1,
+                top + 2,
+                STATUS_BACKGROUND_TOP
+        );
+
+        graphics.fill(
+                left + 1,
+                bottom - 2,
+                right - 1,
+                bottom - 1,
+                STATUS_BACKGROUND_BOTTOM
+        );
+
+        /*
+         * Tiny corner rivets help the plate look like part of the machine
+         * instead of a plain text box.
+         */
+        drawPixel(
+                graphics,
+                left + 2,
+                top + 2,
+                STATUS_RIVET
+        );
+
+        drawPixel(
+                graphics,
+                right - 3,
+                top + 2,
+                STATUS_RIVET
+        );
+
+        drawStatusLamp(
+                graphics,
+                left + 5,
+                top + 3,
+                status
+        );
+
+        graphics.fill(
+                left + 15,
+                top + 2,
+                left + 16,
+                bottom - 2,
+                STATUS_DIVIDER
+        );
+
+        int activityWidth =
+                status.working()
+                        ? STATUS_ACTIVITY_WIDTH
+                        : 0;
+
+        int availableTextWidth =
+                STATUS_PANEL_WIDTH
+                        - STATUS_TEXT_X_OFFSET
+                        - STATUS_TEXT_RIGHT_PADDING
+                        - activityWidth;
+
+        String fitted =
+                fitScaledText(
+                        screen.uiFont(),
+                        status.text().getString(),
+                        availableTextWidth,
+                        STATUS_TEXT_SCALE
+                );
+
+        drawScaledLeftText(
+                graphics,
+                Component.literal(fitted),
+                left + STATUS_TEXT_X_OFFSET,
+                top,
+                STATUS_PANEL_HEIGHT,
+                status.textColor()
+        );
+
+        if (status.working()) {
+            drawActivityDots(
+                    graphics,
+                    right - STATUS_ACTIVITY_WIDTH,
+                    top,
+                    status
+            );
+        }
+    }
+
+    private void drawStatusLamp(
+            GuiGraphics graphics,
+            int left,
+            int top,
+            FoundryStatus status
+    ) {
+        graphics.fill(
+                left,
+                top,
+                left + 7,
+                top + 7,
+                STATUS_LAMP_FRAME
+        );
+
+        graphics.fill(
+                left + 1,
+                top + 1,
+                left + 6,
+                top + 6,
+                status.lampMiddle()
+        );
+
+        graphics.fill(
+                left + 1,
+                top + 1,
+                left + 6,
+                top + 2,
+                status.lampTop()
+        );
+
+        graphics.fill(
+                left + 1,
+                top + 5,
+                left + 6,
+                top + 6,
+                status.lampBottom()
+        );
+
+        drawPixel(
+                graphics,
+                left + 2,
+                top + 2,
+                STATUS_LAMP_HIGHLIGHT
+        );
+    }
+
+    private void drawActivityDots(
+            GuiGraphics graphics,
+            int left,
+            int top,
+            FoundryStatus status
+    ) {
+        int phase =
+                (int) (
+                        System.currentTimeMillis()
+                                / 250L
+                                % 3L
+                );
+
+        for (int index = 0; index < 3; index++) {
+            int dotLeft =
+                    left
+                            + index * 4;
+
+            int color =
+                    index == phase
+                            ? status.lampTop()
+                            : status.lampBottom();
+
+            graphics.fill(
+                    dotLeft,
+                    top + 5,
+                    dotLeft + 2,
+                    top + 7,
+                    color
+            );
+        }
+    }
+
+    private void drawScaledLeftText(
+            GuiGraphics graphics,
+            Component text,
+            int left,
+            int top,
+            int height,
+            int color
+    ) {
+        Font font =
+                screen.uiFont();
+
+        float scaledHeight =
+                font.lineHeight
+                        * STATUS_TEXT_SCALE;
+
+        float textY =
+                top
+                        + (
+                        height
+                                - scaledHeight
+                ) / 2.0F
+                        + 0.5F;
+
+        graphics.pose().pushPose();
+
+        graphics.pose().translate(
+                left,
+                textY,
+                100.0F
+        );
+
+        graphics.pose().scale(
+                STATUS_TEXT_SCALE,
+                STATUS_TEXT_SCALE,
+                1.0F
+        );
 
         graphics.drawString(
-                screen.uiFont(),
-                status.text(),
-                screen.guiLeft()
-                        + FoundryControllerUiLayout.STATUS_TEXT_X,
-                screen.guiTop()
-                        + FoundryControllerUiLayout.STATUS_TEXT_Y,
-                status.color(),
-                false
+                font,
+                text,
+                0,
+                0,
+                color,
+                true
+        );
+
+        graphics.pose().popPose();
+    }
+
+    private static String fitScaledText(
+            Font font,
+            String text,
+            int renderedWidth,
+            float scale
+    ) {
+        if (
+                text == null
+                        || text.isEmpty()
+                        || renderedWidth <= 0
+                        || scale <= 0.0F
+        ) {
+            return "";
+        }
+
+        int maximumWidth =
+                Math.max(
+                        1,
+                        (int) Math.floor(
+                                renderedWidth
+                                        / scale
+                        )
+                );
+
+        if (font.width(text) <= maximumWidth) {
+            return text;
+        }
+
+        String suffix = "...";
+        int suffixWidth =
+                font.width(suffix);
+
+        if (suffixWidth >= maximumWidth) {
+            return font.plainSubstrByWidth(
+                    text,
+                    maximumWidth
+            );
+        }
+
+        return font.plainSubstrByWidth(
+                text,
+                maximumWidth - suffixWidth
+        ) + suffix;
+    }
+
+    private static void drawPixel(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            int color
+    ) {
+        graphics.fill(
+                x,
+                y,
+                x + 1,
+                y + 1,
+                color
         );
     }
 
     private FoundryStatus resolveStatus() {
         return switch (menu().getProcessingStatus()) {
-            case 1 -> new FoundryStatus(
-                    Component.literal("NO TANKS CONNECTED"),
-                    FoundryControllerUiDrawing.RED
+            case 1 -> FoundryStatus.error(
+                    Component.literal(
+                            "NO TANKS CONNECTED"
+                    )
             );
-            case 2 -> new FoundryStatus(
-                    Component.literal("TANK FULL"),
-                    FoundryControllerUiDrawing.RED
+            case 2 -> FoundryStatus.error(
+                    Component.literal(
+                            "TANK FULL"
+                    )
             );
-            case 3 -> new FoundryStatus(
-                    Component.literal("MISSING FUEL"),
-                    FoundryControllerUiDrawing.RED
+            case 3 -> FoundryStatus.error(
+                    Component.literal(
+                            "MISSING FUEL"
+                    )
             );
-            case 4 -> new FoundryStatus(
+            case 4 -> FoundryStatus.working(
                     Component.literal("MELTING ").append(
                             menu().getInputMoltenMetalDefinition()
                                     .<Component>map(
@@ -340,10 +668,9 @@ final class FoundryControllerHeaderStatusRenderer {
                                     .orElse(
                                             Component.literal("ORE")
                                     )
-                    ),
-                    FoundryControllerUiDrawing.ORANGE
+                    )
             );
-            case 5 -> new FoundryStatus(
+            case 5 -> FoundryStatus.working(
                     Component.literal("ALLOYING ").append(
                             menu().getActiveAlloyOutput()
                                     .<Component>map(
@@ -357,12 +684,10 @@ final class FoundryControllerHeaderStatusRenderer {
                                     .orElse(
                                             Component.literal("ALLOY")
                                     )
-                    ),
-                    FoundryControllerUiDrawing.ORANGE
+                    )
             );
-            default -> new FoundryStatus(
-                    Component.literal("READY"),
-                    FoundryControllerUiDrawing.GREEN
+            default -> FoundryStatus.ready(
+                    Component.literal("READY")
             );
         };
     }
@@ -393,7 +718,50 @@ final class FoundryControllerHeaderStatusRenderer {
 
     private record FoundryStatus(
             Component text,
-            int color
+            int textColor,
+            int lampTop,
+            int lampMiddle,
+            int lampBottom,
+            boolean working
     ) {
+
+        private static FoundryStatus ready(
+                Component text
+        ) {
+            return new FoundryStatus(
+                    text,
+                    0xFFD8F5CB,
+                    0xFFA2ED88,
+                    0xFF52B84D,
+                    0xFF28632A,
+                    false
+            );
+        }
+
+        private static FoundryStatus working(
+                Component text
+        ) {
+            return new FoundryStatus(
+                    text,
+                    0xFFFFD6A0,
+                    0xFFFFD27A,
+                    0xFFE69334,
+                    0xFF8A4D18,
+                    true
+            );
+        }
+
+        private static FoundryStatus error(
+                Component text
+        ) {
+            return new FoundryStatus(
+                    text,
+                    0xFFFFB5AA,
+                    0xFFFF9A8C,
+                    0xFFD94C43,
+                    0xFF772720,
+                    false
+            );
+        }
     }
 }
