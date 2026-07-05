@@ -3,6 +3,7 @@ package net.chriskatze.katzencraftmetals.screen;
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
@@ -16,6 +17,13 @@ import java.util.List;
 
 /** Renders the stored molten-metal selection list. */
 final class FoundryControllerMetalsRenderer {
+
+        static final float LIST_TEXT_SCALE = 0.75F;
+    static final int LIST_TEXT_X_OFFSET = 25;
+    static final int LIST_TEXT_WIDTH = 58;
+
+    private static final int METAL_NAME_Y_OFFSET = 4;
+    private static final int METAL_AMOUNT_Y_OFFSET = 12;
 
     private final FoundryControllerScreen screen;
     private int scrollOffset;
@@ -236,6 +244,39 @@ final class FoundryControllerMetalsRenderer {
                     top + 2
             );
         }
+
+        String name =
+                fitText(
+                        screen.uiFont(),
+                        displayName(definition.id()),
+                        LIST_TEXT_WIDTH
+                );
+
+        String amount =
+                fitText(
+                        screen.uiFont(),
+                        FoundryControllerUiDrawing.formatOreAmount(
+                                menu().getMetalAmount(definition),
+                                definition.unitsPerOre()
+                        ) + " ore",
+                        LIST_TEXT_WIDTH
+                );
+
+        drawScaledListText(
+                graphics,
+                Component.literal(name),
+                left + LIST_TEXT_X_OFFSET,
+                top + METAL_NAME_Y_OFFSET,
+                FoundryControllerUiDrawing.TEXT
+        );
+
+        drawScaledListText(
+                graphics,
+                Component.literal(amount),
+                left + LIST_TEXT_X_OFFSET,
+                top + METAL_AMOUNT_Y_OFFSET,
+                FoundryControllerUiDrawing.MUTED_TEXT
+        );
     }
 
 
@@ -327,6 +368,91 @@ final class FoundryControllerMetalsRenderer {
         }
 
         return definition.createCastResult();
+    }
+
+    static String fitText(
+            Font font,
+            String text,
+            int renderedWidth
+    ) {
+        if (
+                text == null
+                        || text.isEmpty()
+                        || renderedWidth <= 0
+        ) {
+            return "";
+        }
+
+        int maximumWidth =
+                Math.max(
+                        1,
+                        (int) Math.floor(
+                                renderedWidth
+                                        / LIST_TEXT_SCALE
+                        )
+                );
+
+        if (font.width(text) <= maximumWidth) {
+            return text;
+        }
+
+        String suffix = "...";
+        int suffixWidth = font.width(suffix);
+
+        if (suffixWidth >= maximumWidth) {
+            return font.plainSubstrByWidth(
+                    text,
+                    maximumWidth
+            );
+        }
+
+        return font.plainSubstrByWidth(
+                text,
+                maximumWidth - suffixWidth
+        ) + suffix;
+    }
+
+    static int scaledListLineHeight(
+            Font font
+    ) {
+        return Math.max(
+                1,
+                Math.round(
+                        font.lineHeight
+                                * LIST_TEXT_SCALE
+                )
+        );
+    }
+
+    static void drawScaledListText(
+            GuiGraphics graphics,
+            Component text,
+            int x,
+            int y,
+            int color
+    ) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(
+                x,
+                y,
+                0.0F
+        );
+        graphics.pose().scale(
+                LIST_TEXT_SCALE,
+                LIST_TEXT_SCALE,
+                1.0F
+        );
+
+        graphics.drawString(
+                net.minecraft.client.Minecraft.getInstance().font,
+                text,
+                0,
+                0,
+                color,
+                false
+        );
+
+        graphics.pose().popPose();
     }
 
     static String displayName(

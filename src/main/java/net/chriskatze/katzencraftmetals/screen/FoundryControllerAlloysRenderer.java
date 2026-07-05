@@ -454,6 +454,43 @@ final class FoundryControllerAlloysRenderer {
                     top + 2
             );
         }
+
+        String alloyName =
+                FoundryControllerMetalsRenderer.fitText(
+                        screen.uiFont(),
+                        FoundryControllerMetalsRenderer.displayName(
+                                entry.holder()
+                                        .value()
+                                        .outputMetal()
+                        ),
+                        FoundryControllerMetalsRenderer.LIST_TEXT_WIDTH
+                );
+
+        int alloyNameY =
+                top
+                        + Math.max(
+                        0,
+                        (
+                                FoundryControllerUiLayout.ALLOY_ROW_HEIGHT
+                                        - FoundryControllerMetalsRenderer
+                                        .scaledListLineHeight(
+                                                screen.uiFont()
+                                        )
+                        ) / 2
+                )
+                        + 1;
+
+        FoundryControllerMetalsRenderer.drawScaledListText(
+                graphics,
+                Component.literal(alloyName),
+                left
+                        + FoundryControllerMetalsRenderer
+                        .LIST_TEXT_X_OFFSET,
+                alloyNameY,
+                enabled
+                        ? FoundryControllerUiDrawing.TEXT
+                        : FoundryControllerUiDrawing.MUTED_TEXT
+        );
     }
 
     private void renderBlankRow(
