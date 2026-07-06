@@ -32,6 +32,14 @@ public class ModMenuTypes {
                     )
             );
 
+    public static final Supplier<MenuType<FoundryFaucetOutputMenu>> FOUNDRY_FAUCET_OUTPUT_MENU =
+            MENUS.register(
+                    "foundry_faucet_output",
+                    () -> IMenuTypeExtension.create(
+                            FoundryFaucetOutputMenu::new
+                    )
+            );
+
     public static final Supplier<MenuType<KatzencraftAnvilMenu>> KATZENCRAFT_ANVIL_MENU =
             MENUS.register("katzencraft_anvil_menu",
                     () -> IMenuTypeExtension.create((containerId, inventory, extraData) ->

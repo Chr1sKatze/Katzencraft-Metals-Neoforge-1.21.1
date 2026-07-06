@@ -7,10 +7,7 @@ import net.chriskatze.katzencraftmetals.client.renderer.CastingCauldronBlockEnti
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryFaucetBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
-import net.chriskatze.katzencraftmetals.screen.CrusherScreen;
-import net.chriskatze.katzencraftmetals.screen.FoundryControllerScreen;
-import net.chriskatze.katzencraftmetals.screen.FuelChamberScreen;
-import net.chriskatze.katzencraftmetals.screen.KatzencraftAnvilScreen;
+import net.chriskatze.katzencraftmetals.screen.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ItemBlockRenderTypes;
 import net.minecraft.client.renderer.RenderType;
@@ -79,6 +76,11 @@ public class ModClientEvents {
         event.register(
                 ModMenuTypes.FOUNDRY_CONTROLLER_MENU.get(),
                 FoundryControllerScreen::new
+        );
+
+        event.register(
+                ModMenuTypes.FOUNDRY_FAUCET_OUTPUT_MENU.get(),
+                FoundryFaucetOutputScreen::new
         );
 
         event.register(
