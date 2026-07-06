@@ -45,20 +45,20 @@ final class FoundryControllerHeaderStatusRenderer {
     private static final int XP_TRACK_BOTTOM = 0xFF0B100C;
     private static final int XP_SEGMENT = 0x36FFFFFF;
 
-    private static final int STATUS_TRACK = 0xFF151321;
-    private static final int STATUS_TRACK_TOP = 0xFF29243B;
-    private static final int STATUS_TRACK_BOTTOM = 0xFF090811;
+    private static final int STATUS_TRACK = 0xFF1A1A1A;
+    private static final int STATUS_TRACK_TOP = 0xFF303030;
+    private static final int STATUS_TRACK_BOTTOM = 0xFF090909;
 
     /*
      * XP is intentionally always light green, regardless of Foundry tier.
      */
     private static final TierPalette XP_PALETTE =
             new TierPalette(
-                    0xFFE7F7C8,
-                    0xFF9DCE72,
-                    0xFF4D7E3E,
-                    0xFFF4FFE8,
-                    0x66B8E58D
+                    0xFFC9E09B,
+                    0xFF86B85C,
+                    0xFF3E7034,
+                    0xFFEAF4D7,
+                    0x6689BD69
             );
 
     private final FoundryControllerScreen screen;
@@ -614,36 +614,13 @@ final class FoundryControllerHeaderStatusRenderer {
     }
 
     private TierPalette statusPalette() {
-        return switch (menu().getFoundryTier()) {
-            case 1 -> new TierPalette(
-                    0xFFFFFFFF,
-                    0xFFE6E6E6,
-                    0xFF9F9F9F,
-                    0xFFFFFFFF,
-                    0x66FFFFFF
-            );
-            case 2 -> new TierPalette(
-                    0xFFD3F5FF,
-                    0xFF8CCEFF,
-                    0xFF3E7AC1,
-                    0xFFF4FCFF,
-                    0x6657CFFF
-            );
-            case 3 -> new TierPalette(
-                    0xFFFFF1B0,
-                    0xFFF4C75A,
-                    0xFFB77A1F,
-                    0xFFFFF7DB,
-                    0x66FFD36B
-            );
-            default -> new TierPalette(
-                    0xFFE0EDFF,
-                    0xFFB48CFF,
-                    0xFF4A3CB7,
-                    0xFFF7F2FF,
-                    0x667ED7FF
-            );
-        };
+        return new TierPalette(
+                0xFFF4F4F1,
+                0xFFD4D5D0,
+                0xFF8E908A,
+                0xFFE8E8E4,
+                0x66F2F2ED
+        );
     }
 
     private static String fitScaledText(
