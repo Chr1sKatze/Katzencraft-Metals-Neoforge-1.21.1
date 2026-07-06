@@ -30,20 +30,33 @@ final class FoundryControllerUiLayout {
     static final int FUEL_SLOT_Y = 99;
     static final int SLOT_SPACING = 19;
 
+    /*
+     * These dimensions match foundry_controller_fuel_mask.png.
+     * The visible fuel fill shape comes from the mask alpha.
+     */
     static final int BURN_BAR_X = 41;
     static final int BURN_BAR_Y = 120;
     static final int BURN_BAR_WIDTH = 73;
     static final int BURN_BAR_HEIGHT = 8;
 
-    static final int PROGRESS_GAUGE_X = 18;
+    /*
+     * These dimensions match foundry_controller_process_mask.png.
+     * The progress mask includes the round bulb and the thin vertical pillar.
+     */
+    static final int PROGRESS_GAUGE_X = 14;
     static final int PROGRESS_GAUGE_Y = 56;
-    static final int PROGRESS_GAUGE_WIDTH = 5;
-    static final int PROGRESS_GAUGE_HEIGHT = 64;
+    static final int PROGRESS_GAUGE_WIDTH = 13;
+    static final int PROGRESS_GAUGE_HEIGHT = 72;
 
+    /*
+     * These dimensions match foundry_controller_tank_mask.png.
+     * The molten metal renderer keeps using the real molten textures and
+     * renders them inside this mask's bounding box.
+     */
     static final int TANK_GAUGE_X = 133;
-    static final int TANK_GAUGE_Y = 55;
+    static final int TANK_GAUGE_Y = 56;
     static final int TANK_GAUGE_WIDTH = 28;
-    static final int TANK_GAUGE_HEIGHT = 73;
+    static final int TANK_GAUGE_HEIGHT = 72;
 
     static final int TANK_COUNT_X = 124;
     static final int TANK_COUNT_Y = 131;

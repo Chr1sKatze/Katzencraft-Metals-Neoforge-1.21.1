@@ -15,6 +15,46 @@ final class FoundryControllerTankRenderer {
             MOLTEN_FRAME_HEIGHT
                     * MoltenIronAnimation.TEXTURE_FRAME_COUNT;
 
+    /*
+     * These bands were generated from foundry_controller_tank_mask.png.
+     *
+     * Each entry is:
+     * { relativeYStart, relativeYEnd, relativeXStart, relativeXEnd }
+     *
+     * X/Y end values are exclusive. The bands allow the molten texture to be
+     * rendered only where the white tank mask has opaque pixels, so the small
+     * transparent notches/details inside the tank mask stay transparent.
+     */
+    private static final int[][] TANK_MASK_BANDS = {
+            {0, 2, 0, 28},
+            {2, 3, 0, 4},
+            {2, 3, 5, 28},
+            {3, 4, 0, 3},
+            {3, 4, 4, 28},
+            {4, 5, 0, 2},
+            {4, 5, 3, 28},
+            {5, 23, 0, 28},
+            {23, 24, 0, 4},
+            {23, 24, 24, 28},
+            {23, 26, 5, 23},
+            {25, 26, 0, 4},
+            {25, 26, 24, 28},
+            {26, 47, 0, 28},
+            {47, 48, 0, 3},
+            {47, 48, 25, 28},
+            {47, 50, 4, 24},
+            {49, 50, 0, 3},
+            {49, 50, 25, 28},
+            {50, 67, 0, 28},
+            {67, 68, 0, 25},
+            {67, 68, 26, 28},
+            {68, 69, 0, 24},
+            {68, 69, 25, 28},
+            {69, 70, 0, 23},
+            {69, 70, 24, 28},
+            {70, 72, 0, 28}
+    };
+
     private final FoundryControllerScreen screen;
 
     FoundryControllerTankRenderer(
@@ -96,6 +136,7 @@ final class FoundryControllerTankRenderer {
                     definition.animatedTexture(),
                     x,
                     width,
+                    top,
                     bottom - upperPixels,
                     bottom - lowerPixels
             );
@@ -105,25 +146,80 @@ final class FoundryControllerTankRenderer {
     private void renderMoltenSegment(
             GuiGraphics graphics,
             ResourceLocation texture,
+            int tankLeft,
+            int tankWidth,
+            int tankTop,
+            int segmentTop,
+            int segmentBottom
+    ) {
+        if (
+                tankWidth <= 0
+                        || segmentBottom <= segmentTop
+        ) {
+            return;
+        }
+
+        for (int[] band : TANK_MASK_BANDS) {
+            int bandTop =
+                    tankTop
+                            + band[0];
+
+            int bandBottom =
+                    tankTop
+                            + band[1];
+
+            int clippedTop =
+                    Math.max(
+                            segmentTop,
+                            bandTop
+                    );
+
+            int clippedBottom =
+                    Math.min(
+                            segmentBottom,
+                            bandBottom
+                    );
+
+            if (clippedBottom <= clippedTop) {
+                continue;
+            }
+
+            int bandLeft =
+                    tankLeft
+                            + band[2];
+
+            int bandRight =
+                    tankLeft
+                            + band[3];
+
+            graphics.enableScissor(
+                    bandLeft,
+                    clippedTop,
+                    bandRight,
+                    clippedBottom
+            );
+
+            renderMoltenTiles(
+                    graphics,
+                    texture,
+                    tankLeft,
+                    tankWidth,
+                    segmentTop,
+                    segmentBottom
+            );
+
+            graphics.disableScissor();
+        }
+    }
+
+    private void renderMoltenTiles(
+            GuiGraphics graphics,
+            ResourceLocation texture,
             int x,
             int width,
             int top,
             int bottom
     ) {
-        if (
-                width <= 0
-                        || bottom <= top
-        ) {
-            return;
-        }
-
-        graphics.enableScissor(
-                x,
-                top,
-                x + width,
-                bottom
-        );
-
         int frame =
                 MoltenIronAnimation.getFrame(
                         getGameTime()
@@ -152,8 +248,6 @@ final class FoundryControllerTankRenderer {
                 );
             }
         }
-
-        graphics.disableScissor();
     }
 
     private void renderTankCount(
