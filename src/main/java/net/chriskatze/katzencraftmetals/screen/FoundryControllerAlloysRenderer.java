@@ -211,6 +211,10 @@ final class FoundryControllerAlloysRenderer {
                 findFocusedEntry(entries);
 
         if (focused == null) {
+            if (!alloying) {
+                clearSelection();
+            }
+
             return false;
         }
 
@@ -265,6 +269,17 @@ final class FoundryControllerAlloysRenderer {
             );
 
             return true;
+        }
+
+        /*
+         * Any left-click that was not an alloy recipe row and not one of the
+         * alloy controls clears the current recipe selection.
+         *
+         * Return false so normal container behavior still works, for example when
+         * the player clicks an inventory slot.
+         */
+        if (!alloying) {
+            clearSelection();
         }
 
         return false;
@@ -1003,13 +1018,8 @@ final class FoundryControllerAlloysRenderer {
             List<Entry> entries
     ) {
         if (entries.isEmpty()) {
-            focusedRecipeId = null;
+            clearSelection();
             scrollOffset = 0;
-            screen.configureAlloyQuantity(
-                    false,
-                    1,
-                    false
-            );
             return;
         }
 
@@ -1022,6 +1032,10 @@ final class FoundryControllerAlloysRenderer {
                         .map(MoltenMetalDefinition::id)
                         .orElse(null);
 
+        /*
+         * During an active alloy job, keep the active recipe focused so the
+         * preview and STOP button still represent the running job.
+         */
         if (activeOutput != null) {
             for (Entry entry : entries) {
                 if (
@@ -1042,14 +1056,21 @@ final class FoundryControllerAlloysRenderer {
             }
         }
 
-        focusedRecipeId =
-                entries.get(0)
-                        .holder()
-                        .id();
+        /*
+         * Outside an active job, do not auto-select the first recipe.
+         * The player may intentionally have no alloy recipe selected.
+         */
+        clearSelection();
+    }
+
+    private void clearSelection() {
+        focusedRecipeId = null;
+        pressedControl = ControlButton.NONE;
+        pressedUntil = 0L;
 
         configureControls(
-                entries.get(0),
-                true
+                null,
+                false
         );
     }
 
