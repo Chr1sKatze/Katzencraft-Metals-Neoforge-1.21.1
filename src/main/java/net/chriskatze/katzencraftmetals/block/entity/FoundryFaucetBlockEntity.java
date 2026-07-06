@@ -1,22 +1,34 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
 import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
+import net.chriskatze.katzencraftmetals.menu.FoundryFaucetOutputMenu;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
+import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
-public class FoundryFaucetBlockEntity extends BlockEntity {
+import java.util.Objects;
+import java.util.Optional;
+
+public class FoundryFaucetBlockEntity
+        extends BlockEntity
+        implements MenuProvider {
 
     public static final int TRANSFER_INTERVAL = 2;
     public static final int TRANSFER_AMOUNT = 1;
@@ -30,6 +42,13 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     private int transferTimer;
     private int streamAnimationStep;
     private int streamAnimationTimer;
+
+    /*
+     * Per-Faucet output selection. Null means "automatic": use the old
+     * Controller-selected/default output behavior.
+     */
+    @Nullable
+    private ResourceLocation selectedOutputMetal;
 
     /*
      * Locked when pouring starts. The Faucet never silently changes to another
@@ -46,6 +65,29 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                 ModBlockEntities.FOUNDRY_FAUCET.get(),
                 pos,
                 state
+        );
+    }
+
+    // =========================
+    // MENU PROVIDER
+    // =========================
+
+    @Override
+    public Component getDisplayName() {
+        return Component.literal("Faucet Output");
+    }
+
+    @Nullable
+    @Override
+    public AbstractContainerMenu createMenu(
+            int containerId,
+            Inventory playerInventory,
+            Player player
+    ) {
+        return new FoundryFaucetOutputMenu(
+                containerId,
+                playerInventory,
+                this
         );
     }
 
@@ -96,7 +138,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                         level,
                         pos,
                         state,
-                        faucet.pouringMetal
+                        faucet
                 );
 
         if (context == null) {
@@ -173,10 +215,9 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
 
         /*
          * A Faucet draws the selected metal from the complete connected Tank
-         * network, not only from the physical liquid layer beside the Faucet.
-         *
-         * The active pour still remains locked to one metal. It stops when that
-         * exact metal is gone rather than silently switching to another metal.
+         * network. The active pour still remains locked to one metal. It stops
+         * when that exact metal is gone rather than silently switching to
+         * another metal.
          */
         if (
                 context.cauldron().isFull()
@@ -190,15 +231,129 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     }
 
     // =========================
+    // PER-FAUCET OUTPUT SELECTION
+    // =========================
+
+    public Optional<ResourceLocation> getSelectedOutputMetalId() {
+        return Optional.ofNullable(
+                selectedOutputMetal
+        );
+    }
+
+    public void clearSelectedOutputMetal() {
+        setSelectedOutputMetal(null);
+    }
+
+    public void setSelectedOutputMetal(
+            @Nullable ResourceLocation metal
+    ) {
+        ResourceLocation normalized =
+                metal != null
+                        && ModMoltenMetals.contains(metal)
+                        ? metal
+                        : null;
+
+        if (Objects.equals(
+                selectedOutputMetal,
+                normalized
+        )) {
+            return;
+        }
+
+        selectedOutputMetal =
+                normalized;
+
+        /*
+         * If the player changes this Faucet to a different explicit metal while
+         * it is already pouring, stop the current pour instead of silently
+         * switching the active stream.
+         */
+        if (
+                pouring
+                        && pouringMetal != null
+                        && selectedOutputMetal != null
+                        && !selectedOutputMetal.equals(
+                        pouringMetal
+                )
+        ) {
+            stopPouring();
+        }
+
+        setChanged();
+        syncToClient();
+    }
+
+    public Optional<ResourceLocation> resolveOutputMetal(
+            FoundryTankBlockEntity tank
+    ) {
+        if (
+                tank == null
+                        || tank.getLevel() == null
+        ) {
+            return Optional.empty();
+        }
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (
+                network == null
+                        || !network.isActive()
+        ) {
+            return Optional.empty();
+        }
+
+        network.ensureMoltenContentsMigrated();
+
+        if (selectedOutputMetal != null) {
+            return network.getMoltenAmount(
+                    selectedOutputMetal
+            ) >= TRANSFER_AMOUNT
+                    ? Optional.of(selectedOutputMetal)
+                    : Optional.empty();
+        }
+
+        FoundryControllerBlockEntity controller =
+                network.getAttachedController();
+
+        ResourceLocation automaticMetal =
+                controller != null
+                        ? controller.getSelectedOutputMetalOrDefault(
+                        network
+                )
+                        : tank.getTopLocalMetal();
+
+        if (
+                automaticMetal != null
+                        && network.getMoltenAmount(
+                        automaticMetal
+                ) >= TRANSFER_AMOUNT
+        ) {
+            return Optional.of(automaticMetal);
+        }
+
+        for (MoltenMetalDefinition definition : ModMoltenMetals.heaviestFirst()) {
+            if (
+                    network.getMoltenAmount(
+                            definition.id()
+                    ) >= TRANSFER_AMOUNT
+            ) {
+                return Optional.of(
+                        definition.id()
+                );
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    // =========================
     // SMART SOURCE / TARGET LOOKUP
     // =========================
 
     /**
-     * Retains the existing method name used by FoundryFaucetBlock, but the
-     * Faucet now checks the complete connected Tank network.
-     *
-     * This allows a Faucet attached to a lower Tank to pour a selected metal
-     * stored in a higher density layer or in a Tank above it.
+     * Retained for compatibility with older callers. This method has the old
+     * name, but the current Foundry uses the complete connected Tank network.
      */
     public static boolean hasMoltenAtFaucetHeight(
             FoundryTankBlockEntity tank
@@ -220,6 +375,8 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             return false;
         }
 
+        network.ensureMoltenContentsMigrated();
+
         FoundryControllerBlockEntity controller =
                 network.getAttachedController();
 
@@ -230,9 +387,54 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                 )
                         : tank.getTopLocalMetal();
 
-        return selectedMetal != null
-                && network.getMoltenAmount(
-                selectedMetal
+        if (
+                selectedMetal != null
+                        && network.getMoltenAmount(
+                        selectedMetal
+                ) >= TRANSFER_AMOUNT
+        ) {
+            return true;
+        }
+
+        for (MoltenMetalDefinition definition : ModMoltenMetals.heaviestFirst()) {
+            if (
+                    network.getMoltenAmount(
+                            definition.id()
+                    ) >= TRANSFER_AMOUNT
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean hasMoltenAtFaucetHeight(
+            FoundryTankBlockEntity tank,
+            ResourceLocation metal
+    ) {
+        if (
+                tank == null
+                        || tank.getLevel() == null
+                        || metal == null
+        ) {
+            return false;
+        }
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (
+                network == null
+                        || !network.isActive()
+        ) {
+            return false;
+        }
+
+        network.ensureMoltenContentsMigrated();
+
+        return network.getMoltenAmount(
+                metal
         ) >= TRANSFER_AMOUNT;
     }
 
@@ -282,7 +484,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
             Level level,
             BlockPos faucetPos,
             BlockState faucetState,
-            @Nullable ResourceLocation lockedMetal
+            FoundryFaucetBlockEntity faucet
     ) {
         Direction facing =
                 faucetState.getValue(
@@ -315,23 +517,13 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
 
         network.ensureMoltenContentsMigrated();
 
-        FoundryControllerBlockEntity controller =
-                network.getAttachedController();
-
         ResourceLocation outputMetal =
-                lockedMetal != null
-                        ? lockedMetal
-                        : controller != null
-                        ? controller.getSelectedOutputMetalOrDefault(
-                        network
-                )
-                        : null;
+                faucet.pouringMetal != null
+                        ? faucet.pouringMetal
+                        : faucet.resolveOutputMetal(
+                        tank
+                ).orElse(null);
 
-        /*
-         * The Controller selects which metal the Faucet draws from the complete
-         * Tank network. Physical density layers remain visual and determine the
-         * Tank contents, but they no longer restrict Faucet placement height.
-         */
         if (
                 outputMetal == null
                         || network.getMoltenAmount(
@@ -390,6 +582,26 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
     // POURING STATE
     // =========================
 
+    public void startPouring(
+            ResourceLocation metal
+    ) {
+        if (
+                level == null
+                        || level.isClientSide()
+                        || metal == null
+                        || !ModMoltenMetals.contains(
+                        metal
+                )
+        ) {
+            return;
+        }
+
+        pouringMetal =
+                metal;
+
+        setPouring(true);
+    }
+
     public void startPouring() {
         if (
                 level == null
@@ -403,7 +615,7 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                         level,
                         worldPosition,
                         getBlockState(),
-                        null
+                        this
                 );
 
         if (context == null) {
@@ -520,6 +732,13 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                 streamAnimationStep
         );
 
+        if (selectedOutputMetal != null) {
+            tag.putString(
+                    "SelectedOutputMetal",
+                    selectedOutputMetal.toString()
+            );
+        }
+
         if (pouringMetal != null) {
             tag.putString(
                     "PouringMetal",
@@ -557,6 +776,27 @@ public class FoundryFaucetBlockEntity extends BlockEntity {
                 );
 
         streamAnimationTimer = 0;
+
+        selectedOutputMetal =
+                null;
+
+        if (tag.contains("SelectedOutputMetal")) {
+            selectedOutputMetal =
+                    ResourceLocation.tryParse(
+                            tag.getString(
+                                    "SelectedOutputMetal"
+                            )
+                    );
+        }
+
+        if (
+                selectedOutputMetal != null
+                        && !ModMoltenMetals.contains(
+                        selectedOutputMetal
+                )
+        ) {
+            selectedOutputMetal = null;
+        }
 
         pouringMetal =
                 null;

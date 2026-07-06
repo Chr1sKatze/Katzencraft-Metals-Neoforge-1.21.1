@@ -8,6 +8,8 @@ import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionResult;
@@ -361,6 +363,22 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
         }
 
         /*
+         * Shift-right-click opens the per-Faucet output selection menu.
+         * This is checked before the normal active-Faucet stop behavior so the
+         * player can inspect or change the selection intentionally.
+         */
+        if (player.isShiftKeyDown()) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.openMenu(
+                        faucet,
+                        buffer -> buffer.writeBlockPos(pos)
+                );
+            }
+
+            return InteractionResult.CONSUME;
+        }
+
+        /*
          * Right-clicking an active Faucet stops it.
          */
         if (faucet.isPouring()) {
@@ -419,17 +437,17 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
-        /*
-         * A Faucet draws only from the exact Tank height to which it is
-         * attached. Metal may still exist in lower Tank layers without being
-         * reachable by a middle or top Faucet.
-         */
-        if (!FoundryFaucetBlockEntity.hasMoltenAtFaucetHeight(
-                tank
-        )) {
+        ResourceLocation outputMetal =
+                faucet.resolveOutputMetal(
+                        tank
+                ).orElse(null);
+
+        if (outputMetal == null) {
             player.displayClientMessage(
                     Component.literal(
-                            "There is no molten metal at this faucet height."
+                            faucet.getSelectedOutputMetalId().isPresent()
+                                    ? "The selected metal is not available at this faucet."
+                                    : "There is no molten metal available for this faucet."
                     ),
                     true
             );
@@ -469,7 +487,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
         }
 
         if (!cauldron.canAccept(
-                tank.getStoredMetal(),
+                outputMetal,
                 FoundryFaucetBlockEntity.TRANSFER_AMOUNT
         )) {
             player.displayClientMessage(
@@ -482,7 +500,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
-        faucet.startPouring();
+        faucet.startPouring(outputMetal);
 
         level.playSound(
                 null,
