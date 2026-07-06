@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.screen;
 
+import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
@@ -11,44 +12,54 @@ final class FoundryControllerHeaderStatusRenderer {
     private static final float XP_TEXT_SCALE = 0.75F;
     private static final float STATUS_TEXT_SCALE = 0.75F;
 
-    private static final int XP_FRAME = 0xFF171A15;
-    private static final int XP_TRACK = 0xFF292E25;
-    private static final int XP_TRACK_HIGHLIGHT = 0xFF3A4034;
-
-    private static final int XP_FILL_TOP = 0xFF8BE36E;
-    private static final int XP_FILL_MIDDLE = 0xFF53B947;
-    private static final int XP_FILL_BOTTOM = 0xFF2F7932;
-
-    private static final int XP_MAX_TOP = 0xFFFFE27A;
-    private static final int XP_MAX_MIDDLE = 0xFFE0A936;
-    private static final int XP_MAX_BOTTOM = 0xFF9B6B19;
-
-    private static final int XP_SEGMENT = 0x66000000;
-    private static final int XP_FILL_EDGE = 0xAAFFFFFF;
+    private static final ResourceLocation BAR_FRAME_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(
+                    KatzencraftMetalsMod.MODID,
+                    "textures/gui/foundry_controller_bar_frame.png"
+            );
 
     /*
-     * The authored GUI already leaves a status area at the bottom-left.
-     * This plate begins where the dynamic status text previously began, so the
-     * left-hand authored label remains untouched.
+     * The supplied frame texture is exactly 170 x 16 pixels.
+     *
+     * We first draw the complete bar underneath it and then draw this frame on
+     * top. Every transparent pixel inside the frame therefore reveals the bar,
+     * while every authored border pixel remains untouched.
      */
-    private static final int STATUS_PANEL_X = 48;
-    private static final int STATUS_PANEL_Y = 216;
-    private static final int STATUS_PANEL_WIDTH = 122;
-    private static final int STATUS_PANEL_HEIGHT = 12;
+    private static final int BAR_X = 2;
+    private static final int BAR_WIDTH = 170;
+    private static final int BAR_HEIGHT = 16;
 
-    private static final int STATUS_FRAME = 0xFF171815;
-    private static final int STATUS_BACKGROUND = 0xFF252821;
-    private static final int STATUS_BACKGROUND_TOP = 0xFF393C32;
-    private static final int STATUS_BACKGROUND_BOTTOM = 0xFF11130F;
-    private static final int STATUS_DIVIDER = 0xFF11130F;
-    private static final int STATUS_RIVET = 0xFF606357;
+    private static final int XP_BAR_Y = 21;
+    private static final int STATUS_BAR_Y = 214;
 
-    private static final int STATUS_LAMP_FRAME = 0xFF0D0E0C;
-    private static final int STATUS_LAMP_HIGHLIGHT = 0xCCFFFFFF;
+    private static final int STATUS_TEXT_X_OFFSET = 19;
+    private static final int STATUS_TEXT_RIGHT_PADDING = 6;
+    private static final int STATUS_ACTIVITY_WIDTH = 15;
 
-    private static final int STATUS_TEXT_X_OFFSET = 18;
-    private static final int STATUS_TEXT_RIGHT_PADDING = 5;
-    private static final int STATUS_ACTIVITY_WIDTH = 13;
+    /*
+     * Both empty tracks are fully opaque. The Foundry GUI background can never
+     * show through the transparent interior of the authored frame.
+     */
+    private static final int XP_TRACK = 0xFF172218;
+    private static final int XP_TRACK_TOP = 0xFF273C29;
+    private static final int XP_TRACK_BOTTOM = 0xFF0B100C;
+    private static final int XP_SEGMENT = 0x36FFFFFF;
+
+    private static final int STATUS_TRACK = 0xFF151321;
+    private static final int STATUS_TRACK_TOP = 0xFF29243B;
+    private static final int STATUS_TRACK_BOTTOM = 0xFF090811;
+
+    /*
+     * XP is intentionally always light green, regardless of Foundry tier.
+     */
+    private static final TierPalette XP_PALETTE =
+            new TierPalette(
+                    0xFFE7F7C8,
+                    0xFF9DCE72,
+                    0xFF4D7E3E,
+                    0xFFF4FFE8,
+                    0x66B8E58D
+            );
 
     private final FoundryControllerScreen screen;
 
@@ -92,153 +103,49 @@ final class FoundryControllerHeaderStatusRenderer {
     ) {
         int left =
                 screen.guiLeft()
-                        + FoundryControllerUiLayout.XP_BAR_X;
+                        + BAR_X;
 
         int top =
                 screen.guiTop()
-                        + FoundryControllerUiLayout.XP_BAR_Y;
-
-        int width =
-                FoundryControllerUiLayout.XP_BAR_WIDTH;
-
-        int height =
-                FoundryControllerUiLayout.XP_BAR_HEIGHT;
-
-        int innerLeft = left + 1;
-        int innerTop = top + 1;
-        int innerWidth = Math.max(0, width - 2);
-        int innerHeight = Math.max(0, height - 2);
-
-        boolean maximumTier =
-                menu().getFoundryTier() >= 4;
-
-        int fill =
-                maximumTier
-                        ? innerWidth
-                        : menu().getScaledExperience(
-                        innerWidth
-                );
+                        + XP_BAR_Y;
 
         /*
-         * Dark one-pixel frame and recessed track.
+         * Fill the entire 170 x 16 frame rectangle first. The frame is rendered
+         * afterwards, so its visible border is restored on top.
          */
-        graphics.fill(
+        drawFullTrack(
+                graphics,
                 left,
                 top,
-                left + width,
-                top + height,
-                XP_FRAME
+                XP_TRACK,
+                XP_TRACK_TOP,
+                XP_TRACK_BOTTOM
         );
 
-        if (innerWidth > 0 && innerHeight > 0) {
-            graphics.fill(
-                    innerLeft,
-                    innerTop,
-                    innerLeft + innerWidth,
-                    innerTop + innerHeight,
-                    XP_TRACK
-            );
-
-            /*
-             * A faint highlight along the empty track keeps it from looking
-             * like a completely flat black rectangle.
-             */
-            graphics.fill(
-                    innerLeft,
-                    innerTop,
-                    innerLeft + innerWidth,
-                    innerTop + 1,
-                    XP_TRACK_HIGHLIGHT
-            );
-        }
-
-        if (fill > 0 && innerHeight > 0) {
-            int fillRight =
-                    innerLeft
-                            + Math.min(
-                            fill,
-                            innerWidth
-                    );
-
-            int topColor =
-                    maximumTier
-                            ? XP_MAX_TOP
-                            : XP_FILL_TOP;
-
-            int middleColor =
-                    maximumTier
-                            ? XP_MAX_MIDDLE
-                            : XP_FILL_MIDDLE;
-
-            int bottomColor =
-                    maximumTier
-                            ? XP_MAX_BOTTOM
-                            : XP_FILL_BOTTOM;
-
-            /*
-             * Three simple pixel-art shades make the fill look beveled without
-             * requiring another texture.
-             */
-            graphics.fill(
-                    innerLeft,
-                    innerTop,
-                    fillRight,
-                    innerTop + innerHeight,
-                    middleColor
-            );
-
-            graphics.fill(
-                    innerLeft,
-                    innerTop,
-                    fillRight,
-                    innerTop + 1,
-                    topColor
-            );
-
-            graphics.fill(
-                    innerLeft,
-                    innerTop + innerHeight - 1,
-                    fillRight,
-                    innerTop + innerHeight,
-                    bottomColor
-            );
-
-            /*
-             * Bright one-pixel cap at the current progress position.
-             */
-            if (fillRight < innerLeft + innerWidth) {
-                graphics.fill(
-                        fillRight - 1,
-                        innerTop + 1,
-                        fillRight,
-                        innerTop + innerHeight - 1,
-                        XP_FILL_EDGE
+        int fill =
+                menu().getFoundryTier() >= 4
+                        ? BAR_WIDTH
+                        : menu().getScaledExperience(
+                        BAR_WIDTH
                 );
-            }
-        }
 
-        /*
-         * Ten subtle divisions make progress easier to read while keeping the
-         * original compact eight-pixel-high bar.
-         */
-        for (int segment = 1; segment < 10; segment++) {
-            int segmentX =
-                    innerLeft
-                            + segment
-                            * innerWidth
-                            / 10;
-
-            graphics.fill(
-                    segmentX,
-                    innerTop,
-                    segmentX + 1,
-                    innerTop + innerHeight,
-                    XP_SEGMENT
+        if (fill > 0) {
+            drawExperienceFill(
+                    graphics,
+                    left,
+                    top,
+                    Math.min(fill, BAR_WIDTH)
             );
         }
+
+        drawExperienceSegments(
+                graphics,
+                left,
+                top
+        );
 
         Component experienceText =
-                maximumTier
+                menu().getFoundryTier() >= 4
                         ? Component.literal("MAX")
                         : Component.literal(
                         menu().getTierExperience()
@@ -251,11 +158,348 @@ final class FoundryControllerHeaderStatusRenderer {
                 experienceText,
                 left,
                 top,
-                width,
-                height,
-                maximumTier
-                        ? 0xFFFFF0A6
-                        : 0xFFFFFFFF
+                BAR_WIDTH,
+                BAR_HEIGHT,
+                XP_PALETTE.text()
+        );
+
+        drawFrame(
+                graphics,
+                left,
+                top
+        );
+    }
+
+    private void drawExperienceFill(
+            GuiGraphics graphics,
+            int left,
+            int top,
+            int fillWidth
+    ) {
+        int right =
+                left
+                        + fillWidth;
+
+        graphics.fill(
+                left,
+                top,
+                right,
+                top + BAR_HEIGHT,
+                XP_PALETTE.middle()
+        );
+
+        graphics.fill(
+                left,
+                top,
+                right,
+                top + 2,
+                XP_PALETTE.top()
+        );
+
+        graphics.fill(
+                left,
+                top + BAR_HEIGHT - 2,
+                right,
+                top + BAR_HEIGHT,
+                XP_PALETTE.bottom()
+        );
+
+        if (right < left + BAR_WIDTH) {
+            graphics.fill(
+                    Math.max(left, right - 2),
+                    top + 2,
+                    right,
+                    top + BAR_HEIGHT - 2,
+                    XP_PALETTE.glow()
+            );
+        }
+
+        int[] sparkleOffsets = {
+                9,
+                31,
+                53,
+                75,
+                97,
+                119,
+                141,
+                163
+        };
+
+        for (int offset : sparkleOffsets) {
+            if (offset >= fillWidth - 1) {
+                break;
+            }
+
+            drawPixel(
+                    graphics,
+                    left + offset,
+                    top + 4,
+                    0xA6FFFFFF
+            );
+        }
+    }
+
+    private void drawExperienceSegments(
+            GuiGraphics graphics,
+            int left,
+            int top
+    ) {
+        for (int segment = 1; segment < 10; segment++) {
+            int segmentX =
+                    left
+                            + segment
+                            * BAR_WIDTH
+                            / 10;
+
+            graphics.fill(
+                    segmentX,
+                    top + 2,
+                    segmentX + 1,
+                    top + BAR_HEIGHT - 2,
+                    XP_SEGMENT
+            );
+        }
+    }
+
+    private void renderStatus(
+            GuiGraphics graphics
+    ) {
+        FoundryStatus status =
+                resolveStatus();
+
+        TierPalette palette =
+                statusPalette();
+
+        int left =
+                screen.guiLeft()
+                        + BAR_X;
+
+        int top =
+                screen.guiTop()
+                        + STATUS_BAR_Y;
+
+        drawFullTrack(
+                graphics,
+                left,
+                top,
+                STATUS_TRACK,
+                STATUS_TRACK_TOP,
+                STATUS_TRACK_BOTTOM
+        );
+
+        /*
+         * Restore the small glowing status dot used by the earlier design.
+         */
+        drawStatusDot(
+                graphics,
+                left + 6,
+                top + 5,
+                palette
+        );
+
+        int activityWidth =
+                status.working()
+                        ? STATUS_ACTIVITY_WIDTH
+                        : 0;
+
+        int availableTextWidth =
+                BAR_WIDTH
+                        - STATUS_TEXT_X_OFFSET
+                        - STATUS_TEXT_RIGHT_PADDING
+                        - activityWidth;
+
+        String fitted =
+                fitScaledText(
+                        screen.uiFont(),
+                        status.text().getString(),
+                        availableTextWidth,
+                        STATUS_TEXT_SCALE
+                );
+
+        drawScaledLeftText(
+                graphics,
+                Component.literal(fitted),
+                left + STATUS_TEXT_X_OFFSET,
+                top,
+                BAR_HEIGHT,
+                palette.text()
+        );
+
+        if (status.working()) {
+            drawActivityGlyphs(
+                    graphics,
+                    left + BAR_WIDTH - STATUS_ACTIVITY_WIDTH,
+                    top,
+                    palette
+            );
+        }
+
+        drawFrame(
+                graphics,
+                left,
+                top
+        );
+    }
+
+    private void drawFullTrack(
+            GuiGraphics graphics,
+            int left,
+            int top,
+            int middle,
+            int highlight,
+            int shadow
+    ) {
+        graphics.fill(
+                left,
+                top,
+                left + BAR_WIDTH,
+                top + BAR_HEIGHT,
+                middle
+        );
+
+        graphics.fill(
+                left,
+                top,
+                left + BAR_WIDTH,
+                top + 2,
+                highlight
+        );
+
+        graphics.fill(
+                left,
+                top + BAR_HEIGHT - 2,
+                left + BAR_WIDTH,
+                top + BAR_HEIGHT,
+                shadow
+        );
+    }
+
+    private void drawStatusDot(
+            GuiGraphics graphics,
+            int left,
+            int top,
+            TierPalette palette
+    ) {
+        /*
+         * Five-pixel rounded orb:
+         *
+         *   xxx
+         *  xxxxx
+         * xxxxxxx
+         *  xxxxx
+         *   xxx
+         */
+        graphics.fill(
+                left + 2,
+                top,
+                left + 5,
+                top + 1,
+                palette.top()
+        );
+
+        graphics.fill(
+                left + 1,
+                top + 1,
+                left + 6,
+                top + 2,
+                palette.middle()
+        );
+
+        graphics.fill(
+                left,
+                top + 2,
+                left + 7,
+                top + 3,
+                palette.middle()
+        );
+
+        graphics.fill(
+                left + 1,
+                top + 3,
+                left + 6,
+                top + 4,
+                palette.middle()
+        );
+
+        graphics.fill(
+                left + 2,
+                top + 4,
+                left + 5,
+                top + 5,
+                palette.bottom()
+        );
+
+        drawPixel(
+                graphics,
+                left + 2,
+                top + 1,
+                0xCCFFFFFF
+        );
+
+        drawPixel(
+                graphics,
+                left + 5,
+                top + 2,
+                palette.glow()
+        );
+    }
+
+    private void drawActivityGlyphs(
+            GuiGraphics graphics,
+            int left,
+            int top,
+            TierPalette palette
+    ) {
+        int phase =
+                (int) (
+                        System.currentTimeMillis()
+                                / 220L
+                                % 3L
+                );
+
+        for (int index = 0; index < 3; index++) {
+            int glyphLeft =
+                    left
+                            + index * 4;
+
+            int color =
+                    index == phase
+                            ? palette.top()
+                            : palette.bottom();
+
+            graphics.fill(
+                    glyphLeft,
+                    top + 7,
+                    glyphLeft + 2,
+                    top + 8,
+                    color
+            );
+
+            graphics.fill(
+                    glyphLeft + 1,
+                    top + 6,
+                    glyphLeft + 2,
+                    top + 9,
+                    color
+            );
+        }
+    }
+
+    private void drawFrame(
+            GuiGraphics graphics,
+            int left,
+            int top
+    ) {
+        graphics.blit(
+                BAR_FRAME_TEXTURE,
+                left,
+                top,
+                0.0F,
+                0.0F,
+                BAR_WIDTH,
+                BAR_HEIGHT,
+                BAR_WIDTH,
+                BAR_HEIGHT
         );
     }
 
@@ -320,214 +564,6 @@ final class FoundryControllerHeaderStatusRenderer {
         graphics.pose().popPose();
     }
 
-    private void renderStatus(
-            GuiGraphics graphics
-    ) {
-        FoundryStatus status =
-                resolveStatus();
-
-        int left =
-                screen.guiLeft()
-                        + STATUS_PANEL_X;
-
-        int top =
-                screen.guiTop()
-                        + STATUS_PANEL_Y;
-
-        int right =
-                left
-                        + STATUS_PANEL_WIDTH;
-
-        int bottom =
-                top
-                        + STATUS_PANEL_HEIGHT;
-
-        /*
-         * A compact, recessed metal plate matching the visual treatment of the
-         * XP bar.
-         */
-        graphics.fill(
-                left,
-                top,
-                right,
-                bottom,
-                STATUS_FRAME
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 1,
-                right - 1,
-                bottom - 1,
-                STATUS_BACKGROUND
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 1,
-                right - 1,
-                top + 2,
-                STATUS_BACKGROUND_TOP
-        );
-
-        graphics.fill(
-                left + 1,
-                bottom - 2,
-                right - 1,
-                bottom - 1,
-                STATUS_BACKGROUND_BOTTOM
-        );
-
-        /*
-         * Tiny corner rivets help the plate look like part of the machine
-         * instead of a plain text box.
-         */
-        drawPixel(
-                graphics,
-                left + 2,
-                top + 2,
-                STATUS_RIVET
-        );
-
-        drawPixel(
-                graphics,
-                right - 3,
-                top + 2,
-                STATUS_RIVET
-        );
-
-        drawStatusLamp(
-                graphics,
-                left + 5,
-                top + 3,
-                status
-        );
-
-        graphics.fill(
-                left + 15,
-                top + 2,
-                left + 16,
-                bottom - 2,
-                STATUS_DIVIDER
-        );
-
-        int activityWidth =
-                status.working()
-                        ? STATUS_ACTIVITY_WIDTH
-                        : 0;
-
-        int availableTextWidth =
-                STATUS_PANEL_WIDTH
-                        - STATUS_TEXT_X_OFFSET
-                        - STATUS_TEXT_RIGHT_PADDING
-                        - activityWidth;
-
-        String fitted =
-                fitScaledText(
-                        screen.uiFont(),
-                        status.text().getString(),
-                        availableTextWidth,
-                        STATUS_TEXT_SCALE
-                );
-
-        drawScaledLeftText(
-                graphics,
-                Component.literal(fitted),
-                left + STATUS_TEXT_X_OFFSET,
-                top,
-                STATUS_PANEL_HEIGHT,
-                status.textColor()
-        );
-
-        if (status.working()) {
-            drawActivityDots(
-                    graphics,
-                    right - STATUS_ACTIVITY_WIDTH,
-                    top,
-                    status
-            );
-        }
-    }
-
-    private void drawStatusLamp(
-            GuiGraphics graphics,
-            int left,
-            int top,
-            FoundryStatus status
-    ) {
-        graphics.fill(
-                left,
-                top,
-                left + 7,
-                top + 7,
-                STATUS_LAMP_FRAME
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 1,
-                left + 6,
-                top + 6,
-                status.lampMiddle()
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 1,
-                left + 6,
-                top + 2,
-                status.lampTop()
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 5,
-                left + 6,
-                top + 6,
-                status.lampBottom()
-        );
-
-        drawPixel(
-                graphics,
-                left + 2,
-                top + 2,
-                STATUS_LAMP_HIGHLIGHT
-        );
-    }
-
-    private void drawActivityDots(
-            GuiGraphics graphics,
-            int left,
-            int top,
-            FoundryStatus status
-    ) {
-        int phase =
-                (int) (
-                        System.currentTimeMillis()
-                                / 250L
-                                % 3L
-                );
-
-        for (int index = 0; index < 3; index++) {
-            int dotLeft =
-                    left
-                            + index * 4;
-
-            int color =
-                    index == phase
-                            ? status.lampTop()
-                            : status.lampBottom();
-
-            graphics.fill(
-                    dotLeft,
-                    top + 5,
-                    dotLeft + 2,
-                    top + 7,
-                    color
-            );
-        }
-    }
-
     private void drawScaledLeftText(
             GuiGraphics graphics,
             Component text,
@@ -577,6 +613,39 @@ final class FoundryControllerHeaderStatusRenderer {
         graphics.pose().popPose();
     }
 
+    private TierPalette statusPalette() {
+        return switch (menu().getFoundryTier()) {
+            case 1 -> new TierPalette(
+                    0xFFFFFFFF,
+                    0xFFE6E6E6,
+                    0xFF9F9F9F,
+                    0xFFFFFFFF,
+                    0x66FFFFFF
+            );
+            case 2 -> new TierPalette(
+                    0xFFD3F5FF,
+                    0xFF8CCEFF,
+                    0xFF3E7AC1,
+                    0xFFF4FCFF,
+                    0x6657CFFF
+            );
+            case 3 -> new TierPalette(
+                    0xFFFFF1B0,
+                    0xFFF4C75A,
+                    0xFFB77A1F,
+                    0xFFFFF7DB,
+                    0x66FFD36B
+            );
+            default -> new TierPalette(
+                    0xFFE0EDFF,
+                    0xFFB48CFF,
+                    0xFF4A3CB7,
+                    0xFFF7F2FF,
+                    0x667ED7FF
+            );
+        };
+    }
+
     private static String fitScaledText(
             Font font,
             String text,
@@ -622,39 +691,21 @@ final class FoundryControllerHeaderStatusRenderer {
         ) + suffix;
     }
 
-    private static void drawPixel(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int color
-    ) {
-        graphics.fill(
-                x,
-                y,
-                x + 1,
-                y + 1,
-                color
-        );
-    }
-
     private FoundryStatus resolveStatus() {
         return switch (menu().getProcessingStatus()) {
-            case 1 -> FoundryStatus.error(
-                    Component.literal(
-                            "NO TANKS CONNECTED"
-                    )
+            case 1 -> new FoundryStatus(
+                    Component.literal("NO TANKS CONNECTED"),
+                    false
             );
-            case 2 -> FoundryStatus.error(
-                    Component.literal(
-                            "TANK FULL"
-                    )
+            case 2 -> new FoundryStatus(
+                    Component.literal("TANK FULL"),
+                    false
             );
-            case 3 -> FoundryStatus.error(
-                    Component.literal(
-                            "MISSING FUEL"
-                    )
+            case 3 -> new FoundryStatus(
+                    Component.literal("MISSING FUEL"),
+                    false
             );
-            case 4 -> FoundryStatus.working(
+            case 4 -> new FoundryStatus(
                     Component.literal("MELTING ").append(
                             menu().getInputMoltenMetalDefinition()
                                     .<Component>map(
@@ -668,9 +719,10 @@ final class FoundryControllerHeaderStatusRenderer {
                                     .orElse(
                                             Component.literal("ORE")
                                     )
-                    )
+                    ),
+                    true
             );
-            case 5 -> FoundryStatus.working(
+            case 5 -> new FoundryStatus(
                     Component.literal("ALLOYING ").append(
                             menu().getActiveAlloyOutput()
                                     .<Component>map(
@@ -684,12 +736,29 @@ final class FoundryControllerHeaderStatusRenderer {
                                     .orElse(
                                             Component.literal("ALLOY")
                                     )
-                    )
+                    ),
+                    true
             );
-            default -> FoundryStatus.ready(
-                    Component.literal("READY")
+            default -> new FoundryStatus(
+                    Component.literal("READY"),
+                    false
             );
         };
+    }
+
+    private static void drawPixel(
+            GuiGraphics graphics,
+            int x,
+            int y,
+            int color
+    ) {
+        graphics.fill(
+                x,
+                y,
+                x + 1,
+                y + 1,
+                color
+        );
     }
 
     private static String displayName(
@@ -718,50 +787,16 @@ final class FoundryControllerHeaderStatusRenderer {
 
     private record FoundryStatus(
             Component text,
-            int textColor,
-            int lampTop,
-            int lampMiddle,
-            int lampBottom,
             boolean working
     ) {
+    }
 
-        private static FoundryStatus ready(
-                Component text
-        ) {
-            return new FoundryStatus(
-                    text,
-                    0xFFD8F5CB,
-                    0xFFA2ED88,
-                    0xFF52B84D,
-                    0xFF28632A,
-                    false
-            );
-        }
-
-        private static FoundryStatus working(
-                Component text
-        ) {
-            return new FoundryStatus(
-                    text,
-                    0xFFFFD6A0,
-                    0xFFFFD27A,
-                    0xFFE69334,
-                    0xFF8A4D18,
-                    true
-            );
-        }
-
-        private static FoundryStatus error(
-                Component text
-        ) {
-            return new FoundryStatus(
-                    text,
-                    0xFFFFB5AA,
-                    0xFFFF9A8C,
-                    0xFFD94C43,
-                    0xFF772720,
-                    false
-            );
-        }
+    private record TierPalette(
+            int top,
+            int middle,
+            int bottom,
+            int text,
+            int glow
+    ) {
     }
 }
