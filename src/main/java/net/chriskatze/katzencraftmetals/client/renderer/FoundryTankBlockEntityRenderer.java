@@ -5,8 +5,6 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryFaucetBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
-import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
-import net.chriskatze.katzencraftmetals.metal.FoundryMetalLayer;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.renderer.LightTexture;
@@ -14,19 +12,14 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
@@ -132,10 +125,10 @@ public class FoundryTankBlockEntityRenderer
     private static final float DRAIN_ANIMATION_TICKS =
             FoundryFaucetBlockEntity.TRANSFER_INTERVAL;
 
-    private final Map<FoundryTankBlockEntity, TankRenderState> renderStates =
+    private final Map<FoundryTankBlockEntity, FoundryTankRenderState> renderStates =
             new WeakHashMap<>();
 
-    private final Map<HorizontalLayerKey, MultiMetalLayerRenderState>
+    private final Map<FoundryTankHorizontalLayerKey, FoundryTankMultiMetalLayerRenderState>
             multiMetalLayerRenderStates =
             new HashMap<>();
 
@@ -1371,7 +1364,7 @@ public class FoundryTankBlockEntityRenderer
             MultiBufferSource bufferSource,
             int packedOverlay
     ) {
-        List<RenderedMetalLayer> renderedLayers =
+        List<FoundryTankRenderedMetalLayer> renderedLayers =
                 createRenderedLayers(
                         tank,
                         partialTick
@@ -1424,7 +1417,7 @@ public class FoundryTankBlockEntityRenderer
                         ? 1.0f
                         : LIQUID_MAX_INSET;
 
-        for (RenderedMetalLayer renderedLayer : renderedLayers) {
+        for (FoundryTankRenderedMetalLayer renderedLayer : renderedLayers) {
             MoltenMetalDefinition definition =
                     ModMoltenMetals.get(
                                     renderedLayer.metal()
@@ -1442,8 +1435,8 @@ public class FoundryTankBlockEntityRenderer
                             )
                     );
 
-            LiquidGeometry geometry =
-                    new LiquidGeometry(
+            FoundryTankLiquidGeometry geometry =
+                    new FoundryTankLiquidGeometry(
                             minX,
                             maxX,
                             renderedLayer.minY(),
@@ -1506,8 +1499,8 @@ public class FoundryTankBlockEntityRenderer
     private void renderLayerSide(
             FoundryTankBlockEntity tank,
             Direction side,
-            RenderedMetalLayer renderedLayer,
-            LiquidGeometry geometry,
+            FoundryTankRenderedMetalLayer renderedLayer,
+            FoundryTankLiquidGeometry geometry,
             float partialTick,
             VertexConsumer consumer,
             PoseStack.Pose pose,
@@ -1538,18 +1531,18 @@ public class FoundryTankBlockEntityRenderer
             return;
         }
 
-        List<VerticalInterval> visibleIntervals =
+        List<FoundryTankVerticalInterval> visibleIntervals =
                 new ArrayList<>();
 
         visibleIntervals.add(
-                new VerticalInterval(
+                new FoundryTankVerticalInterval(
                         renderedLayer.minY(),
                         renderedLayer.maxY()
                 )
         );
 
         for (
-                RenderedMetalLayer neighborLayer :
+                FoundryTankRenderedMetalLayer neighborLayer :
                 createRenderedLayers(
                         neighbor,
                         partialTick
@@ -1563,7 +1556,7 @@ public class FoundryTankBlockEntityRenderer
             visibleIntervals =
                     subtractInterval(
                             visibleIntervals,
-                            new VerticalInterval(
+                            new FoundryTankVerticalInterval(
                                     neighborLayer.minY(),
                                     neighborLayer.maxY()
                             )
@@ -1574,7 +1567,7 @@ public class FoundryTankBlockEntityRenderer
             }
         }
 
-        for (VerticalInterval visible : visibleIntervals) {
+        for (FoundryTankVerticalInterval visible : visibleIntervals) {
             renderLiquidSideSegment(
                     side,
                     consumer,
@@ -1590,14 +1583,14 @@ public class FoundryTankBlockEntityRenderer
         }
     }
 
-    private static List<VerticalInterval> subtractInterval(
-            List<VerticalInterval> source,
-            VerticalInterval removed
+    private static List<FoundryTankVerticalInterval> subtractInterval(
+            List<FoundryTankVerticalInterval> source,
+            FoundryTankVerticalInterval removed
     ) {
-        List<VerticalInterval> result =
+        List<FoundryTankVerticalInterval> result =
                 new ArrayList<>();
 
-        for (VerticalInterval interval : source) {
+        for (FoundryTankVerticalInterval interval : source) {
             float overlapMin =
                     Math.max(
                             interval.minY(),
@@ -1617,7 +1610,7 @@ public class FoundryTankBlockEntityRenderer
 
             if (overlapMin - interval.minY() > LIQUID_EPSILON) {
                 result.add(
-                        new VerticalInterval(
+                        new FoundryTankVerticalInterval(
                                 interval.minY(),
                                 overlapMin
                         )
@@ -1626,7 +1619,7 @@ public class FoundryTankBlockEntityRenderer
 
             if (interval.maxY() - overlapMax > LIQUID_EPSILON) {
                 result.add(
-                        new VerticalInterval(
+                        new FoundryTankVerticalInterval(
                                 overlapMax,
                                 interval.maxY()
                         )
@@ -1645,7 +1638,7 @@ public class FoundryTankBlockEntityRenderer
      * exact floating-point average across the level, so every connected Tank
      * has one perfectly level surface and identical metal boundaries.
      */
-    private List<RenderedMetalLayer> createRenderedLayers(
+    private List<FoundryTankRenderedMetalLayer> createRenderedLayers(
             FoundryTankBlockEntity tank,
             float partialTick
     ) {
@@ -1695,7 +1688,7 @@ public class FoundryTankBlockEntityRenderer
         float cumulativeAmount =
                 0.0f;
 
-        List<RenderedMetalLayer> result =
+        List<FoundryTankRenderedMetalLayer> result =
                 new ArrayList<>();
 
         List<MoltenMetalDefinition> orderedDefinitions =
@@ -1800,7 +1793,7 @@ public class FoundryTankBlockEntityRenderer
 
             if (maxY - minY > LIQUID_EPSILON) {
                 result.add(
-                        new RenderedMetalLayer(
+                        new FoundryTankRenderedMetalLayer(
                                 definition.id(),
                                 minY,
                                 maxY,
@@ -1818,7 +1811,7 @@ public class FoundryTankBlockEntityRenderer
             FoundryTankBlockEntity tank,
             float partialTick
     ) {
-        HorizontalLayerSnapshot snapshot =
+        FoundryTankHorizontalLayerSnapshot snapshot =
                 createHorizontalLayerSnapshot(
                         tank
                 );
@@ -1827,11 +1820,11 @@ public class FoundryTankBlockEntityRenderer
                 tank.getLevel().getGameTime()
                         + partialTick;
 
-        MultiMetalLayerRenderState renderState =
+        FoundryTankMultiMetalLayerRenderState renderState =
                 multiMetalLayerRenderStates.computeIfAbsent(
                         snapshot.key(),
                         ignored ->
-                                new MultiMetalLayerRenderState(
+                                new FoundryTankMultiMetalLayerRenderState(
                                         snapshot.targetAmounts(),
                                         currentRenderTime
                                 )
@@ -1843,137 +1836,11 @@ public class FoundryTankBlockEntityRenderer
         );
     }
 
-    private static HorizontalLayerSnapshot createHorizontalLayerSnapshot(
+private static FoundryTankHorizontalLayerSnapshot createHorizontalLayerSnapshot(
             FoundryTankBlockEntity tank
     ) {
-        Level level =
-                tank.getLevel();
-
-        FoundryTankNetwork network =
-                tank.getNetwork();
-
-        Set<BlockPos> networkPositions =
-                network != null
-                        ? network.getTankPositions()
-                        : Set.of(
-                        tank.getBlockPos()
-                );
-
-        List<BlockPos> horizontalPositions =
-                new ArrayList<>();
-
-        for (BlockPos tankPos : networkPositions) {
-            if (tankPos.getY() == tank.getBlockPos().getY()) {
-                horizontalPositions.add(
-                        tankPos.immutable()
-                );
-            }
-        }
-
-        horizontalPositions.sort(
-                Comparator
-                        .comparingInt(
-                                (BlockPos tankPos) -> tankPos.getX()
-                        )
-                        .thenComparingInt(
-                                tankPos -> tankPos.getZ()
-                        )
-        );
-
-        if (horizontalPositions.isEmpty()) {
-            horizontalPositions =
-                    List.of(
-                            tank.getBlockPos()
-                    );
-        }
-
-        Map<ResourceLocation, Integer> aggregateAmounts =
-                new LinkedHashMap<>();
-
-        for (BlockPos tankPos : horizontalPositions) {
-            if (
-                    level.getBlockEntity(
-                            tankPos
-                    )
-                            instanceof FoundryTankBlockEntity layerTank
-            ) {
-                for (
-                        FoundryMetalLayer layer :
-                        layerTank.getLocalMetalLayers()
-                ) {
-                    if (
-                            layer.amount() > 0
-                                    && ModMoltenMetals.contains(
-                                    layer.metal()
-                            )
-                    ) {
-                        aggregateAmounts.merge(
-                                layer.metal(),
-                                layer.amount(),
-                                Integer::sum
-                        );
-                    }
-                }
-            }
-        }
-
-        int tankCount =
-                horizontalPositions.size();
-
-        float remainingCapacity =
-                FoundryTankBlockEntity.CAPACITY;
-
-        Map<ResourceLocation, Float> targetAmounts =
-                new LinkedHashMap<>();
-
-        for (
-                MoltenMetalDefinition definition :
-                ModMoltenMetals.heaviestFirst()
-        ) {
-            int aggregateAmount =
-                    aggregateAmounts.getOrDefault(
-                            definition.id(),
-                            0
-                    );
-
-            if (
-                    aggregateAmount <= 0
-                            || remainingCapacity <= LIQUID_EPSILON
-            ) {
-                continue;
-            }
-
-            float averageAmount =
-                    Math.min(
-                            remainingCapacity,
-                            (float) aggregateAmount
-                                    / tankCount
-                    );
-
-            if (averageAmount > LIQUID_EPSILON) {
-                targetAmounts.put(
-                        definition.id(),
-                        averageAmount
-                );
-
-                remainingCapacity -=
-                        averageAmount;
-            }
-        }
-
-        BlockPos anchor =
-                horizontalPositions.getFirst()
-                        .immutable();
-
-        return new HorizontalLayerSnapshot(
-                new HorizontalLayerKey(
-                        level,
-                        anchor,
-                        tank.getBlockPos().getY()
-                ),
-                Map.copyOf(
-                        targetAmounts
-                )
+        return FoundryTankLayerSnapshotBuilder.create(
+                tank
         );
     }
 
@@ -2062,7 +1929,7 @@ public class FoundryTankBlockEntityRenderer
             return;
         }
 
-        LiquidGeometry geometry =
+        FoundryTankLiquidGeometry geometry =
                 createLiquidGeometry(
                         tank,
                         displayedMoltenAmount,
@@ -2134,7 +2001,7 @@ public class FoundryTankBlockEntityRenderer
         }
     }
 
-    private LiquidGeometry createLiquidGeometry(
+    private FoundryTankLiquidGeometry createLiquidGeometry(
             FoundryTankBlockEntity tank,
             float displayedMoltenAmount,
             float partialTick
@@ -2229,7 +2096,7 @@ public class FoundryTankBlockEntityRenderer
                         LIQUID_MAX_INSET
                 );
 
-        return new LiquidGeometry(
+        return new FoundryTankLiquidGeometry(
                 minX,
                 maxX,
                 minY,
@@ -2244,7 +2111,7 @@ public class FoundryTankBlockEntityRenderer
     private void renderLiquidSide(
             FoundryTankBlockEntity tank,
             Direction side,
-            LiquidGeometry geometry,
+            FoundryTankLiquidGeometry geometry,
             float partialTick,
             VertexConsumer consumer,
             PoseStack.Pose pose,
@@ -2298,7 +2165,7 @@ public class FoundryTankBlockEntityRenderer
             return;
         }
 
-        LiquidGeometry neighborGeometry =
+        FoundryTankLiquidGeometry neighborGeometry =
                 createLiquidGeometry(
                         neighbor,
                         neighborAmount,
@@ -2364,7 +2231,7 @@ public class FoundryTankBlockEntityRenderer
             Direction side,
             VertexConsumer consumer,
             PoseStack.Pose pose,
-            LiquidGeometry geometry,
+            FoundryTankLiquidGeometry geometry,
             float minY,
             float maxY,
             boolean sharedBoundary,
@@ -2614,10 +2481,10 @@ public class FoundryTankBlockEntityRenderer
         float targetAmount =
                 tank.getLocalVisualMoltenAmount();
 
-        TankRenderState renderState =
+        FoundryTankRenderState renderState =
                 renderStates.computeIfAbsent(
                         tank,
-                        ignored -> new TankRenderState(
+                        ignored -> new FoundryTankRenderState(
                                 targetAmount,
                                 currentRenderTime
                         )
@@ -3173,300 +3040,12 @@ public class FoundryTankBlockEntityRenderer
                 );
     }
 
-    private record HorizontalLayerSnapshot(
-            HorizontalLayerKey key,
-            Map<ResourceLocation, Float> targetAmounts
-    ) {
-    }
 
-    private record HorizontalLayerKey(
-            Level level,
-            BlockPos anchor,
-            int y
-    ) {
-    }
 
-    private static final class MultiMetalLayerRenderState {
 
-        private Map<ResourceLocation, Float> displayedAmounts;
-        private Map<ResourceLocation, Float> transitionStartAmounts;
-        private Map<ResourceLocation, Float> transitionTargetAmounts;
-        private Map<ResourceLocation, Float> lastTargetAmounts;
 
-        private double transitionStartTime;
-        private float transitionDuration;
 
-        private MultiMetalLayerRenderState(
-                Map<ResourceLocation, Float> initialAmounts,
-                double currentRenderTime
-        ) {
-            Map<ResourceLocation, Float> normalizedInitial =
-                    normalizeDisplayedMap(
-                            initialAmounts
-                    );
 
-            displayedAmounts =
-                    normalizedInitial;
-
-            transitionStartAmounts =
-                    normalizedInitial;
-
-            transitionTargetAmounts =
-                    normalizedInitial;
-
-            lastTargetAmounts =
-                    normalizedInitial;
-
-            transitionStartTime =
-                    currentRenderTime;
-
-            transitionDuration =
-                    0.0f;
-        }
-
-        private Map<ResourceLocation, Float> updateAndGet(
-                Map<ResourceLocation, Float> requestedTargets,
-                double currentRenderTime
-        ) {
-            Map<ResourceLocation, Float> normalizedTargets =
-                    normalizeDisplayedMap(
-                            requestedTargets
-                    );
-
-            updateDisplayedAmounts(
-                    currentRenderTime
-            );
-
-            if (!sameDisplayedMap(
-                    normalizedTargets,
-                    lastTargetAmounts
-            )) {
-                float oldTotal =
-                        sumDisplayedAmounts(
-                                displayedAmounts
-                        );
-
-                float newTotal =
-                        sumDisplayedAmounts(
-                                normalizedTargets
-                        );
-
-                transitionStartAmounts =
-                        displayedAmounts;
-
-                transitionTargetAmounts =
-                        normalizedTargets;
-
-                lastTargetAmounts =
-                        normalizedTargets;
-
-                transitionStartTime =
-                        currentRenderTime;
-
-                transitionDuration =
-                        newTotal
-                                >= oldTotal
-                                ? RISE_ANIMATION_TICKS
-                                : DRAIN_ANIMATION_TICKS;
-            }
-
-            updateDisplayedAmounts(
-                    currentRenderTime
-            );
-
-            return displayedAmounts;
-        }
-
-        private void updateDisplayedAmounts(
-                double currentRenderTime
-        ) {
-            float progress =
-                    transitionDuration <= 0.0f
-                            ? 1.0f
-                            : Mth.clamp(
-                            (float) (
-                                    (
-                                            currentRenderTime
-                                                    - transitionStartTime
-                                    )
-                                            / transitionDuration
-                            ),
-                            0.0f,
-                            1.0f
-                    );
-
-            Map<ResourceLocation, Float> updated =
-                    new LinkedHashMap<>();
-
-            for (
-                    MoltenMetalDefinition definition :
-                    ModMoltenMetals.heaviestFirst()
-            ) {
-                ResourceLocation metal =
-                        definition.id();
-
-                float start =
-                        transitionStartAmounts.getOrDefault(
-                                metal,
-                                0.0f
-                        );
-
-                float target =
-                        transitionTargetAmounts.getOrDefault(
-                                metal,
-                                0.0f
-                        );
-
-                float displayed =
-                        Mth.lerp(
-                                progress,
-                                start,
-                                target
-                        );
-
-                if (displayed > LIQUID_EPSILON) {
-                    updated.put(
-                            metal,
-                            displayed
-                    );
-                }
-            }
-
-            displayedAmounts =
-                    Map.copyOf(
-                            updated
-                    );
-        }
-
-        private static Map<ResourceLocation, Float> normalizeDisplayedMap(
-                Map<ResourceLocation, Float> source
-        ) {
-            Map<ResourceLocation, Float> normalized =
-                    new LinkedHashMap<>();
-
-            if (source != null) {
-                for (
-                        MoltenMetalDefinition definition :
-                        ModMoltenMetals.heaviestFirst()
-                ) {
-                    float amount =
-                            Math.max(
-                                    0.0f,
-                                    source.getOrDefault(
-                                            definition.id(),
-                                            0.0f
-                                    )
-                            );
-
-                    if (amount > LIQUID_EPSILON) {
-                        normalized.put(
-                                definition.id(),
-                                amount
-                        );
-                    }
-                }
-            }
-
-            return Map.copyOf(
-                    normalized
-            );
-        }
-
-        private static boolean sameDisplayedMap(
-                Map<ResourceLocation, Float> first,
-                Map<ResourceLocation, Float> second
-        ) {
-            for (
-                    MoltenMetalDefinition definition :
-                    ModMoltenMetals.heaviestFirst()
-            ) {
-                float firstAmount =
-                        first.getOrDefault(
-                                definition.id(),
-                                0.0f
-                        );
-
-                float secondAmount =
-                        second.getOrDefault(
-                                definition.id(),
-                                0.0f
-                        );
-
-                if (
-                        Math.abs(
-                                firstAmount
-                                        - secondAmount
-                        ) > 0.00001f
-                ) {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-    }
-
-    private record RenderedMetalLayer(
-            ResourceLocation metal,
-            float minY,
-            float maxY,
-            boolean renderTop,
-            boolean renderBottom
-    ) {
-    }
-
-    private record VerticalInterval(
-            float minY,
-            float maxY
-    ) {
-    }
-
-    private record LiquidGeometry(
-            float minX,
-            float maxX,
-            float minY,
-            float surfaceY,
-            float minZ,
-            float maxZ,
-            boolean renderTop,
-            boolean renderBottom
-    ) {
-    }
-
-    private static final class TankRenderState {
-
-        private float displayedAmount;
-        private float lastTargetAmount;
-
-        private float transitionStartAmount;
-        private float transitionTargetAmount;
-
-        private double transitionStartTime;
-        private float transitionDuration;
-
-        private TankRenderState(
-                float initialAmount,
-                double currentRenderTime
-        ) {
-            this.displayedAmount =
-                    initialAmount;
-
-            this.lastTargetAmount =
-                    initialAmount;
-
-            this.transitionStartAmount =
-                    initialAmount;
-
-            this.transitionTargetAmount =
-                    initialAmount;
-
-            this.transitionStartTime =
-                    currentRenderTime;
-
-            this.transitionDuration =
-                    1.0f;
-        }
-    }
 
     @Override
     public boolean shouldRenderOffScreen(
