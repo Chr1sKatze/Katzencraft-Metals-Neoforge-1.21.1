@@ -1860,24 +1860,25 @@ public class FoundryTankBlockEntityRenderer
                 );
 
         List<BlockPos> horizontalPositions =
-                networkPositions.stream()
-                        .filter(
-                                tankPos ->
-                                        tankPos.getY()
-                                                == tank.getBlockPos().getY()
+                new ArrayList<>();
+
+        for (BlockPos tankPos : networkPositions) {
+            if (tankPos.getY() == tank.getBlockPos().getY()) {
+                horizontalPositions.add(
+                        tankPos.immutable()
+                );
+            }
+        }
+
+        horizontalPositions.sort(
+                Comparator
+                        .comparingInt(
+                                (BlockPos tankPos) -> tankPos.getX()
                         )
-                        .sorted(
-                                Comparator
-                                        .comparingInt(
-                                                (BlockPos tankPos) ->
-                                                        tankPos.getX()
-                                        )
-                                        .thenComparingInt(
-                                                tankPos ->
-                                                        tankPos.getZ()
-                                        )
+                        .thenComparingInt(
+                                tankPos -> tankPos.getZ()
                         )
-                        .toList();
+        );
 
         if (horizontalPositions.isEmpty()) {
             horizontalPositions =
