@@ -30,6 +30,8 @@ public class ModRecipeProvider extends RecipeProvider {
     @Override
     protected void buildRecipes(RecipeOutput recipeOutput) {
 
+        ModFoundryRecipeProvider.build(recipeOutput);
+
         // =========================
         // NORMAL SHAPELESS
         // =========================

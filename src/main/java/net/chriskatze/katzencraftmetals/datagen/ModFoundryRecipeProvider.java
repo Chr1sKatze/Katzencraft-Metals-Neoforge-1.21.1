@@ -3,67 +3,157 @@ package net.chriskatze.katzencraftmetals.datagen;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.datagen.recipe.FoundryMeltingRecipeBuilder;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.data.PackOutput;
 import net.minecraft.data.recipes.RecipeOutput;
-import net.minecraft.data.recipes.RecipeProvider;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
-
-import java.util.concurrent.CompletableFuture;
+import net.minecraft.world.level.ItemLike;
 
 /**
- * Kept separate from ModRecipeProvider so the Foundry recipe system can
- * grow without making the already-large general provider harder to manage.
+ * Foundry-only recipe definitions.
  *
- * Its inherited RecipeProvider name is handled externally by
- * NamedDataProvider because RecipeProvider#getName() is final.
+ * Keep new molten-metal melting recipes and alloy recipes here instead of
+ * scattering handwritten JSON files through src/main/resources.
  */
-public class ModFoundryRecipeProvider
-        extends RecipeProvider {
+public final class ModFoundryRecipeProvider {
 
-    public ModFoundryRecipeProvider(
-            PackOutput output,
-            CompletableFuture<HolderLookup.Provider> lookupProvider
+    private ModFoundryRecipeProvider() {
+    }
+
+    public static void build(
+            RecipeOutput recipeOutput
     ) {
-        super(
-                output,
-                lookupProvider
+        buildGoldMeltingRecipes(
+                recipeOutput
+        );
+
+        buildAlloyRecipes(
+                recipeOutput
         );
     }
 
-    @Override
-    protected void buildRecipes(
+    private static void buildGoldMeltingRecipes(
             RecipeOutput recipeOutput
     ) {
-        // Raw Iron -> 6 molten Iron
-        FoundryMeltingRecipeBuilder.melting(
-                        Items.RAW_IRON,
-                        ModMoltenMetals.IRON.id(),
-                        ModMoltenMetals.IRON.unitsPerOre()
-                )
-                .processingTime(20)
-                .save(
-                        recipeOutput,
-                        ResourceLocation.fromNamespaceAndPath(
-                                KatzencraftMetalsMod.MODID,
-                                "foundry_melting/raw_iron"
-                        )
-                );
+        foundryMelting(
+                recipeOutput,
+                Items.RAW_GOLD,
+                ModMoltenMetals.GOLD.id(),
+                6,
+                20,
+                "raw_gold"
+        );
 
-        // Raw Copper -> 6 molten Copper
-        FoundryMeltingRecipeBuilder.melting(
-                        Items.RAW_COPPER,
-                        ModMoltenMetals.COPPER.id(),
-                        ModMoltenMetals.COPPER.unitsPerOre()
+        foundryMelting(
+                recipeOutput,
+                Items.GOLD_INGOT,
+                ModMoltenMetals.GOLD.id(),
+                6,
+                20,
+                "gold_ingot"
+        );
+
+        foundryMelting(
+                recipeOutput,
+                Items.GOLD_NUGGET,
+                ModMoltenMetals.GOLD.id(),
+                1,
+                10,
+                "gold_nugget"
+        );
+
+        foundryMelting(
+                recipeOutput,
+                Items.RAW_GOLD_BLOCK,
+                ModMoltenMetals.GOLD.id(),
+                54,
+                120,
+                "raw_gold_block"
+        );
+
+        foundryMelting(
+                recipeOutput,
+                Items.GOLD_BLOCK,
+                ModMoltenMetals.GOLD.id(),
+                54,
+                120,
+                "gold_block"
+        );
+    }
+
+    private static void buildAlloyRecipes(
+            RecipeOutput recipeOutput
+    ) {
+        FoundryAlloyRecipeBuilder.alloy(
+                        ModMoltenMetals.PLATINUM.id(),
+                        6
                 )
-                .processingTime(20)
+                .ingredient(
+                        ModMoltenMetals.IRON.id(),
+                        3
+                )
+                .ingredient(
+                        ModMoltenMetals.GOLD.id(),
+                        3
+                )
+                .processingTime(
+                        100
+                )
+                .experience(
+                        2
+                )
+                .requiredTier(
+                        1
+                )
                 .save(
                         recipeOutput,
-                        ResourceLocation.fromNamespaceAndPath(
-                                KatzencraftMetalsMod.MODID,
-                                "foundry_melting/raw_copper"
+                        foundryAlloyId(
+                                "platinum"
                         )
                 );
+    }
+
+    private static void foundryMelting(
+            RecipeOutput recipeOutput,
+            Item input,
+            ResourceLocation moltenMetal,
+            int moltenAmount,
+            int processingTime,
+            String recipeName
+    ) {
+        FoundryMeltingRecipeBuilder.melting(
+                        input,
+                        moltenMetal,
+                        moltenAmount
+                )
+                .processingTime(
+                        processingTime
+                )
+                .save(
+                        recipeOutput,
+                        foundryMeltingId(
+                                recipeName
+                        )
+                );
+    }
+
+    private static ResourceLocation foundryMeltingId(
+            String recipeName
+    ) {
+        return ResourceLocation.fromNamespaceAndPath(
+                KatzencraftMetalsMod.MODID,
+                "foundry_melting/"
+                        + recipeName
+        );
+    }
+
+    private static ResourceLocation foundryAlloyId(
+            String recipeName
+    ) {
+        return ResourceLocation.fromNamespaceAndPath(
+                KatzencraftMetalsMod.MODID,
+                "foundry_alloy/"
+                        + recipeName
+        );
     }
 }

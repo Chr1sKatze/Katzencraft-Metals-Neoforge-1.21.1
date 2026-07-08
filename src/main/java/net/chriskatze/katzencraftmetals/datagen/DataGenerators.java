@@ -89,22 +89,6 @@ public class DataGenerators {
                 )
         );
 
-        /*
-         * RecipeProvider#getName() is final and always reports "Recipes".
-         * The project now has two RecipeProvider subclasses, so the
-         * Foundry provider is wrapped with a unique DataProvider name.
-         */
-        generator.addProvider(
-                event.includeServer(),
-                new NamedDataProvider(
-                        "Katzencraft Foundry Recipes",
-                        new ModFoundryRecipeProvider(
-                                output,
-                                lookupProvider
-                        )
-                )
-        );
-
         BlockTagsProvider blockTagsProvider =
                 new ModBlockTagProvider(
                         output,

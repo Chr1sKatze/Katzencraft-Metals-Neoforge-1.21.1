@@ -1,9 +1,0 @@
-{
-  "type": "katzencraftmetals:foundry_melting",
-  "ingredient": {
-    "item": "minecraft:raw_gold"
-  },
-  "molten_metal": "minecraft:gold",
-  "molten_amount": 6,
-  "processing_time": 20
-}
