@@ -31,6 +31,7 @@ public class ModRecipeProvider extends RecipeProvider {
     protected void buildRecipes(RecipeOutput recipeOutput) {
 
         ModFoundryRecipeProvider.build(recipeOutput);
+        ModMetalRecipeProvider.build(recipeOutput);
 
         // =========================
         // NORMAL SHAPELESS
@@ -80,43 +81,6 @@ public class ModRecipeProvider extends RecipeProvider {
                         has(ModItems.CRUSHED_COAL.get())
                 )
                 .save(recipeOutput);
-
-        // =========================
-        // BLAST FURNACE
-        // =========================
-
-        // Crushed Platinum Ore -> Platinum Nugget
-        oreBlasting(
-                recipeOutput,
-                ModItems.CRUSHED_PLATINUM_ORE.get(),
-                RecipeCategory.MISC,
-                ModItems.PLATINUM_NUGGET.get(),
-                0.0f,
-                100,
-                "platinum"
-        );
-
-        // Crushed Mythril Ore -> Mythril Nugget
-        oreBlasting(
-                recipeOutput,
-                ModItems.CRUSHED_MYTHRIL_ORE.get(),
-                RecipeCategory.MISC,
-                ModItems.MYTHRIL_NUGGET.get(),
-                0.0f,
-                100,
-                "mythril"
-        );
-
-        // Steel Charge -> Steel Nugget
-        oreBlasting(
-                recipeOutput,
-                ModItems.STEEL_CHARGE.get(),
-                RecipeCategory.MISC,
-                ModItems.STEEL_NUGGET.get(),
-                0.0f,
-                100,
-                "steel"
-        );
 
         // =========================
         // BLAST FURNACE - BUILDING MATERIALS
@@ -237,52 +201,6 @@ public class ModRecipeProvider extends RecipeProvider {
                 0.1f,
                 100,
                 "cracked_polished_blackstone_bricks");
-
-        // =========================
-        // BLOCK <-> INGOT
-        // =========================
-
-        // Steel
-        ShapedRecipeBuilder.shaped(RecipeCategory.BUILDING_BLOCKS, ModBlocks.STEEL_BLOCK.get())
-                .pattern("III")
-                .pattern("III")
-                .pattern("III")
-                .define('I', ModItems.STEEL_INGOT.get())
-                .unlockedBy("has_steel_ingot", has(ModItems.STEEL_INGOT.get()))
-                .save(recipeOutput);
-
-        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, ModItems.STEEL_INGOT.get(), 9)
-                .requires(ModBlocks.STEEL_BLOCK.get())
-                .unlockedBy("has_steel_block", has(ModBlocks.STEEL_BLOCK.get()))
-                .save(recipeOutput, KatzencraftMetalsMod.MODID + ":steel_ingot_from_block");
-
-        // Platinum
-        ShapedRecipeBuilder.shaped(RecipeCategory.BUILDING_BLOCKS, ModBlocks.PLATINUM_BLOCK.get())
-                .pattern("III")
-                .pattern("III")
-                .pattern("III")
-                .define('I', ModItems.PLATINUM_INGOT.get())
-                .unlockedBy("has_platinum_ingot", has(ModItems.PLATINUM_INGOT.get()))
-                .save(recipeOutput);
-
-        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, ModItems.PLATINUM_INGOT.get(), 9)
-                .requires(ModBlocks.PLATINUM_BLOCK.get())
-                .unlockedBy("has_platinum_block", has(ModBlocks.PLATINUM_BLOCK.get()))
-                .save(recipeOutput, KatzencraftMetalsMod.MODID + ":platinum_ingot_from_block");
-
-        // Mythril
-        ShapedRecipeBuilder.shaped(RecipeCategory.BUILDING_BLOCKS, ModBlocks.MYTHRIL_BLOCK.get())
-                .pattern("III")
-                .pattern("III")
-                .pattern("III")
-                .define('I', ModItems.MYTHRIL_INGOT.get())
-                .unlockedBy("has_mythril_ingot", has(ModItems.MYTHRIL_INGOT.get()))
-                .save(recipeOutput);
-
-        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, ModItems.MYTHRIL_INGOT.get(), 9)
-                .requires(ModBlocks.MYTHRIL_BLOCK.get())
-                .unlockedBy("has_mythril_block", has(ModBlocks.MYTHRIL_BLOCK.get()))
-                .save(recipeOutput, KatzencraftMetalsMod.MODID + ":mythril_ingot_from_block");
 
         // =========================
         // CUT BUILDING BLOCK FAMILIES
@@ -480,88 +398,6 @@ public class ModRecipeProvider extends RecipeProvider {
                 .define('I', ModItems.MYTHRIL_INGOT.get())
                 .unlockedBy("has_mythril_ingot", has(ModItems.MYTHRIL_INGOT.get()))
                 .save(recipeOutput);
-
-        // =========================
-        // CRUSHER
-        // =========================
-
-        // Coal
-        CrusherRecipeBuilder.crushing(
-                        Items.COAL,
-                        ModItems.CRUSHED_COAL.get(), 3)
-                .processingTime((300))
-                .save(recipeOutput, ResourceLocation.fromNamespaceAndPath(KatzencraftMetalsMod.MODID, "crusher/coal")
-                );
-
-        // Iron
-        CrusherRecipeBuilder.crushing(
-                        Items.RAW_IRON,
-                        ModItems.CRUSHED_IRON_ORE.get(), 1)
-                .processingTime((300))
-                .save(recipeOutput, ResourceLocation.fromNamespaceAndPath(KatzencraftMetalsMod.MODID, "crusher/raw_iron")
-                );
-
-// Platinum
-        CrusherRecipeBuilder.crushing(
-                        ModItems.RAW_PLATINUM.get(),
-                        ModItems.CRUSHED_PLATINUM_ORE.get(),
-                        1)
-                .processingTime(300)
-                .secondOutput(Items.GOLD_NUGGET, 1, 0.25f)
-                .thirdOutput(Items.DIAMOND, 1, 0.10f)
-                .save(recipeOutput, ResourceLocation.fromNamespaceAndPath(KatzencraftMetalsMod.MODID, "crusher/raw_platinum")
-                );
-
-        // Mythril
-        CrusherRecipeBuilder.crushing(
-                ModItems.RAW_MYTHRIL.get(),
-                ModItems.CRUSHED_MYTHRIL_ORE.get(), 1)
-                    .processingTime(300)
-                    .save(recipeOutput, ResourceLocation.fromNamespaceAndPath(KatzencraftMetalsMod.MODID, "crusher/raw_mythril")
-        );
-
-        // =========================
-        // INGOT <-> NUGGET
-        // =========================
-
-        // Steel
-        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ModItems.STEEL_INGOT.get())
-                .pattern("NNN")
-                .pattern("NNN")
-                .define('N', ModItems.STEEL_NUGGET.get())
-                .unlockedBy("has_steel_nugget", has(ModItems.STEEL_NUGGET.get()))
-                .save(recipeOutput, KatzencraftMetalsMod.MODID + ":steel_ingot_from_nuggets");
-
-        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, ModItems.STEEL_NUGGET.get(), 6)
-                .requires(ModItems.STEEL_INGOT.get())
-                .unlockedBy("has_steel_ingot", has(ModItems.STEEL_INGOT.get()))
-                .save(recipeOutput, KatzencraftMetalsMod.MODID + ":steel_nugget_from_ingot");
-
-        // Platinum
-        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ModItems.PLATINUM_INGOT.get())
-                .pattern("NNN")
-                .pattern("NNN")
-                .define('N', ModItems.PLATINUM_NUGGET.get())
-                .unlockedBy("has_platinum_nugget", has(ModItems.PLATINUM_NUGGET.get()))
-                .save(recipeOutput, KatzencraftMetalsMod.MODID + ":platinum_ingot_from_nuggets");
-
-        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, ModItems.PLATINUM_NUGGET.get(), 6)
-                .requires(ModItems.PLATINUM_INGOT.get())
-                .unlockedBy("has_platinum_ingot", has(ModItems.PLATINUM_INGOT.get()))
-                .save(recipeOutput, KatzencraftMetalsMod.MODID + ":platinum_nugget_from_ingot");
-
-        // Mythril
-        ShapedRecipeBuilder.shaped(RecipeCategory.MISC, ModItems.MYTHRIL_INGOT.get())
-                .pattern("NNN")
-                .pattern("NNN")
-                .define('N', ModItems.MYTHRIL_NUGGET.get())
-                .unlockedBy("has_mythril_nugget", has(ModItems.MYTHRIL_NUGGET.get()))
-                .save(recipeOutput, KatzencraftMetalsMod.MODID + ":mythril_ingot_from_nuggets");
-
-        ShapelessRecipeBuilder.shapeless(RecipeCategory.MISC, ModItems.MYTHRIL_NUGGET.get(), 6)
-                .requires(ModItems.MYTHRIL_INGOT.get())
-                .unlockedBy("has_mythril_ingot", has(ModItems.MYTHRIL_INGOT.get()))
-                .save(recipeOutput, KatzencraftMetalsMod.MODID + ":mythril_nugget_from_ingot");
     }
 
     protected static void oreBlasting(RecipeOutput recipeOutput, net.minecraft.world.item.Item input, RecipeCategory category,
