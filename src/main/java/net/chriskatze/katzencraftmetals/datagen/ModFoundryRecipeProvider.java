@@ -1,11 +1,10 @@
 package net.chriskatze.katzencraftmetals.datagen;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
-import net.chriskatze.katzencraftmetals.datagen.recipe.FoundryMeltingRecipeBuilder;
+import net.chriskatze.katzencraftmetals.datagen.recipe.FoundryMeltingRecipeSet;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Items;
 
 /**
@@ -42,175 +41,106 @@ public final class ModFoundryRecipeProvider {
     private static void buildIronMeltingRecipes(
             RecipeOutput recipeOutput
     ) {
-        foundryMelting(
-                recipeOutput,
-                Items.RAW_IRON,
-                ModMoltenMetals.IRON.id(),
-                6,
-                20,
-                "raw_iron"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.IRON_INGOT,
-                ModMoltenMetals.IRON.id(),
-                6,
-                20,
-                "iron_ingot"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.IRON_NUGGET,
-                ModMoltenMetals.IRON.id(),
-                1,
-                10,
-                "iron_nugget"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.RAW_IRON_BLOCK,
-                ModMoltenMetals.IRON.id(),
-                54,
-                120,
-                "raw_iron_block"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.IRON_BLOCK,
-                ModMoltenMetals.IRON.id(),
-                54,
-                120,
-                "iron_block"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.IRON_ORE,
-                ModMoltenMetals.IRON.id(),
-                6,
-                20,
-                "iron_ore"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.DEEPSLATE_IRON_ORE,
-                ModMoltenMetals.IRON.id(),
-                6,
-                20,
-                "deepslate_iron_ore"
-        );
+        FoundryMeltingRecipeSet.forMetal(
+                        ModMoltenMetals.IRON
+                )
+                .raw(
+                        Items.RAW_IRON,
+                        "raw_iron"
+                )
+                .ingot(
+                        Items.IRON_INGOT,
+                        "iron_ingot"
+                )
+                .nugget(
+                        Items.IRON_NUGGET,
+                        "iron_nugget"
+                )
+                .rawBlock(
+                        Items.RAW_IRON_BLOCK,
+                        "raw_iron_block"
+                )
+                .block(
+                        Items.IRON_BLOCK,
+                        "iron_block"
+                )
+                .ore(
+                        Items.IRON_ORE,
+                        "iron_ore"
+                )
+                .ore(
+                        Items.DEEPSLATE_IRON_ORE,
+                        "deepslate_iron_ore"
+                )
+                .save(
+                        recipeOutput
+                );
     }
 
     private static void buildCopperMeltingRecipes(
             RecipeOutput recipeOutput
     ) {
-        foundryMelting(
-                recipeOutput,
-                Items.RAW_COPPER,
-                ModMoltenMetals.COPPER.id(),
-                6,
-                20,
-                "raw_copper"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.COPPER_INGOT,
-                ModMoltenMetals.COPPER.id(),
-                6,
-                20,
-                "copper_ingot"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.RAW_COPPER_BLOCK,
-                ModMoltenMetals.COPPER.id(),
-                54,
-                120,
-                "raw_copper_block"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.COPPER_BLOCK,
-                ModMoltenMetals.COPPER.id(),
-                54,
-                120,
-                "copper_block"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.COPPER_ORE,
-                ModMoltenMetals.COPPER.id(),
-                6,
-                20,
-                "copper_ore"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.DEEPSLATE_COPPER_ORE,
-                ModMoltenMetals.COPPER.id(),
-                6,
-                20,
-                "deepslate_copper_ore"
-        );
+        FoundryMeltingRecipeSet.forMetal(
+                        ModMoltenMetals.COPPER
+                )
+                .raw(
+                        Items.RAW_COPPER,
+                        "raw_copper"
+                )
+                .ingot(
+                        Items.COPPER_INGOT,
+                        "copper_ingot"
+                )
+                .rawBlock(
+                        Items.RAW_COPPER_BLOCK,
+                        "raw_copper_block"
+                )
+                .block(
+                        Items.COPPER_BLOCK,
+                        "copper_block"
+                )
+                .ore(
+                        Items.COPPER_ORE,
+                        "copper_ore"
+                )
+                .ore(
+                        Items.DEEPSLATE_COPPER_ORE,
+                        "deepslate_copper_ore"
+                )
+                .save(
+                        recipeOutput
+                );
     }
 
     private static void buildGoldMeltingRecipes(
             RecipeOutput recipeOutput
     ) {
-        foundryMelting(
-                recipeOutput,
-                Items.RAW_GOLD,
-                ModMoltenMetals.GOLD.id(),
-                6,
-                20,
-                "raw_gold"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.GOLD_INGOT,
-                ModMoltenMetals.GOLD.id(),
-                6,
-                20,
-                "gold_ingot"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.GOLD_NUGGET,
-                ModMoltenMetals.GOLD.id(),
-                1,
-                10,
-                "gold_nugget"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.RAW_GOLD_BLOCK,
-                ModMoltenMetals.GOLD.id(),
-                54,
-                120,
-                "raw_gold_block"
-        );
-
-        foundryMelting(
-                recipeOutput,
-                Items.GOLD_BLOCK,
-                ModMoltenMetals.GOLD.id(),
-                54,
-                120,
-                "gold_block"
-        );
+        FoundryMeltingRecipeSet.forMetal(
+                        ModMoltenMetals.GOLD
+                )
+                .raw(
+                        Items.RAW_GOLD,
+                        "raw_gold"
+                )
+                .ingot(
+                        Items.GOLD_INGOT,
+                        "gold_ingot"
+                )
+                .nugget(
+                        Items.GOLD_NUGGET,
+                        "gold_nugget"
+                )
+                .rawBlock(
+                        Items.RAW_GOLD_BLOCK,
+                        "raw_gold_block"
+                )
+                .block(
+                        Items.GOLD_BLOCK,
+                        "gold_block"
+                )
+                .save(
+                        recipeOutput
+                );
     }
 
     private static void buildAlloyRecipes(
@@ -302,40 +232,6 @@ public final class ModFoundryRecipeProvider {
                                 "mythril"
                         )
                 );
-    }
-
-    private static void foundryMelting(
-            RecipeOutput recipeOutput,
-            Item input,
-            ResourceLocation moltenMetal,
-            int moltenAmount,
-            int processingTime,
-            String recipeName
-    ) {
-        FoundryMeltingRecipeBuilder.melting(
-                        input,
-                        moltenMetal,
-                        moltenAmount
-                )
-                .processingTime(
-                        processingTime
-                )
-                .save(
-                        recipeOutput,
-                        foundryMeltingId(
-                                recipeName
-                        )
-                );
-    }
-
-    private static ResourceLocation foundryMeltingId(
-            String recipeName
-    ) {
-        return ResourceLocation.fromNamespaceAndPath(
-                KatzencraftMetalsMod.MODID,
-                "foundry_melting/"
-                        + recipeName
-        );
     }
 
     private static ResourceLocation foundryAlloyId(
