@@ -1,10 +1,9 @@
 package net.chriskatze.katzencraftmetals.datagen;
 
-import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
+import net.chriskatze.katzencraftmetals.datagen.recipe.FoundryAlloyRecipeSet;
 import net.chriskatze.katzencraftmetals.datagen.recipe.FoundryMeltingRecipeSet;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.data.recipes.RecipeOutput;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
 
 /**
@@ -153,68 +152,47 @@ public final class ModFoundryRecipeProvider {
          * system only accepts molten metal ingredients. We can add carbon/coal
          * support later if we want proper iron + carbon steel.
          */
-        FoundryAlloyRecipeBuilder.alloy(
-                        ModMoltenMetals.STEEL.id(),
-                        6
+        FoundryAlloyRecipeSet.forMetal(
+                        ModMoltenMetals.STEEL
                 )
                 .ingredient(
-                        ModMoltenMetals.IRON.id(),
+                        ModMoltenMetals.IRON,
                         6
-                )
-                .processingTime(
-                        100
                 )
                 .experience(
                         1
                 )
-                .requiredTier(
-                        1
-                )
                 .save(
-                        recipeOutput,
-                        foundryAlloyId(
-                                "steel"
-                        )
+                        recipeOutput
                 );
 
-        FoundryAlloyRecipeBuilder.alloy(
-                        ModMoltenMetals.PLATINUM.id(),
-                        6
+        FoundryAlloyRecipeSet.forMetal(
+                        ModMoltenMetals.PLATINUM
                 )
                 .ingredient(
-                        ModMoltenMetals.IRON.id(),
+                        ModMoltenMetals.IRON,
                         3
                 )
                 .ingredient(
-                        ModMoltenMetals.GOLD.id(),
+                        ModMoltenMetals.GOLD,
                         3
-                )
-                .processingTime(
-                        100
                 )
                 .experience(
                         2
                 )
-                .requiredTier(
-                        1
-                )
                 .save(
-                        recipeOutput,
-                        foundryAlloyId(
-                                "platinum"
-                        )
+                        recipeOutput
                 );
 
-        FoundryAlloyRecipeBuilder.alloy(
-                        ModMoltenMetals.MYTHRIL.id(),
-                        6
+        FoundryAlloyRecipeSet.forMetal(
+                        ModMoltenMetals.MYTHRIL
                 )
                 .ingredient(
-                        ModMoltenMetals.STEEL.id(),
+                        ModMoltenMetals.STEEL,
                         3
                 )
                 .ingredient(
-                        ModMoltenMetals.PLATINUM.id(),
+                        ModMoltenMetals.PLATINUM,
                         3
                 )
                 .processingTime(
@@ -227,20 +205,7 @@ public final class ModFoundryRecipeProvider {
                         2
                 )
                 .save(
-                        recipeOutput,
-                        foundryAlloyId(
-                                "mythril"
-                        )
+                        recipeOutput
                 );
-    }
-
-    private static ResourceLocation foundryAlloyId(
-            String recipeName
-    ) {
-        return ResourceLocation.fromNamespaceAndPath(
-                KatzencraftMetalsMod.MODID,
-                "foundry_alloy/"
-                        + recipeName
-        );
     }
 }
