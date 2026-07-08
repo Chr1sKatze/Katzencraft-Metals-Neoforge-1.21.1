@@ -93,6 +93,10 @@ public class ModLanguageProvider extends LanguageProvider {
         // Molten metals
         add("metal.katzencraftmetals.iron", "Iron");
         add("metal.katzencraftmetals.copper", "Copper");
+        add("metal.katzencraftmetals.steel", "Steel");
+        add("metal.katzencraftmetals.mythril", "Mythril");
+        add("metal.katzencraftmetals.gold", "Gold");
+        add("metal.katzencraftmetals.platinum", "Platinum");
 
         // Foundry Controller GUI
         add("gui.katzencraftmetals.foundry.empty", "Empty");

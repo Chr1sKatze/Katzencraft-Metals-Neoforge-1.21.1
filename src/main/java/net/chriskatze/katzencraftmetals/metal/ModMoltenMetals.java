@@ -121,6 +121,54 @@ public final class ModMoltenMetals {
                     )
             );
 
+    public static final MoltenMetalDefinition GOLD =
+            register(
+                    new MoltenMetalDefinition(
+                            ResourceLocation.fromNamespaceAndPath(
+                                    "minecraft",
+                                    "gold"
+                            ),
+                            "metal.katzencraftmetals.gold",
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "textures/block/molten_copper.png"
+                            ),
+                            ResourceLocation.fromNamespaceAndPath(
+                                    "minecraft",
+                                    "textures/block/gold_block.png"
+                            ),
+                            19_300,
+                            6,
+                            () -> new ItemStack(
+                                    Items.GOLD_BLOCK
+                            )
+                    )
+            );
+
+    public static final MoltenMetalDefinition PLATINUM =
+            register(
+                    new MoltenMetalDefinition(
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "platinum"
+                            ),
+                            "metal.katzencraftmetals.platinum",
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "textures/block/molten_copper.png"
+                            ),
+                            ResourceLocation.fromNamespaceAndPath(
+                                    KatzencraftMetalsMod.MODID,
+                                    "textures/block/platinum_block.png"
+                            ),
+                            21_450,
+                            6,
+                            () -> new ItemStack(
+                                    ModBlocks.PLATINUM_BLOCK.get()
+                            )
+                    )
+            );
+
     private ModMoltenMetals() {
     }
 
