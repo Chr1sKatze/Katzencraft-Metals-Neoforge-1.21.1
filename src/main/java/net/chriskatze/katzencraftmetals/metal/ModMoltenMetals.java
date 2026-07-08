@@ -1,9 +1,7 @@
 package net.chriskatze.katzencraftmetals.metal;
 
-import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 import java.util.Collection;
@@ -23,150 +21,140 @@ public final class ModMoltenMetals {
 
     public static final MoltenMetalDefinition IRON =
             register(
-                    new MoltenMetalDefinition(
-                            ResourceLocation.fromNamespaceAndPath(
-                                    "minecraft",
+                    FoundryMetalBuilder.vanilla(
                                     "iron"
-                            ),
-                            "metal.katzencraftmetals.iron",
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/molten_iron.png"
-                            ),
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/cooled_iron.png"
-                            ),
-                            7_874,
-                            6,
-                            () -> new ItemStack(
+                            )
+                            .animatedTexture(
+                                    "molten_iron"
+                            )
+                            .cooledTexture(
+                                    "cooled_iron"
+                            )
+                            .density(
+                                    7_874
+                            )
+                            .unitsPerOre(
+                                    6
+                            )
+                            .castResult(
                                     Items.IRON_BLOCK
                             )
-                    )
+                            .build()
             );
 
     public static final MoltenMetalDefinition COPPER =
             register(
-                    new MoltenMetalDefinition(
-                            ResourceLocation.fromNamespaceAndPath(
-                                    "minecraft",
+                    FoundryMetalBuilder.vanilla(
                                     "copper"
-                            ),
-                            "metal.katzencraftmetals.copper",
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/molten_copper.png"
-                            ),
-                            ResourceLocation.fromNamespaceAndPath(
-                                    "minecraft",
-                                    "textures/block/copper_block.png"
-                            ),
-                            8_960,
-                            6,
-                            () -> new ItemStack(
+                            )
+                            .animatedTexture(
+                                    "molten_copper"
+                            )
+                            .vanillaCooledTexture(
+                                    "copper_block"
+                            )
+                            .density(
+                                    8_960
+                            )
+                            .unitsPerOre(
+                                    6
+                            )
+                            .castResult(
                                     Items.COPPER_BLOCK
                             )
-                    )
+                            .build()
             );
 
-    /*
-     * Temporary Step 10C alloy outputs. Dedicated molten textures can replace
-     * these reused animations later without changing storage or recipes.
-     */
     public static final MoltenMetalDefinition STEEL =
             register(
-                    new MoltenMetalDefinition(
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
+                    FoundryMetalBuilder.mod(
                                     "steel"
-                            ),
-                            "metal.katzencraftmetals.steel",
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/molten_iron.png"
-                            ),
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/steel_block.png"
-                            ),
-                            7_850,
-                            6,
-                            () -> new ItemStack(
+                            )
+                            .animatedTexture(
+                                    "molten_iron"
+                            )
+                            .cooledTexture(
+                                    "steel_block"
+                            )
+                            .density(
+                                    7_850
+                            )
+                            .unitsPerOre(
+                                    6
+                            )
+                            .castResult(
                                     ModBlocks.STEEL_BLOCK.get()
                             )
-                    )
+                            .build()
             );
 
     public static final MoltenMetalDefinition MYTHRIL =
             register(
-                    new MoltenMetalDefinition(
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
+                    FoundryMetalBuilder.mod(
                                     "mythril"
-                            ),
-                            "metal.katzencraftmetals.mythril",
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/molten_copper.png"
-                            ),
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/mythril_block.png"
-                            ),
-                            9_500,
-                            6,
-                            () -> new ItemStack(
+                            )
+                            .animatedTexture(
+                                    "molten_copper"
+                            )
+                            .cooledTexture(
+                                    "mythril_block"
+                            )
+                            .density(
+                                    9_500
+                            )
+                            .unitsPerOre(
+                                    6
+                            )
+                            .castResult(
                                     ModBlocks.MYTHRIL_BLOCK.get()
                             )
-                    )
+                            .build()
             );
 
     public static final MoltenMetalDefinition GOLD =
             register(
-                    new MoltenMetalDefinition(
-                            ResourceLocation.fromNamespaceAndPath(
-                                    "minecraft",
+                    FoundryMetalBuilder.vanilla(
                                     "gold"
-                            ),
-                            "metal.katzencraftmetals.gold",
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/molten_copper.png"
-                            ),
-                            ResourceLocation.fromNamespaceAndPath(
-                                    "minecraft",
-                                    "textures/block/gold_block.png"
-                            ),
-                            19_300,
-                            6,
-                            () -> new ItemStack(
+                            )
+                            .animatedTexture(
+                                    "molten_copper"
+                            )
+                            .vanillaCooledTexture(
+                                    "gold_block"
+                            )
+                            .density(
+                                    19_300
+                            )
+                            .unitsPerOre(
+                                    6
+                            )
+                            .castResult(
                                     Items.GOLD_BLOCK
                             )
-                    )
+                            .build()
             );
 
     public static final MoltenMetalDefinition PLATINUM =
             register(
-                    new MoltenMetalDefinition(
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
+                    FoundryMetalBuilder.mod(
                                     "platinum"
-                            ),
-                            "metal.katzencraftmetals.platinum",
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/molten_copper.png"
-                            ),
-                            ResourceLocation.fromNamespaceAndPath(
-                                    KatzencraftMetalsMod.MODID,
-                                    "textures/block/platinum_block.png"
-                            ),
-                            21_450,
-                            6,
-                            () -> new ItemStack(
+                            )
+                            .animatedTexture(
+                                    "molten_copper"
+                            )
+                            .cooledTexture(
+                                    "platinum_block"
+                            )
+                            .density(
+                                    21_450
+                            )
+                            .unitsPerOre(
+                                    6
+                            )
+                            .castResult(
                                     ModBlocks.PLATINUM_BLOCK.get()
                             )
-                    )
+                            .build()
             );
 
     private ModMoltenMetals() {
