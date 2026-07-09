@@ -70,23 +70,7 @@ public class FoundryControllerBlockEntity
             new FoundryControllerMetalDiscovery(this);
 
     private final SimpleContainer inputInventory =
-            new SimpleContainer(INPUT_SLOT_COUNT) {
-
-                @Override
-                public boolean canPlaceItem(
-                        int slot,
-                        ItemStack stack
-                ) {
-                    return isInputSlotUnlocked(slot)
-                            && processing.canMelt(stack);
-                }
-
-                @Override
-                public void setChanged() {
-                    super.setChanged();
-                    FoundryControllerBlockEntity.this.setChanged();
-                }
-            };
+            new FoundryControllerInputInventory(this);
 
     public static final int METAL_DATA_START = 2;
 
