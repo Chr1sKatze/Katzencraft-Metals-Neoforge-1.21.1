@@ -22,7 +22,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -67,12 +66,8 @@ public class FoundryControllerBlockEntity
     private final FoundryControllerAlloying alloying =
             new FoundryControllerAlloying(this);
 
-    /**
-     * Every registered molten metal that has existed in this controller's
-     * attached tank network at least once.
-     */
-    private final Set<ResourceLocation> discoveredMoltenMetals =
-            new HashSet<>();
+    private final FoundryControllerMetalDiscovery metalDiscovery =
+            new FoundryControllerMetalDiscovery(this);
 
     private final SimpleContainer inputInventory =
             new SimpleContainer(INPUT_SLOT_COUNT) {
@@ -227,62 +222,21 @@ public class FoundryControllerBlockEntity
     public boolean hasDiscoveredMoltenMetal(
             ResourceLocation metal
     ) {
-        return metal != null
-                && discoveredMoltenMetals.contains(metal);
+        return metalDiscovery.hasDiscovered(
+                metal
+        );
     }
 
     public boolean isAlloyRecipeUnlocked(
             FoundryAlloyRecipe recipe
     ) {
-        if (recipe == null || recipe.ingredients().isEmpty()) {
-            return false;
-        }
-
-        for (var ingredient : recipe.ingredients()) {
-            if (
-                    !hasDiscoveredMoltenMetal(
-                            ingredient.metal()
-                    )
-            ) {
-                return false;
-            }
-        }
-
-        return true;
+        return metalDiscovery.isAlloyRecipeUnlocked(
+                recipe
+        );
     }
 
     private void discoverCurrentTankMetals() {
-        FoundryTankNetwork network =
-                getOwnedTankNetwork();
-
-        if (network == null) {
-            return;
-        }
-
-        network.ensureMoltenContentsMigrated();
-
-        boolean changed = false;
-
-        for (
-                var entry :
-                network.getMoltenContents().entrySet()
-        ) {
-            if (
-                    entry.getValue() > 0
-                            && ModMoltenMetals.contains(
-                            entry.getKey()
-                    )
-            ) {
-                changed |=
-                        discoveredMoltenMetals.add(
-                                entry.getKey()
-                        );
-            }
-        }
-
-        if (changed) {
-            setChanged();
-        }
+        metalDiscovery.discoverCurrentTankMetals();
     }
 
     public void releaseFoundry() {
@@ -572,22 +526,8 @@ public class FoundryControllerBlockEntity
                 controllerId.toString()
         );
 
-        CompoundTag discoveredTag =
-                new CompoundTag();
-
-        for (
-                ResourceLocation metal :
-                discoveredMoltenMetals
-        ) {
-            discoveredTag.putBoolean(
-                    metal.toString(),
-                    true
-            );
-        }
-
-        tag.put(
-                "DiscoveredMoltenMetals",
-                discoveredTag
+        metalDiscovery.save(
+                tag
         );
 
         tag.put(
@@ -634,32 +574,9 @@ public class FoundryControllerBlockEntity
                     UUID.randomUUID();
         }
 
-        discoveredMoltenMetals.clear();
-
-        if (
-                tag.contains(
-                        "DiscoveredMoltenMetals",
-                        Tag.TAG_COMPOUND
-                )
-        ) {
-            CompoundTag discoveredTag =
-                    tag.getCompound(
-                            "DiscoveredMoltenMetals"
-                    );
-
-            for (String key : discoveredTag.getAllKeys()) {
-                ResourceLocation metal =
-                        ResourceLocation.tryParse(key);
-
-                if (
-                        metal != null
-                                && discoveredTag.getBoolean(key)
-                                && ModMoltenMetals.contains(metal)
-                ) {
-                    discoveredMoltenMetals.add(metal);
-                }
-            }
-        }
+        metalDiscovery.load(
+                tag
+        );
 
         inputInventory.removeAllItems();
 
