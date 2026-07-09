@@ -163,169 +163,7 @@ public class FoundryControllerBlockEntity
                     + METAL_DATA_COUNT;
 
     private final ContainerData data =
-            new ContainerData() {
-
-                @Override
-                public int get(
-                        int index
-                ) {
-                    if (index == 0) {
-                        return alloying.hasActiveJob()
-                                ? alloying.getProgress()
-                                : processing.getProgress();
-                    }
-
-                    if (index == 1) {
-                        return alloying.hasActiveJob()
-                                ? alloying.getMaxProgress()
-                                : processing.getMaxProgress();
-                    }
-
-                    FoundryTankNetwork network =
-                            getOwnedTankNetwork();
-
-                    if (
-                            index >= METAL_DATA_START
-                                    && index < SELECTED_METAL_DATA_INDEX
-                    ) {
-                        int syncId =
-                                index
-                                        - METAL_DATA_START;
-
-                        ResourceLocation metal =
-                                ModMoltenMetals.bySyncId(syncId)
-                                        .map(definition -> definition.id())
-                                        .orElse(null);
-
-                        return network != null
-                                && metal != null
-                                ? network.getMoltenAmount(metal)
-                                : 0;
-                    }
-
-                    if (index == SELECTED_METAL_DATA_INDEX) {
-                        ResourceLocation selected =
-                                network != null
-                                        ? processing
-                                        .getSelectedOutputMetalOrDefault(network)
-                                        : null;
-
-                        return selected != null
-                                ? ModMoltenMetals.getSyncId(selected)
-                                : -1;
-                    }
-
-                    if (index == TOTAL_AMOUNT_DATA_INDEX) {
-                        return network != null
-                                ? network.getTotalMoltenAmount()
-                                : 0;
-                    }
-
-                    if (index == CAPACITY_DATA_INDEX) {
-                        return network != null
-                                ? network.getCapacity()
-                                : 0;
-                    }
-
-                    if (index == BURN_TIME_DATA_INDEX) {
-                        return fuelSystem.getBurnTimeRemaining();
-                    }
-
-                    if (index == MAX_BURN_TIME_DATA_INDEX) {
-                        return fuelSystem.getMaxBurnTime();
-                    }
-
-                    if (index == TIER_DATA_INDEX) {
-                        return progression.getTier();
-                    }
-
-                    if (index == EXPERIENCE_DATA_INDEX) {
-                        return progression.getExperience();
-                    }
-
-                    if (index == TIER_EXPERIENCE_DATA_INDEX) {
-                        return progression.getExperienceIntoTier();
-                    }
-
-                    if (index == TIER_EXPERIENCE_NEEDED_DATA_INDEX) {
-                        return progression.getExperienceNeededForTier();
-                    }
-
-                    if (index == ACTIVE_INPUT_SLOT_DATA_INDEX) {
-                        return alloying.hasActiveJob()
-                                ? -1
-                                : processing.getActiveInputSlot();
-                    }
-
-                    if (index == STATUS_DATA_INDEX) {
-                        return alloying.hasActiveJob()
-                                ? alloying.getStatusCode()
-                                : processing.getStatusCode();
-                    }
-
-                    if (index == ACTIVE_ALLOY_OUTPUT_DATA_INDEX) {
-                        ResourceLocation output =
-                                alloying.getOutputMetal();
-
-                        return output == null
-                                ? -1
-                                : ModMoltenMetals.getSyncId(output);
-                    }
-
-                    if (index == ALLOY_ACTIVE_DATA_INDEX) {
-                        return alloying.hasActiveJob()
-                                ? 1
-                                : 0;
-                    }
-
-                    if (index == ACTIVE_ALLOY_BATCH_COUNT_DATA_INDEX) {
-                        return alloying.hasActiveJob()
-                                ? alloying.getBatchCount()
-                                : 0;
-                    }
-
-                    if (
-                            index >= DISCOVERED_METAL_DATA_START
-                                    && index < DATA_COUNT
-                    ) {
-                        int syncId =
-                                index
-                                        - DISCOVERED_METAL_DATA_START;
-
-                        ResourceLocation metal =
-                                ModMoltenMetals.bySyncId(syncId)
-                                        .map(definition -> definition.id())
-                                        .orElse(null);
-
-                        return metal != null
-                                && discoveredMoltenMetals.contains(metal)
-                                ? 1
-                                : 0;
-                    }
-
-                    return 0;
-                }
-
-                @Override
-                public void set(
-                        int index,
-                        int value
-                ) {
-                    if (index == 0) {
-                        processing.setProgressFromMenuData(value);
-                        return;
-                    }
-
-                    if (index == 1) {
-                        processing.setMaxProgressFromMenuData(value);
-                    }
-                }
-
-                @Override
-                public int getCount() {
-                    return DATA_COUNT;
-                }
-            };
+            new FoundryControllerMenuData(this);
 
     public FoundryControllerBlockEntity(
             BlockPos pos,
@@ -568,6 +406,65 @@ public class FoundryControllerBlockEntity
 
     public ContainerData getData() {
         return data;
+    }
+
+    int getMenuProgress() {
+        return alloying.hasActiveJob()
+                ? alloying.getProgress()
+                : processing.getProgress();
+    }
+
+    int getMenuMaxProgress() {
+        return alloying.hasActiveJob()
+                ? alloying.getMaxProgress()
+                : processing.getMaxProgress();
+    }
+
+    int getMenuActiveInputSlot() {
+        return alloying.hasActiveJob()
+                ? -1
+                : processing.getActiveInputSlot();
+    }
+
+    int getMenuStatusCode() {
+        return alloying.hasActiveJob()
+                ? alloying.getStatusCode()
+                : processing.getStatusCode();
+    }
+
+    @Nullable
+    ResourceLocation getActiveAlloyOutputMetal() {
+        return alloying.getOutputMetal();
+    }
+
+    int getActiveAlloyBatchCount() {
+        return alloying.hasActiveJob()
+                ? alloying.getBatchCount()
+                : 0;
+    }
+
+    int getFoundryExperienceIntoTier() {
+        return progression.getExperienceIntoTier();
+    }
+
+    int getFoundryExperienceNeededForTier() {
+        return progression.getExperienceNeededForTier();
+    }
+
+    void setMenuProgressFromData(
+            int value
+    ) {
+        processing.setProgressFromMenuData(
+                value
+        );
+    }
+
+    void setMenuMaxProgressFromData(
+            int value
+    ) {
+        processing.setMaxProgressFromMenuData(
+                value
+        );
     }
 
     public int getProgress() {
