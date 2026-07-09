@@ -29,55 +29,10 @@ import java.util.Optional;
  */
 final class FoundryControllerAlloying {
 
-    private static final String REQUIRED_INGREDIENTS_TAG =
-            "RequiredAlloyIngredients";
-
     private final FoundryControllerBlockEntity controller;
 
-    @Nullable
-    private ResourceLocation activeRecipeId;
-
-    @Nullable
-    private ResourceLocation outputMetal;
-
-    /**
-     * Ingredients required for exactly one batch.
-     */
-    private final Map<ResourceLocation, Integer> requiredIngredients =
-            new LinkedHashMap<>();
-
-    /**
-     * Output produced by exactly one completed batch.
-     */
-    private int outputAmount;
-
-    /**
-     * Total number of batches requested when the job started.
-     */
-    private int batchCount;
-
-    /**
-     * Number of batches that have already completed and produced output.
-     */
-    private int completedBatches;
-
-    /**
-     * Progress of the currently running batch only.
-     */
-    private int progress;
-
-    /**
-     * Required progress for one batch only.
-     */
-    private int maxProgress = 1;
-
-    /**
-     * Experience granted by one completed batch.
-     */
-    private int experience;
-
-    private int statusCode =
-            FoundryControllerProcessing.STATUS_READY;
+    private final FoundryAlloyJobState job =
+            new FoundryAlloyJobState();
 
     FoundryControllerAlloying(
             FoundryControllerBlockEntity controller
@@ -91,7 +46,7 @@ final class FoundryControllerAlloying {
             int requestedBatches
     ) {
         if (
-                hasActiveJob()
+                job.hasActiveJob()
                         || controller.getLevel() == null
                         || requestedBatches < 1
                         || requestedBatches > 99
@@ -206,34 +161,15 @@ final class FoundryControllerAlloying {
             return false;
         }
 
-        activeRecipeId =
-                holder.id();
-
-        outputMetal =
-                recipe.outputMetal();
-
-        requiredIngredients.clear();
-        requiredIngredients.putAll(
-                oneBatchRequirements
+        job.start(
+                holder.id(),
+                recipe.outputMetal(),
+                oneBatchRequirements,
+                recipe.outputAmount(),
+                requestedBatches,
+                recipe.processingTime(),
+                recipe.experience()
         );
-
-        outputAmount =
-                recipe.outputAmount();
-
-        batchCount =
-                requestedBatches;
-
-        completedBatches = 0;
-        progress = 0;
-
-        maxProgress =
-                recipe.processingTime();
-
-        experience =
-                recipe.experience();
-
-        statusCode =
-                FoundryControllerProcessing.STATUS_ALLOYING;
 
         controller.setChanged();
         return true;
@@ -245,13 +181,13 @@ final class FoundryControllerAlloying {
     ) {
         if (
                 level.isClientSide()
-                        || !hasActiveJob()
+                        || !job.hasActiveJob()
         ) {
             return;
         }
 
         if (!controller.ensureTankNetwork()) {
-            statusCode =
+            job.statusCode =
                     FoundryControllerProcessing.STATUS_NO_TANKS;
             return;
         }
@@ -260,7 +196,7 @@ final class FoundryControllerAlloying {
                 controller.getOwnedTankNetwork();
 
         if (network == null) {
-            statusCode =
+            job.statusCode =
                     FoundryControllerProcessing.STATUS_NO_TANKS;
             return;
         }
@@ -270,7 +206,7 @@ final class FoundryControllerAlloying {
         if (
                 FoundryAlloyCatalog.byId(
                         level,
-                        activeRecipeId
+                        job.activeRecipeId
                 ).isEmpty()
         ) {
             stop();
@@ -285,27 +221,27 @@ final class FoundryControllerAlloying {
         if (
                 !FoundryAlloyAmounts.hasIngredients(
                         network,
-                        requiredIngredients
+                        job.requiredIngredients
                 )
         ) {
-            statusCode =
+            job.statusCode =
                     FoundryControllerProcessing.STATUS_ALLOYING;
             return;
         }
 
         int oneBatchInput =
                 FoundryAlloyAmounts.totalAmount(
-                        requiredIngredients
+                        job.requiredIngredients
                 );
 
         if (
                 !FoundryAlloyAmounts.hasCompletionSpace(
                         network,
                         oneBatchInput,
-                        outputAmount
+                        job.outputAmount
                 )
         ) {
-            statusCode =
+            job.statusCode =
                     FoundryControllerProcessing.STATUS_TANK_FULL;
             return;
         }
@@ -313,29 +249,29 @@ final class FoundryControllerAlloying {
         /*
          * Only the currently active batch advances.
          */
-        if (progress < maxProgress) {
+        if (job.progress < job.maxProgress) {
             FoundryControllerFuelSystem fuel =
                     controller.getFuelSystem();
 
             if (!fuel.hasAvailableFuel()) {
-                statusCode =
+                job.statusCode =
                         FoundryControllerProcessing.STATUS_MISSING_FUEL;
                 return;
             }
 
             if (!fuel.supplyBurnTick()) {
-                statusCode =
+                job.statusCode =
                         FoundryControllerProcessing.STATUS_MISSING_FUEL;
                 return;
             }
 
-            statusCode =
+            job.statusCode =
                     FoundryControllerProcessing.STATUS_ALLOYING;
 
-            progress++;
+            job.progress++;
             controller.setChanged();
 
-            if (progress < maxProgress) {
+            if (job.progress < job.maxProgress) {
                 return;
             }
         }
@@ -347,13 +283,13 @@ final class FoundryControllerAlloying {
             return;
         }
 
-        completedBatches++;
+        job.completedBatches++;
         controller.addFoundryExperience(
-                experience
+                job.experience
         );
 
-        if (completedBatches >= batchCount) {
-            clearJob();
+        if (job.completedBatches >= job.batchCount) {
+            job.clear();
             controller.setChanged();
             return;
         }
@@ -361,16 +297,16 @@ final class FoundryControllerAlloying {
         /*
          * Begin the next batch from zero on the following server tick.
          */
-        progress = 0;
+        job.progress = 0;
 
-        statusCode =
+        job.statusCode =
                 FoundryControllerProcessing.STATUS_ALLOYING;
 
         controller.setChanged();
     }
 
     boolean stop() {
-        if (!hasActiveJob()) {
+        if (!job.hasActiveJob()) {
             return false;
         }
 
@@ -378,13 +314,13 @@ final class FoundryControllerAlloying {
          * Completed batches stay completed. The unfinished current batch has not
          * consumed ingredients, so stopping needs no refund.
          */
-        clearJob();
+        job.clear();
         controller.setChanged();
         return true;
     }
 
     void cancelAndRefund() {
-        if (!hasActiveJob()) {
+        if (!job.hasActiveJob()) {
             return;
         }
 
@@ -392,7 +328,7 @@ final class FoundryControllerAlloying {
          * Nothing is reserved up front anymore. Unfinished batches therefore have
          * nothing to refund.
          */
-        clearJob();
+        job.clear();
         controller.setChanged();
     }
 
@@ -404,7 +340,7 @@ final class FoundryControllerAlloying {
 
         for (
                 Map.Entry<ResourceLocation, Integer> entry :
-                requiredIngredients.entrySet()
+                job.requiredIngredients.entrySet()
         ) {
             int amount =
                     network.extract(
@@ -426,7 +362,7 @@ final class FoundryControllerAlloying {
                         extracted
                 );
 
-                statusCode =
+                job.statusCode =
                         FoundryControllerProcessing.STATUS_ALLOYING;
 
                 controller.setChanged();
@@ -441,14 +377,14 @@ final class FoundryControllerAlloying {
 
         int inserted =
                 network.insert(
-                        outputMetal,
-                        outputAmount
+                        job.outputMetal,
+                        job.outputAmount
                 );
 
-        if (inserted != outputAmount) {
+        if (inserted != job.outputAmount) {
             if (inserted > 0) {
                 network.extract(
-                        outputMetal,
+                        job.outputMetal,
                         inserted
                 );
             }
@@ -458,7 +394,7 @@ final class FoundryControllerAlloying {
                     extracted
             );
 
-            statusCode =
+            job.statusCode =
                     FoundryControllerProcessing.STATUS_TANK_FULL;
 
             controller.setChanged();
@@ -468,46 +404,20 @@ final class FoundryControllerAlloying {
         return true;
     }
 
-    private void clearJob() {
-        activeRecipeId = null;
-        outputMetal = null;
-
-        requiredIngredients.clear();
-
-        outputAmount = 0;
-        batchCount = 0;
-        completedBatches = 0;
-        progress = 0;
-        maxProgress = 1;
-        experience = 0;
-
-        statusCode =
-                FoundryControllerProcessing.STATUS_READY;
-    }
-
     boolean hasActiveJob() {
-        return activeRecipeId != null
-                && outputMetal != null
-                && outputAmount > 0
-                && batchCount > 0
-                && completedBatches >= 0
-                && completedBatches < batchCount
-                && !requiredIngredients.isEmpty();
+        return job.hasActiveJob();
     }
 
     int getProgress() {
-        return progress;
+        return job.progress;
     }
 
     int getMaxProgress() {
-        return Math.max(
-                1,
-                maxProgress
-        );
+        return job.getMaxProgress();
     }
 
     int getStatusCode() {
-        return statusCode;
+        return job.statusCode;
     }
 
     /**
@@ -518,170 +428,27 @@ final class FoundryControllerAlloying {
      * each completed batch.
      */
     int getBatchCount() {
-        return Math.max(
-                0,
-                batchCount - completedBatches
-        );
+        return job.getRemainingBatchCount();
     }
 
     @Nullable
     ResourceLocation getOutputMetal() {
-        return outputMetal;
+        return job.outputMetal;
     }
 
     void save(
             CompoundTag tag
     ) {
-        if (!hasActiveJob()) {
-            return;
-        }
-
-        tag.putString(
-                "ActiveAlloyRecipe",
-                activeRecipeId.toString()
-        );
-
-        tag.putString(
-                "ActiveAlloyOutput",
-                outputMetal.toString()
-        );
-
-        tag.putInt(
-                "ActiveAlloyOutputAmount",
-                outputAmount
-        );
-
-        tag.putInt(
-                "ActiveAlloyBatchCount",
-                batchCount
-        );
-
-        tag.putInt(
-                "ActiveAlloyCompletedBatches",
-                completedBatches
-        );
-
-        tag.putInt(
-                "ActiveAlloyProgress",
-                progress
-        );
-
-        tag.putInt(
-                "ActiveAlloyMaxProgress",
-                maxProgress
-        );
-
-        tag.putInt(
-                "ActiveAlloyExperience",
-                experience
-        );
-
-        tag.put(
-                REQUIRED_INGREDIENTS_TAG,
-                FoundryAlloyAmounts.writeAmounts(
-                        requiredIngredients
-                )
+        job.save(
+                tag
         );
     }
 
     void load(
             CompoundTag tag
     ) {
-        clearJob();
-
-        ResourceLocation recipeId =
-                ResourceLocation.tryParse(
-                        tag.getString(
-                                "ActiveAlloyRecipe"
-                        )
-                );
-
-        ResourceLocation loadedOutput =
-                ResourceLocation.tryParse(
-                        tag.getString(
-                                "ActiveAlloyOutput"
-                        )
-                );
-
-        int loadedOutputAmount =
-                tag.getInt(
-                        "ActiveAlloyOutputAmount"
-                );
-
-        if (
-                recipeId == null
-                        || loadedOutput == null
-                        || loadedOutputAmount <= 0
-        ) {
-            return;
-        }
-
-        activeRecipeId = recipeId;
-        outputMetal = loadedOutput;
-        outputAmount = loadedOutputAmount;
-
-        batchCount =
-                Math.max(
-                        1,
-                        tag.getInt(
-                                "ActiveAlloyBatchCount"
-                        )
-                );
-
-        completedBatches =
-                Math.max(
-                        0,
-                        Math.min(
-                                batchCount - 1,
-                                tag.getInt(
-                                        "ActiveAlloyCompletedBatches"
-                                )
-                        )
-                );
-
-        progress =
-                Math.max(
-                        0,
-                        tag.getInt(
-                                "ActiveAlloyProgress"
-                        )
-                );
-
-        maxProgress =
-                Math.max(
-                        1,
-                        tag.getInt(
-                                "ActiveAlloyMaxProgress"
-                        )
-                );
-
-        progress =
-                Math.min(
-                        progress,
-                        maxProgress
-                );
-
-        experience =
-                Math.max(
-                        0,
-                        tag.getInt(
-                                "ActiveAlloyExperience"
-                        )
-                );
-
-        FoundryAlloyAmounts.readAmounts(
-                tag.getCompound(
-                        REQUIRED_INGREDIENTS_TAG
-                ),
-                requiredIngredients
+        job.load(
+                tag
         );
-
-        if (!hasActiveJob()) {
-            clearJob();
-            return;
-        }
-
-        statusCode =
-                FoundryControllerProcessing.STATUS_ALLOYING;
     }
 }
