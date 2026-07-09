@@ -1,18 +1,14 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
-import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.recipe.FoundryMeltingRecipe;
-import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.Level;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -41,121 +37,50 @@ final class FoundryControllerProcessing {
     boolean canMelt(
             ItemStack stack
     ) {
-        return findMeltingRecipe(stack)
-                .isPresent();
-    }
-
-    private Optional<FoundryMeltingRecipe> findMeltingRecipe(
-            ItemStack stack
-    ) {
-        if (
-                controller.getLevel() == null
-                        || stack.isEmpty()
-        ) {
-            return Optional.empty();
-        }
-
-        return controller.getLevel()
-                .getRecipeManager()
-                .getRecipeFor(
-                        ModRecipes.FOUNDRY_MELTING_TYPE.get(),
-                        new SingleRecipeInput(stack),
-                        controller.getLevel()
-                )
-                .map(holder -> holder.value())
-                .filter(
-                        recipe ->
-                                ModMoltenMetals.contains(
-                                        recipe.moltenMetal()
-                                )
-                );
+        return FoundryMeltingRecipes.canMelt(
+                controller.getLevel(),
+                stack
+        );
     }
 
     @Nullable
     ResourceLocation getSelectedOutputMetal() {
-        return job.selectedOutputMetal;
+        return FoundryOutputSelection.get(
+                job
+        );
     }
 
     boolean setSelectedOutputMetal(
             ResourceLocation metal
     ) {
-        if (
-                metal == null
-                        || !ModMoltenMetals.contains(metal)
-        ) {
-            return false;
-        }
-
-        FoundryTankNetwork network =
-                controller.getOwnedTankNetwork();
-
-        if (
-                controller.getLevel() == null
-                        || network == null
-                        || network.getMoltenAmount(metal) <= 0
-        ) {
-            return false;
-        }
-
-        if (Objects.equals(
-                job.selectedOutputMetal,
+        return FoundryOutputSelection.set(
+                controller,
+                job,
                 metal
-        )) {
-            return true;
-        }
-
-        job.selectedOutputMetal = metal;
-        controller.setChanged();
-        return true;
+        );
     }
 
     @Nullable
     ResourceLocation getSelectedOutputMetalOrDefault(
             FoundryTankNetwork network
     ) {
-        if (
-                controller.getLevel() == null
-                        || network == null
-        ) {
-            return null;
-        }
-
-        if (
-                job.selectedOutputMetal != null
-                        && network.getMoltenAmount(
-                        job.selectedOutputMetal
-                ) > 0
-        ) {
-            return job.selectedOutputMetal;
-        }
-
-        for (
-                var definition :
-                ModMoltenMetals.lightestFirst()
-        ) {
-            if (
-                    network.getMoltenAmount(
-                            definition.id()
-                    ) > 0
-            ) {
-                return definition.id();
-            }
-        }
-
-        return null;
+        return FoundryOutputSelection.getOrDefault(
+                controller,
+                job,
+                network
+        );
     }
 
     private void normalizeSelectedOutputMetal(
             FoundryTankNetwork network
     ) {
-        ResourceLocation normalized =
-                getSelectedOutputMetalOrDefault(network);
-
-        if (!Objects.equals(
-                job.selectedOutputMetal,
-                normalized
-        )) {
-            job.selectedOutputMetal = normalized;
+        if (
+                FoundryOutputSelection.normalize(
+                        controller,
+                        job,
+                        network
+                )
+        ) {
             controller.setChanged();
         }
     }
@@ -205,7 +130,10 @@ final class FoundryControllerProcessing {
                         .getItem(inputSlot);
 
         Optional<FoundryMeltingRecipe> recipeOptional =
-                findMeltingRecipe(inputStack);
+                FoundryMeltingRecipes.find(
+                        controller.getLevel(),
+                        inputStack
+                );
 
         if (recipeOptional.isEmpty()) {
             job.statusCode = STATUS_READY;
@@ -270,7 +198,10 @@ final class FoundryControllerProcessing {
 
             if (
                     !stack.isEmpty()
-                            && findMeltingRecipe(stack).isPresent()
+                            && FoundryMeltingRecipes.canMelt(
+                            controller.getLevel(),
+                            stack
+                    )
             ) {
                 return slot;
             }
@@ -326,7 +257,10 @@ final class FoundryControllerProcessing {
                         .getItem(expectedInputSlot);
 
         Optional<FoundryMeltingRecipe> currentRecipeOptional =
-                findMeltingRecipe(inputStack);
+                FoundryMeltingRecipes.find(
+                        controller.getLevel(),
+                        inputStack
+                );
 
         if (currentRecipeOptional.isEmpty()) {
             clearActiveRecipe();
@@ -341,7 +275,7 @@ final class FoundryControllerProcessing {
                         expectedInputSlot,
                         currentRecipe
                 )
-                        || !sameRecipeResult(
+                        || !FoundryMeltingRecipes.sameResult(
                         expectedRecipe,
                         currentRecipe
                 )
@@ -390,18 +324,6 @@ final class FoundryControllerProcessing {
                 .setChanged();
 
         controller.setChanged();
-    }
-
-    private static boolean sameRecipeResult(
-            FoundryMeltingRecipe first,
-            FoundryMeltingRecipe second
-    ) {
-        return first.moltenAmount()
-                == second.moltenAmount()
-                && first.processingTime()
-                == second.processingTime()
-                && first.moltenMetal()
-                .equals(second.moltenMetal());
     }
 
     int getProgress() {
