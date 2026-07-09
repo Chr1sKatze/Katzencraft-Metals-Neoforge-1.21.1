@@ -236,7 +236,7 @@ final class FoundryTankPlacement {
                             positions.addAll(columns.get(columnKey));
                         }
 
-                        FoundryTankStructure.ValidationResult validation =
+                        FoundryTankStructureValidation.ValidationResult validation =
                                 FoundryTankStructure.validateStructure(positions);
 
                         if (
@@ -443,7 +443,7 @@ final class FoundryTankPlacement {
 
             mandatoryPositions.add(placedPos.immutable());
 
-            FoundryTankStructure.ValidationResult validation =
+            FoundryTankStructureValidation.ValidationResult validation =
                     FoundryTankStructure.validateStructure(mandatoryPositions);
 
             if (
@@ -667,7 +667,7 @@ final class FoundryTankPlacement {
                 newlyClaimed.addAll(component);
             }
 
-            FoundryTankStructure.ValidationResult validation =
+            FoundryTankStructureValidation.ValidationResult validation =
                     FoundryTankStructure.validateStructure(combined);
 
             if (
