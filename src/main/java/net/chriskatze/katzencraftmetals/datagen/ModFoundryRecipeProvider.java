@@ -1,7 +1,9 @@
 package net.chriskatze.katzencraftmetals.datagen;
 
+import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.datagen.recipe.FoundryAlloyRecipeSet;
 import net.chriskatze.katzencraftmetals.datagen.recipe.FoundryMeltingRecipeSet;
+import net.chriskatze.katzencraftmetals.item.ModItems;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.world.item.Items;
@@ -29,6 +31,18 @@ public final class ModFoundryRecipeProvider {
         );
 
         buildGoldMeltingRecipes(
+                recipeOutput
+        );
+
+        buildSteelMeltingRecipes(
+                recipeOutput
+        );
+
+        buildPlatinumMeltingRecipes(
+                recipeOutput
+        );
+
+        buildMythrilMeltingRecipes(
                 recipeOutput
         );
 
@@ -136,6 +150,126 @@ public final class ModFoundryRecipeProvider {
                 .block(
                         Items.GOLD_BLOCK,
                         "gold_block"
+                )
+                .save(
+                        recipeOutput
+                );
+    }
+
+    private static void buildSteelMeltingRecipes(
+            RecipeOutput recipeOutput
+    ) {
+        FoundryMeltingRecipeSet.forMetal(
+                        ModMoltenMetals.STEEL
+                )
+                .ingot(
+                        ModItems.STEEL_INGOT.get(),
+                        "steel_ingot"
+                )
+                .nugget(
+                        ModItems.STEEL_NUGGET.get(),
+                        "steel_nugget"
+                )
+                .block(
+                        ModBlocks.STEEL_BLOCK.get()
+                                .asItem(),
+                        "steel_block"
+                )
+                .save(
+                        recipeOutput
+                );
+    }
+
+    private static void buildPlatinumMeltingRecipes(
+            RecipeOutput recipeOutput
+    ) {
+        FoundryMeltingRecipeSet.forMetal(
+                        ModMoltenMetals.PLATINUM
+                )
+                .raw(
+                        ModItems.RAW_PLATINUM.get(),
+                        "raw_platinum"
+                )
+                .ingot(
+                        ModItems.PLATINUM_INGOT.get(),
+                        "platinum_ingot"
+                )
+                .nugget(
+                        ModItems.PLATINUM_NUGGET.get(),
+                        "platinum_nugget"
+                )
+                .block(
+                        ModBlocks.PLATINUM_BLOCK.get()
+                                .asItem(),
+                        "platinum_block"
+                )
+                .ore(
+                        ModBlocks.PLATINUM_ORE.get()
+                                .asItem(),
+                        "platinum_ore"
+                )
+                .ore(
+                        ModBlocks.DEEPSLATE_PLATINUM_ORE.get()
+                                .asItem(),
+                        "deepslate_platinum_ore"
+                )
+                .ore(
+                        ModBlocks.NETHER_PLATINUM_ORE.get()
+                                .asItem(),
+                        "nether_platinum_ore"
+                )
+                .ore(
+                        ModBlocks.END_PLATINUM_ORE.get()
+                                .asItem(),
+                        "end_platinum_ore"
+                )
+                .save(
+                        recipeOutput
+                );
+    }
+
+    private static void buildMythrilMeltingRecipes(
+            RecipeOutput recipeOutput
+    ) {
+        FoundryMeltingRecipeSet.forMetal(
+                        ModMoltenMetals.MYTHRIL
+                )
+                .raw(
+                        ModItems.RAW_MYTHRIL.get(),
+                        "raw_mythril"
+                )
+                .ingot(
+                        ModItems.MYTHRIL_INGOT.get(),
+                        "mythril_ingot"
+                )
+                .nugget(
+                        ModItems.MYTHRIL_NUGGET.get(),
+                        "mythril_nugget"
+                )
+                .block(
+                        ModBlocks.MYTHRIL_BLOCK.get()
+                                .asItem(),
+                        "mythril_block"
+                )
+                .ore(
+                        ModBlocks.MYTHRIL_ORE.get()
+                                .asItem(),
+                        "mythril_ore"
+                )
+                .ore(
+                        ModBlocks.DEEPSLATE_MYTHRIL_ORE.get()
+                                .asItem(),
+                        "deepslate_mythril_ore"
+                )
+                .ore(
+                        ModBlocks.NETHER_MYTHRIL_ORE.get()
+                                .asItem(),
+                        "nether_mythril_ore"
+                )
+                .ore(
+                        ModBlocks.END_MYTHRIL_ORE.get()
+                                .asItem(),
+                        "end_mythril_ore"
                 )
                 .save(
                         recipeOutput
