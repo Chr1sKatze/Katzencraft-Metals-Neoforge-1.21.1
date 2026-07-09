@@ -16,7 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Recipe progress and output-selection state for one Foundry Controller.
+ * Recipe progress and output-selection behavior for one Foundry Controller.
  */
 final class FoundryControllerProcessing {
 
@@ -29,22 +29,8 @@ final class FoundryControllerProcessing {
 
     private final FoundryControllerBlockEntity controller;
 
-    private int progress;
-
-    private int maxProgress =
-            FoundryControllerBlockEntity.MAX_PROGRESS;
-
-    @Nullable
-    private ResourceLocation activeMoltenMetal;
-
-    private int activeMoltenAmount;
-
-    private int activeInputSlot = -1;
-
-    private int statusCode = STATUS_READY;
-
-    @Nullable
-    private ResourceLocation selectedOutputMetal;
+    private final FoundryMeltingJobState job =
+            new FoundryMeltingJobState();
 
     FoundryControllerProcessing(
             FoundryControllerBlockEntity controller
@@ -87,7 +73,7 @@ final class FoundryControllerProcessing {
 
     @Nullable
     ResourceLocation getSelectedOutputMetal() {
-        return selectedOutputMetal;
+        return job.selectedOutputMetal;
     }
 
     boolean setSelectedOutputMetal(
@@ -112,13 +98,13 @@ final class FoundryControllerProcessing {
         }
 
         if (Objects.equals(
-                selectedOutputMetal,
+                job.selectedOutputMetal,
                 metal
         )) {
             return true;
         }
 
-        selectedOutputMetal = metal;
+        job.selectedOutputMetal = metal;
         controller.setChanged();
         return true;
     }
@@ -135,12 +121,12 @@ final class FoundryControllerProcessing {
         }
 
         if (
-                selectedOutputMetal != null
+                job.selectedOutputMetal != null
                         && network.getMoltenAmount(
-                        selectedOutputMetal
+                        job.selectedOutputMetal
                 ) > 0
         ) {
-            return selectedOutputMetal;
+            return job.selectedOutputMetal;
         }
 
         for (
@@ -166,10 +152,10 @@ final class FoundryControllerProcessing {
                 getSelectedOutputMetalOrDefault(network);
 
         if (!Objects.equals(
-                selectedOutputMetal,
+                job.selectedOutputMetal,
                 normalized
         )) {
-            selectedOutputMetal = normalized;
+            job.selectedOutputMetal = normalized;
             controller.setChanged();
         }
     }
@@ -183,7 +169,7 @@ final class FoundryControllerProcessing {
         }
 
         if (!controller.ensureTankNetwork()) {
-            statusCode = STATUS_NO_TANKS;
+            job.statusCode = STATUS_NO_TANKS;
             clearActiveRecipe();
             return;
         }
@@ -192,7 +178,7 @@ final class FoundryControllerProcessing {
                 controller.getOwnedTankNetwork();
 
         if (network == null) {
-            statusCode = STATUS_NO_TANKS;
+            job.statusCode = STATUS_NO_TANKS;
             clearActiveRecipe();
             return;
         }
@@ -209,7 +195,7 @@ final class FoundryControllerProcessing {
                 findNextInputSlot();
 
         if (inputSlot < 0) {
-            statusCode = STATUS_READY;
+            job.statusCode = STATUS_READY;
             clearActiveRecipe();
             return;
         }
@@ -222,7 +208,7 @@ final class FoundryControllerProcessing {
                 findMeltingRecipe(inputStack);
 
         if (recipeOptional.isEmpty()) {
-            statusCode = STATUS_READY;
+            job.statusCode = STATUS_READY;
             clearActiveRecipe();
             return;
         }
@@ -241,7 +227,7 @@ final class FoundryControllerProcessing {
                         recipe.moltenAmount()
                 )
         ) {
-            statusCode = STATUS_TANK_FULL;
+            job.statusCode = STATUS_TANK_FULL;
             return;
         }
 
@@ -249,19 +235,19 @@ final class FoundryControllerProcessing {
                 controller.getFuelSystem();
 
         if (!fuel.hasAvailableFuel()) {
-            statusCode = STATUS_MISSING_FUEL;
+            job.statusCode = STATUS_MISSING_FUEL;
             return;
         }
 
         if (!fuel.supplyBurnTick()) {
-            statusCode = STATUS_MISSING_FUEL;
+            job.statusCode = STATUS_MISSING_FUEL;
             return;
         }
 
-        statusCode = STATUS_MELTING;
-        progress++;
+        job.statusCode = STATUS_MELTING;
+        job.progress++;
 
-        if (progress >= maxProgress) {
+        if (job.progress >= job.maxProgress) {
             finishMelting(
                     network,
                     inputSlot,
@@ -297,54 +283,26 @@ final class FoundryControllerProcessing {
             int inputSlot,
             FoundryMeltingRecipe recipe
     ) {
-        return activeInputSlot == inputSlot
-                && Objects.equals(
-                activeMoltenMetal,
-                recipe.moltenMetal()
-        )
-                && activeMoltenAmount
-                == recipe.moltenAmount()
-                && maxProgress
-                == recipe.processingTime();
+        return job.matches(
+                inputSlot,
+                recipe
+        );
     }
 
     private void selectActiveRecipe(
             int inputSlot,
             FoundryMeltingRecipe recipe
     ) {
-        if (matchesActiveRecipe(
+        if (job.select(
                 inputSlot,
                 recipe
         )) {
-            return;
+            controller.setChanged();
         }
-
-        progress = 0;
-        activeInputSlot = inputSlot;
-        activeMoltenMetal = recipe.moltenMetal();
-        activeMoltenAmount = recipe.moltenAmount();
-        maxProgress = recipe.processingTime();
-
-        controller.setChanged();
     }
 
     private void clearActiveRecipe() {
-        boolean changed =
-                progress != 0
-                        || maxProgress
-                        != FoundryControllerBlockEntity.MAX_PROGRESS
-                        || activeInputSlot != -1
-                        || activeMoltenMetal != null
-                        || activeMoltenAmount != 0;
-
-        progress = 0;
-        maxProgress =
-                FoundryControllerBlockEntity.MAX_PROGRESS;
-        activeInputSlot = -1;
-        activeMoltenMetal = null;
-        activeMoltenAmount = 0;
-
-        if (changed) {
+        if (job.clearActiveRecipe()) {
             controller.setChanged();
         }
     }
@@ -418,13 +376,13 @@ final class FoundryControllerProcessing {
             return;
         }
 
-        if (selectedOutputMetal == null) {
-            selectedOutputMetal =
+        if (job.selectedOutputMetal == null) {
+            job.selectedOutputMetal =
                     currentRecipe.moltenMetal();
         }
 
         inputStack.shrink(1);
-        progress = 0;
+        job.progress = 0;
 
         controller.addFoundryExperience(1);
 
@@ -447,180 +405,63 @@ final class FoundryControllerProcessing {
     }
 
     int getProgress() {
-        return progress;
+        return job.progress;
     }
 
     int getMaxProgress() {
-        return maxProgress;
+        return job.maxProgress;
     }
 
     void setProgressFromMenuData(
             int value
     ) {
-        progress =
-                Math.max(
-                        0,
-                        value
-                );
+        job.setProgressFromMenuData(
+                value
+        );
     }
 
     void setMaxProgressFromMenuData(
             int value
     ) {
-        maxProgress =
-                Math.max(
-                        1,
-                        value
-                );
+        job.setMaxProgressFromMenuData(
+                value
+        );
     }
 
     @Nullable
     ResourceLocation getActiveMoltenMetal() {
-        return activeMoltenMetal;
+        return job.activeMoltenMetal;
     }
 
     int getActiveMoltenAmount() {
-        return activeMoltenAmount;
+        return job.activeMoltenAmount;
     }
 
     int getActiveInputSlot() {
-        return activeInputSlot;
+        return job.activeInputSlot;
     }
 
     int getStatusCode() {
-        return statusCode;
+        return job.statusCode;
     }
 
     void save(
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        tag.putInt(
-                "Progress",
-                progress
+        job.save(
+                tag,
+                registries
         );
-
-        tag.putInt(
-                "MaxProgress",
-                maxProgress
-        );
-
-        if (activeMoltenMetal != null) {
-            tag.putString(
-                    "ActiveMoltenMetal",
-                    activeMoltenMetal.toString()
-            );
-        }
-
-        tag.putInt(
-                "ActiveMoltenAmount",
-                activeMoltenAmount
-        );
-
-        tag.putInt(
-                "ActiveInputSlot",
-                activeInputSlot
-        );
-
-        tag.putInt(
-                "ProcessingStatus",
-                statusCode
-        );
-
-        if (selectedOutputMetal != null) {
-            tag.putString(
-                    "SelectedOutputMetal",
-                    selectedOutputMetal.toString()
-            );
-        }
     }
 
     void load(
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        maxProgress =
-                tag.contains("MaxProgress")
-                        ? Math.max(
-                        1,
-                        tag.getInt("MaxProgress")
-                )
-                        : FoundryControllerBlockEntity.MAX_PROGRESS;
-
-        progress =
-                Math.max(
-                        0,
-                        Math.min(
-                                tag.getInt("Progress"),
-                                maxProgress
-                        )
-                );
-
-        activeMoltenMetal = null;
-
-        if (tag.contains("ActiveMoltenMetal")) {
-            activeMoltenMetal =
-                    ResourceLocation.tryParse(
-                            tag.getString("ActiveMoltenMetal")
-                    );
-        }
-
-        activeMoltenAmount =
-                Math.max(
-                        0,
-                        tag.getInt("ActiveMoltenAmount")
-                );
-
-        activeInputSlot =
-                tag.contains("ActiveInputSlot")
-                        ? tag.getInt("ActiveInputSlot")
-                        : (activeMoltenMetal != null ? 0 : -1);
-
-        if (
-                activeInputSlot < 0
-                        || activeInputSlot
-                        >= FoundryControllerBlockEntity.INPUT_SLOT_COUNT
-        ) {
-            activeInputSlot = -1;
-        }
-
-        selectedOutputMetal = null;
-
-        if (tag.contains("SelectedOutputMetal")) {
-            ResourceLocation parsedSelection =
-                    ResourceLocation.tryParse(
-                            tag.getString("SelectedOutputMetal")
-                    );
-
-            if (
-                    parsedSelection != null
-                            && ModMoltenMetals.contains(
-                            parsedSelection
-                    )
-            ) {
-                selectedOutputMetal =
-                        parsedSelection;
-            }
-        }
-
-        if (
-                activeMoltenMetal != null
-                        && !ModMoltenMetals.contains(
-                        activeMoltenMetal
-                )
-        ) {
-            activeMoltenMetal = null;
-            activeMoltenAmount = 0;
-            activeInputSlot = -1;
-            progress = 0;
-            maxProgress =
-                    FoundryControllerBlockEntity.MAX_PROGRESS;
-        }
-
-        statusCode =
-                activeMoltenMetal != null
-                        && activeInputSlot >= 0
-                        ? STATUS_MELTING
-                        : STATUS_READY;
+        job.load(
+                tag,
+                registries
+        );
     }
 }
