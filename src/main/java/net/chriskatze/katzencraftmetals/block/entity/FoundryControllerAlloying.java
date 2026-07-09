@@ -2,7 +2,6 @@ package net.chriskatze.katzencraftmetals.block.entity;
 
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyCatalog;
-import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyIngredient;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyRecipe;
 import net.minecraft.core.BlockPos;
 import net.minecraft.nbt.CompoundTag;
@@ -149,13 +148,13 @@ final class FoundryControllerAlloying {
         network.ensureMoltenContentsMigrated();
 
         Map<ResourceLocation, Integer> oneBatchRequirements =
-                calculateRequirements(
+                FoundryAlloyAmounts.calculateRequirements(
                         recipe,
                         1
                 );
 
         Map<ResourceLocation, Integer> completeJobRequirements =
-                calculateRequirements(
+                FoundryAlloyAmounts.calculateRequirements(
                         recipe,
                         requestedBatches
                 );
@@ -163,7 +162,7 @@ final class FoundryControllerAlloying {
         if (
                 oneBatchRequirements.isEmpty()
                         || completeJobRequirements.isEmpty()
-                        || !hasIngredients(
+                        || !FoundryAlloyAmounts.hasIngredients(
                         network,
                         completeJobRequirements
                 )
@@ -172,12 +171,12 @@ final class FoundryControllerAlloying {
         }
 
         int completeJobInput =
-                totalAmount(
+                FoundryAlloyAmounts.totalAmount(
                         completeJobRequirements
                 );
 
         int completeJobOutput =
-                safeMultiply(
+                FoundryAlloyAmounts.safeMultiply(
                         recipe.outputAmount(),
                         requestedBatches
                 );
@@ -198,7 +197,7 @@ final class FoundryControllerAlloying {
          * consumed until each individual batch completes.
          */
         if (
-                !hasCompletionSpace(
+                !FoundryAlloyAmounts.hasCompletionSpace(
                         network,
                         completeJobInput,
                         completeJobOutput
@@ -284,7 +283,7 @@ final class FoundryControllerAlloying {
          * the batch could not possibly finish.
          */
         if (
-                !hasIngredients(
+                !FoundryAlloyAmounts.hasIngredients(
                         network,
                         requiredIngredients
                 )
@@ -295,12 +294,12 @@ final class FoundryControllerAlloying {
         }
 
         int oneBatchInput =
-                totalAmount(
+                FoundryAlloyAmounts.totalAmount(
                         requiredIngredients
                 );
 
         if (
-                !hasCompletionSpace(
+                !FoundryAlloyAmounts.hasCompletionSpace(
                         network,
                         oneBatchInput,
                         outputAmount
@@ -422,7 +421,7 @@ final class FoundryControllerAlloying {
                     );
                 }
 
-                refund(
+                FoundryAlloyAmounts.refund(
                         network,
                         extracted
                 );
@@ -454,7 +453,7 @@ final class FoundryControllerAlloying {
                 );
             }
 
-            refund(
+            FoundryAlloyAmounts.refund(
                     network,
                     extracted
             );
@@ -467,115 +466,6 @@ final class FoundryControllerAlloying {
         }
 
         return true;
-    }
-
-    private static Map<ResourceLocation, Integer> calculateRequirements(
-            FoundryAlloyRecipe recipe,
-            int batches
-    ) {
-        Map<ResourceLocation, Integer> result =
-                new LinkedHashMap<>();
-
-        for (
-                FoundryAlloyIngredient ingredient :
-                recipe.ingredients()
-        ) {
-            int total =
-                    safeMultiply(
-                            ingredient.amount(),
-                            batches
-                    );
-
-            if (total <= 0) {
-                return Map.of();
-            }
-
-            result.merge(
-                    ingredient.metal(),
-                    total,
-                    Integer::sum
-            );
-        }
-
-        return result;
-    }
-
-    private static boolean hasIngredients(
-            FoundryTankNetwork network,
-            Map<ResourceLocation, Integer> required
-    ) {
-        for (
-                Map.Entry<ResourceLocation, Integer> entry :
-                required.entrySet()
-        ) {
-            if (
-                    network.getMoltenAmount(
-                            entry.getKey()
-                    ) < entry.getValue()
-            ) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static boolean hasCompletionSpace(
-            FoundryTankNetwork network,
-            int totalInput,
-            int totalOutput
-    ) {
-        long finalTotal =
-                (long) network.getTotalMoltenAmount()
-                        - totalInput
-                        + totalOutput;
-
-        return finalTotal >= 0L
-                && finalTotal <= network.getCapacity();
-    }
-
-    private static int totalAmount(
-            Map<ResourceLocation, Integer> contents
-    ) {
-        long total = 0L;
-
-        for (Integer amount : contents.values()) {
-            if (amount != null && amount > 0) {
-                total += amount;
-            }
-        }
-
-        return total > Integer.MAX_VALUE
-                ? Integer.MAX_VALUE
-                : (int) total;
-    }
-
-    private static void refund(
-            FoundryTankNetwork network,
-            Map<ResourceLocation, Integer> contents
-    ) {
-        for (
-                Map.Entry<ResourceLocation, Integer> entry :
-                contents.entrySet()
-        ) {
-            network.insert(
-                    entry.getKey(),
-                    entry.getValue()
-            );
-        }
-    }
-
-    private static int safeMultiply(
-            int first,
-            int second
-    ) {
-        long result =
-                (long) first
-                        * second;
-
-        return result > Integer.MAX_VALUE
-                ? -1
-                : (int) result;
     }
 
     private void clearJob() {
@@ -688,7 +578,7 @@ final class FoundryControllerAlloying {
 
         tag.put(
                 REQUIRED_INGREDIENTS_TAG,
-                writeAmounts(
+                FoundryAlloyAmounts.writeAmounts(
                         requiredIngredients
                 )
         );
@@ -779,7 +669,7 @@ final class FoundryControllerAlloying {
                         )
                 );
 
-        readAmounts(
+        FoundryAlloyAmounts.readAmounts(
                 tag.getCompound(
                         REQUIRED_INGREDIENTS_TAG
                 ),
@@ -793,52 +683,5 @@ final class FoundryControllerAlloying {
 
         statusCode =
                 FoundryControllerProcessing.STATUS_ALLOYING;
-    }
-
-    private static CompoundTag writeAmounts(
-            Map<ResourceLocation, Integer> contents
-    ) {
-        CompoundTag result =
-                new CompoundTag();
-
-        for (
-                Map.Entry<ResourceLocation, Integer> entry :
-                contents.entrySet()
-        ) {
-            if (entry.getValue() > 0) {
-                result.putInt(
-                        entry.getKey().toString(),
-                        entry.getValue()
-                );
-            }
-        }
-
-        return result;
-    }
-
-    private static void readAmounts(
-            CompoundTag source,
-            Map<ResourceLocation, Integer> destination
-    ) {
-        destination.clear();
-
-        for (String key : source.getAllKeys()) {
-            ResourceLocation metal =
-                    ResourceLocation.tryParse(key);
-
-            int amount =
-                    source.getInt(key);
-
-            if (
-                    metal != null
-                            && amount > 0
-                            && ModMoltenMetals.contains(metal)
-            ) {
-                destination.put(
-                        metal,
-                        amount
-                );
-            }
-        }
     }
 }
