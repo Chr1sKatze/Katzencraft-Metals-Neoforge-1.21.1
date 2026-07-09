@@ -7,7 +7,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.MenuProvider;
@@ -161,6 +160,31 @@ public class FoundryControllerBlockEntity
 
     public UUID getControllerId() {
         return controllerId;
+    }
+
+    void setControllerIdForPersistence(
+            UUID controllerId
+    ) {
+        this.controllerId =
+                controllerId != null
+                        ? controllerId
+                        : UUID.randomUUID();
+    }
+
+    FoundryControllerMetalDiscovery getMetalDiscoveryForPersistence() {
+        return metalDiscovery;
+    }
+
+    FoundryControllerProcessing getProcessingForPersistence() {
+        return processing;
+    }
+
+    FoundryControllerProgression getProgressionForPersistence() {
+        return progression;
+    }
+
+    FoundryControllerAlloying getAlloyingForPersistence() {
+        return alloying;
     }
 
     public Direction getFacing() {
@@ -505,32 +529,11 @@ public class FoundryControllerBlockEntity
                 registries
         );
 
-        tag.putString(
-                "ControllerId",
-                controllerId.toString()
-        );
-
-        metalDiscovery.save(
-                tag
-        );
-
-        tag.put(
-                "InputInventory",
-                inputInventory.createTag(registries)
-        );
-
-        fuelSystem.save(
+        FoundryControllerPersistence.save(
+                this,
                 tag,
                 registries
         );
-
-        processing.save(
-                tag,
-                registries
-        );
-
-        progression.save(tag);
-        alloying.save(tag);
     }
 
     @Override
@@ -543,60 +546,10 @@ public class FoundryControllerBlockEntity
                 registries
         );
 
-        if (tag.contains("ControllerId")) {
-            try {
-                controllerId =
-                        UUID.fromString(
-                                tag.getString("ControllerId")
-                        );
-            } catch (IllegalArgumentException ignored) {
-                controllerId =
-                        UUID.randomUUID();
-            }
-        } else {
-            controllerId =
-                    UUID.randomUUID();
-        }
-
-        metalDiscovery.load(
-                tag
-        );
-
-        inputInventory.removeAllItems();
-
-        if (
-                tag.contains(
-                        "InputInventory",
-                        Tag.TAG_LIST
-                )
-        ) {
-            inputInventory.fromTag(
-                    tag.getList(
-                            "InputInventory",
-                            Tag.TAG_COMPOUND
-                    ),
-                    registries
-            );
-        }
-
-        fuelSystem.load(
+        FoundryControllerPersistence.load(
+                this,
                 tag,
                 registries
         );
-
-        progression.load(tag);
-
-        if (!tag.contains("FoundryProgressionVersion")) {
-            progression.migrateLegacyFuelAccess(
-                    fuelSystem.getHighestOccupiedSlot()
-            );
-        }
-
-        processing.load(
-                tag,
-                registries
-        );
-
-        alloying.load(tag);
     }
 }
