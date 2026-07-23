@@ -23,6 +23,9 @@ final class FoundryControllerProcessing {
     static final int STATUS_MELTING = 4;
     static final int STATUS_ALLOYING = 5;
 
+    private static final int BASE_SPEED_PERCENT = 100;
+    private static final int SPEED_PERCENT_PER_TIER = 25;
+
     private final FoundryControllerBlockEntity controller;
 
     private final FoundryMeltingJobState job =
@@ -227,7 +230,10 @@ final class FoundryControllerProcessing {
     ) {
         return job.matches(
                 inputSlot,
-                recipe
+                recipe,
+                getTierAdjustedProcessingTime(
+                        recipe
+                )
         );
     }
 
@@ -237,10 +243,53 @@ final class FoundryControllerProcessing {
     ) {
         if (job.select(
                 inputSlot,
-                recipe
+                recipe,
+                getTierAdjustedProcessingTime(
+                        recipe
+                )
         )) {
             controller.setChanged();
         }
+    }
+
+    private int getTierAdjustedProcessingTime(
+            FoundryMeltingRecipe recipe
+    ) {
+        int tier =
+                Math.max(
+                        1,
+                        controller.getFoundryTier()
+                );
+
+        int speedPercent =
+                BASE_SPEED_PERCENT
+                        + (tier - 1)
+                        * SPEED_PERCENT_PER_TIER;
+
+        long scaledProcessingTime =
+                (long) recipe.processingTime()
+                        * BASE_SPEED_PERCENT;
+
+        /*
+         * 25% faster means 125% work speed, not "remove 25% time".
+         *
+         * Example with an iron recipe of 100 ticks:
+         * Tier 1: 100 / 1.00 = 100 ticks
+         * Tier 2: 100 / 1.25 = 80 ticks
+         * Tier 3: 100 / 1.50 = 67 ticks
+         * Tier 4: 100 / 1.75 = 58 ticks
+         */
+        return Math.max(
+                1,
+                (int) (
+                        (
+                                scaledProcessingTime
+                                        + speedPercent
+                                        - 1L
+                        )
+                                / speedPercent
+                )
+        );
     }
 
     private void clearActiveRecipe() {

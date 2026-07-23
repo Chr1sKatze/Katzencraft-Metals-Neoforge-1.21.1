@@ -37,7 +37,8 @@ final class FoundryMeltingJobState {
 
     boolean matches(
             int inputSlot,
-            FoundryMeltingRecipe recipe
+            FoundryMeltingRecipe recipe,
+            int effectiveProcessingTime
     ) {
         return activeInputSlot == inputSlot
                 && Objects.equals(
@@ -47,16 +48,18 @@ final class FoundryMeltingJobState {
                 && activeMoltenAmount
                 == recipe.moltenAmount()
                 && maxProgress
-                == recipe.processingTime();
+                == effectiveProcessingTime;
     }
 
     boolean select(
             int inputSlot,
-            FoundryMeltingRecipe recipe
+            FoundryMeltingRecipe recipe,
+            int effectiveProcessingTime
     ) {
         if (matches(
                 inputSlot,
-                recipe
+                recipe,
+                effectiveProcessingTime
         )) {
             return false;
         }
@@ -65,7 +68,11 @@ final class FoundryMeltingJobState {
         activeInputSlot = inputSlot;
         activeMoltenMetal = recipe.moltenMetal();
         activeMoltenAmount = recipe.moltenAmount();
-        maxProgress = recipe.processingTime();
+        maxProgress =
+                Math.max(
+                        1,
+                        effectiveProcessingTime
+                );
 
         return true;
     }
