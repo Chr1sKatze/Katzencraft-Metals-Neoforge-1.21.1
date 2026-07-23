@@ -93,6 +93,16 @@ final class FoundryControllerProcessing {
             return;
         }
 
+        FoundryControllerFuelSystem fuel =
+                controller.getFuelSystem();
+
+        /*
+         * Existing burn time keeps ticking down even if melting cannot currently
+         * continue. Starting a new burn cycle still only happens later after a
+         * valid input and enough tank space have been found.
+         */
+        fuel.tickBurnTime();
+
         if (!controller.ensureTankNetwork()) {
             job.statusCode = STATUS_NO_TANKS;
             clearActiveRecipe();
@@ -159,17 +169,18 @@ final class FoundryControllerProcessing {
             return;
         }
 
-        FoundryControllerFuelSystem fuel =
-                controller.getFuelSystem();
+        if (!fuel.isBurning()) {
+            if (!fuel.hasAvailableFuel()) {
+                job.statusCode = STATUS_MISSING_FUEL;
+                clearActiveRecipe();
+                return;
+            }
 
-        if (!fuel.hasAvailableFuel()) {
-            job.statusCode = STATUS_MISSING_FUEL;
-            return;
-        }
-
-        if (!fuel.supplyBurnTick()) {
-            job.statusCode = STATUS_MISSING_FUEL;
-            return;
+            if (!fuel.tryStartBurnCycle()) {
+                job.statusCode = STATUS_MISSING_FUEL;
+                clearActiveRecipe();
+                return;
+            }
         }
 
         job.statusCode = STATUS_MELTING;

@@ -17,6 +17,17 @@ import java.util.List;
  */
 public final class FoundryMeltingRecipeSet {
 
+    /*
+     * Iron is the balance baseline:
+     *
+     * 1 Coal = 1600 burn ticks
+     * 1 Iron melting recipe = 100 processing ticks
+     * 1600 / 100 = 16 Iron per Coal
+     */
+    public static final int BASE_ITEM_PROCESSING_TIME = 100;
+    public static final int BASE_NUGGET_PROCESSING_TIME = 12;
+    public static final int BASE_BLOCK_PROCESSING_TIME = 900;
+
     private final MoltenMetalDefinition metal;
     private final List<Entry> entries =
             new ArrayList<>();
@@ -40,10 +51,22 @@ public final class FoundryMeltingRecipeSet {
             Item input,
             String recipeName
     ) {
+        return raw(
+                input,
+                recipeName,
+                BASE_ITEM_PROCESSING_TIME
+        );
+    }
+
+    public FoundryMeltingRecipeSet raw(
+            Item input,
+            String recipeName,
+            int processingTime
+    ) {
         return item(
                 input,
                 metal.unitsPerOre(),
-                20,
+                processingTime,
                 recipeName
         );
     }
@@ -52,10 +75,22 @@ public final class FoundryMeltingRecipeSet {
             Item input,
             String recipeName
     ) {
+        return ingot(
+                input,
+                recipeName,
+                BASE_ITEM_PROCESSING_TIME
+        );
+    }
+
+    public FoundryMeltingRecipeSet ingot(
+            Item input,
+            String recipeName,
+            int processingTime
+    ) {
         return item(
                 input,
                 metal.unitsPerOre(),
-                20,
+                processingTime,
                 recipeName
         );
     }
@@ -64,10 +99,22 @@ public final class FoundryMeltingRecipeSet {
             Item input,
             String recipeName
     ) {
+        return nugget(
+                input,
+                recipeName,
+                BASE_NUGGET_PROCESSING_TIME
+        );
+    }
+
+    public FoundryMeltingRecipeSet nugget(
+            Item input,
+            String recipeName,
+            int processingTime
+    ) {
         return item(
                 input,
                 1,
-                10,
+                processingTime,
                 recipeName
         );
     }
@@ -76,11 +123,23 @@ public final class FoundryMeltingRecipeSet {
             Item input,
             String recipeName
     ) {
+        return rawBlock(
+                input,
+                recipeName,
+                BASE_BLOCK_PROCESSING_TIME
+        );
+    }
+
+    public FoundryMeltingRecipeSet rawBlock(
+            Item input,
+            String recipeName,
+            int processingTime
+    ) {
         return item(
                 input,
                 metal.unitsPerOre()
                         * 9,
-                120,
+                processingTime,
                 recipeName
         );
     }
@@ -89,11 +148,23 @@ public final class FoundryMeltingRecipeSet {
             Item input,
             String recipeName
     ) {
+        return block(
+                input,
+                recipeName,
+                BASE_BLOCK_PROCESSING_TIME
+        );
+    }
+
+    public FoundryMeltingRecipeSet block(
+            Item input,
+            String recipeName,
+            int processingTime
+    ) {
         return item(
                 input,
                 metal.unitsPerOre()
                         * 9,
-                120,
+                processingTime,
                 recipeName
         );
     }
@@ -102,10 +173,22 @@ public final class FoundryMeltingRecipeSet {
             Item input,
             String recipeName
     ) {
+        return ore(
+                input,
+                recipeName,
+                BASE_ITEM_PROCESSING_TIME
+        );
+    }
+
+    public FoundryMeltingRecipeSet ore(
+            Item input,
+            String recipeName,
+            int processingTime
+    ) {
         return item(
                 input,
                 metal.unitsPerOre(),
-                20,
+                processingTime,
                 recipeName
         );
     }
@@ -120,7 +203,10 @@ public final class FoundryMeltingRecipeSet {
                 new Entry(
                         input,
                         moltenAmount,
-                        processingTime,
+                        Math.max(
+                                1,
+                                processingTime
+                        ),
                         recipeName
                 )
         );

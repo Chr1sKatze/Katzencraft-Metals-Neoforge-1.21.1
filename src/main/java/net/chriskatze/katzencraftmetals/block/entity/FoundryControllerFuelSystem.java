@@ -62,10 +62,60 @@ final class FoundryControllerFuelSystem {
     }
 
     /**
-     * Supplies one burn tick to the currently running Foundry operation.
+     * Spends one tick of an already active burn cycle.
      *
-     * When no cycle is active, the first valid fuel in unlocked slot order is
-     * consumed. Fuel now differs only by burn duration.
+     * This is intentionally separate from starting a new cycle. Existing burn
+     * time behaves like a vanilla furnace: once fuel is lit, it keeps burning
+     * down even if the input disappears, the tank is full, or the structure is
+     * temporarily unable to melt.
+     */
+    void tickBurnTime() {
+        if (
+                controller.getLevel() == null
+                        || controller.getLevel().isClientSide()
+                        || burnTimeRemaining <= 0
+        ) {
+            return;
+        }
+
+        burnTimeRemaining--;
+
+        if (burnTimeRemaining <= 0) {
+            burnTimeRemaining = 0;
+        }
+
+        controller.setChanged();
+    }
+
+    /**
+     * Starts a new burn cycle by consuming one fuel item.
+     *
+     * Callers should only call this after confirming there is a valid operation
+     * ready to run. This prevents idle fuel consumption when the Foundry has no
+     * process item, while existing lit fuel still burns down through
+     * {@link #tickBurnTime()}.
+     */
+    boolean tryStartBurnCycle() {
+        if (
+                controller.getLevel() == null
+                        || controller.getLevel().isClientSide()
+        ) {
+            return false;
+        }
+
+        if (burnTimeRemaining > 0) {
+            return true;
+        }
+
+        return consumeNextFuel();
+    }
+
+    /**
+     * Compatibility helper for older callers.
+     *
+     * New processing code should prefer tickBurnTime() plus tryStartBurnCycle()
+     * so it can decide exactly when idle burn should drain and when new fuel is
+     * allowed to be consumed.
      */
     boolean supplyBurnTick() {
         if (
@@ -77,18 +127,12 @@ final class FoundryControllerFuelSystem {
 
         if (
                 burnTimeRemaining <= 0
-                        && !consumeNextFuel()
+                        && !tryStartBurnCycle()
         ) {
             return false;
         }
 
-        burnTimeRemaining--;
-
-        if (burnTimeRemaining <= 0) {
-            burnTimeRemaining = 0;
-        }
-
-        controller.setChanged();
+        tickBurnTime();
         return true;
     }
 

@@ -26,6 +26,8 @@ public record FoundryMeltingRecipe(
         int processingTime
 ) implements Recipe<SingleRecipeInput> {
 
+    public static final int DEFAULT_PROCESSING_TIME = 100;
+
     @Override
     public boolean matches(
             SingleRecipeInput input,
@@ -103,7 +105,7 @@ public record FoundryMeltingRecipe(
                                                 )
                                                 .optionalFieldOf(
                                                         "processing_time",
-                                                        20
+                                                        DEFAULT_PROCESSING_TIME
                                                 )
                                                 .forGetter(
                                                         FoundryMeltingRecipe::processingTime
