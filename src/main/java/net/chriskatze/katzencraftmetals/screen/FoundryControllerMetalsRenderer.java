@@ -48,8 +48,7 @@ final class FoundryControllerMetalsRenderer {
             int index = scrollOffset + visibleRow;
 
             if (index >= entries.size()) {
-                renderBlankRow(graphics, visibleRow);
-                continue;
+                break;
             }
 
             renderEntry(
@@ -59,17 +58,19 @@ final class FoundryControllerMetalsRenderer {
             );
         }
 
-        FoundryControllerListDrawing.drawScrollbar(
-                graphics,
-                screen.guiLeft()
-                        + FoundryControllerUiLayout.METAL_SCROLL_X,
-                screen.guiTop()
-                        + FoundryControllerUiLayout.METAL_SCROLL_Y,
-                FoundryControllerUiLayout.METAL_SCROLL_HEIGHT,
-                entries.size(),
-                FoundryControllerUiLayout.VISIBLE_METAL_ROWS,
-                scrollOffset
-        );
+        if (entries.size() > FoundryControllerUiLayout.VISIBLE_METAL_ROWS) {
+            FoundryControllerListDrawing.drawScrollbar(
+                    graphics,
+                    screen.guiLeft()
+                            + FoundryControllerUiLayout.METAL_SCROLL_X,
+                    screen.guiTop()
+                            + FoundryControllerUiLayout.METAL_SCROLL_Y,
+                    FoundryControllerUiLayout.METAL_SCROLL_HEIGHT,
+                    entries.size(),
+                    FoundryControllerUiLayout.VISIBLE_METAL_ROWS,
+                    scrollOffset
+            );
+        }
     }
 
     boolean mouseClicked(
@@ -205,24 +206,6 @@ final class FoundryControllerMetalsRenderer {
                 left + LIST_TEXT_X_OFFSET,
                 top + METAL_AMOUNT_Y_OFFSET,
                 FoundryControllerUiDrawing.MUTED_TEXT
-        );
-    }
-
-
-    private void renderBlankRow(
-            GuiGraphics graphics,
-            int visibleRow
-    ) {
-        FoundryControllerListDrawing.drawRow(
-                graphics,
-                screen.guiLeft()
-                        + FoundryControllerUiLayout.METAL_LIST_X,
-                screen.guiTop()
-                        + FoundryControllerUiLayout.METAL_LIST_Y
-                        + visibleRow
-                        * FoundryControllerUiLayout.METAL_ROW_STRIDE,
-                false,
-                true
         );
     }
 

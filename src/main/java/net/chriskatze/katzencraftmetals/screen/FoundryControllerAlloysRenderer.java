@@ -91,8 +91,7 @@ final class FoundryControllerAlloysRenderer {
             int index = scrollOffset + visibleRow;
 
             if (index >= entries.size()) {
-                renderBlankRow(graphics, visibleRow);
-                continue;
+                break;
             }
 
             renderEntry(
@@ -102,17 +101,19 @@ final class FoundryControllerAlloysRenderer {
             );
         }
 
-        FoundryControllerListDrawing.drawScrollbar(
-                graphics,
-                screen.guiLeft()
-                        + FoundryControllerUiLayout.ALLOY_SCROLL_X,
-                screen.guiTop()
-                        + FoundryControllerUiLayout.ALLOY_SCROLL_Y,
-                FoundryControllerUiLayout.ALLOY_SCROLL_HEIGHT,
-                entries.size(),
-                FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS,
-                scrollOffset
-        );
+        if (entries.size() > FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS) {
+            FoundryControllerListDrawing.drawScrollbar(
+                    graphics,
+                    screen.guiLeft()
+                            + FoundryControllerUiLayout.ALLOY_SCROLL_X,
+                    screen.guiTop()
+                            + FoundryControllerUiLayout.ALLOY_SCROLL_Y,
+                    FoundryControllerUiLayout.ALLOY_SCROLL_HEIGHT,
+                    entries.size(),
+                    FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS,
+                    scrollOffset
+            );
+        }
 
         Entry focused = findFocusedEntry(entries);
 
@@ -549,23 +550,6 @@ final class FoundryControllerAlloysRenderer {
                 enabled
                         ? FoundryControllerUiDrawing.TEXT
                         : FoundryControllerUiDrawing.MUTED_TEXT
-        );
-    }
-
-    private void renderBlankRow(
-            GuiGraphics graphics,
-            int visibleRow
-    ) {
-        FoundryControllerListDrawing.drawRow(
-                graphics,
-                screen.guiLeft()
-                        + FoundryControllerUiLayout.ALLOY_LIST_X,
-                screen.guiTop()
-                        + FoundryControllerUiLayout.ALLOY_LIST_Y
-                        + visibleRow
-                        * FoundryControllerUiLayout.ALLOY_ROW_STRIDE,
-                false,
-                true
         );
     }
 
