@@ -207,13 +207,8 @@ final class FoundryControllerMetalsRenderer {
                     );
 
             Component tooltip =
-                    isSelected(definition)
-                            ? Component.literal(
-                            "Selected pouring output: " + name
-                    )
-                            : Component.literal(
-                            "Click to select " + name
-                                    + " as pouring output"
+                    Component.literal(
+                            "select as pouring output"
                     );
 
             graphics.renderTooltip(
