@@ -13,23 +13,29 @@ import java.util.List;
 public class FoundryFaucetOutputScreen
         extends AbstractContainerScreen<FoundryFaucetOutputMenu> {
 
-    private static final int PANEL = 0xFF202020;
-    private static final int PANEL_DARK = 0xFF111111;
-    private static final int BORDER_LIGHT = 0xFFBDBDBD;
-    private static final int BORDER_DARK = 0xFF555555;
-    private static final int ROW = 0xFF262626;
-    private static final int ROW_HOVER = 0xFF333333;
-    private static final int ROW_SELECTED = 0xFF4D5E42;
+    private static final int PANEL = 0xFF171717;
+    private static final int PANEL_INNER = 0xFF0F0F0F;
+    private static final int BORDER_LIGHT = 0xFF2F2F2F;
+    private static final int BORDER_DARK = 0xFF050505;
+    private static final int HOVER_OVERLAY = 0x18FFFFFF;
     private static final int TEXT = 0xFFE8E8E4;
     private static final int MUTED_TEXT = 0xFF9A9A9A;
     private static final int GREEN = 0xFF86B85C;
 
     private static final int ROW_X = 8;
     private static final int ROW_Y = 22;
-    private static final int ROW_WIDTH = 160;
+    private static final int ROW_WIDTH = 86;
     private static final int ROW_HEIGHT = 19;
     private static final int ROW_STRIDE = 21;
     private static final int VISIBLE_ROWS = 5;
+
+    private static final int SCROLL_X = 99;
+    private static final int SCROLL_Y = ROW_Y;
+    private static final int SCROLL_HEIGHT =
+            VISIBLE_ROWS * ROW_STRIDE - 2;
+
+    private static final int TITLE_X = 8;
+    private static final int TITLE_Y = 7;
 
     private int scrollOffset;
 
@@ -44,8 +50,8 @@ public class FoundryFaucetOutputScreen
                 title
         );
 
-        imageWidth = 176;
-        imageHeight = 136;
+        imageWidth = 113;
+        imageHeight = 133;
     }
 
     @Override
@@ -99,65 +105,13 @@ public class FoundryFaucetOutputScreen
     ) {
         clampScroll();
 
-        int left =
-                leftPos;
-
-        int top =
-                topPos;
-
-        graphics.fill(
-                left,
-                top,
-                left + imageWidth,
-                top + imageHeight,
-                PANEL
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 1,
-                left + imageWidth - 1,
-                top + imageHeight - 1,
-                PANEL_DARK
-        );
-
-        graphics.fill(
-                left,
-                top,
-                left + imageWidth,
-                top + 1,
-                BORDER_LIGHT
-        );
-
-        graphics.fill(
-                left,
-                top,
-                left + 1,
-                top + imageHeight,
-                BORDER_LIGHT
-        );
-
-        graphics.fill(
-                left,
-                top + imageHeight - 1,
-                left + imageWidth,
-                top + imageHeight,
-                BORDER_DARK
-        );
-
-        graphics.fill(
-                left + imageWidth - 1,
-                top,
-                left + imageWidth,
-                top + imageHeight,
-                BORDER_DARK
-        );
+        renderPanel(graphics);
 
         graphics.drawString(
                 font,
                 Component.literal("FAUCET LOCK"),
-                left + 6,
-                top + 7,
+                leftPos + TITLE_X,
+                topPos + TITLE_Y,
                 TEXT,
                 false
         );
@@ -166,6 +120,70 @@ public class FoundryFaucetOutputScreen
                 graphics,
                 mouseX,
                 mouseY
+        );
+
+        if (getTotalRows() > VISIBLE_ROWS) {
+            FoundryControllerListDrawing.drawScrollbar(
+                    graphics,
+                    leftPos + SCROLL_X,
+                    topPos + SCROLL_Y,
+                    SCROLL_HEIGHT,
+                    getTotalRows(),
+                    VISIBLE_ROWS,
+                    scrollOffset
+            );
+        }
+    }
+
+    private void renderPanel(
+            GuiGraphics graphics
+    ) {
+        graphics.fill(
+                leftPos,
+                topPos,
+                leftPos + imageWidth,
+                topPos + imageHeight,
+                PANEL
+        );
+
+        graphics.fill(
+                leftPos + 1,
+                topPos + 1,
+                leftPos + imageWidth - 1,
+                topPos + imageHeight - 1,
+                PANEL_INNER
+        );
+
+        graphics.fill(
+                leftPos,
+                topPos,
+                leftPos + imageWidth,
+                topPos + 1,
+                BORDER_LIGHT
+        );
+
+        graphics.fill(
+                leftPos,
+                topPos,
+                leftPos + 1,
+                topPos + imageHeight,
+                BORDER_LIGHT
+        );
+
+        graphics.fill(
+                leftPos,
+                topPos + imageHeight - 1,
+                leftPos + imageWidth,
+                topPos + imageHeight,
+                BORDER_DARK
+        );
+
+        graphics.fill(
+                leftPos + imageWidth - 1,
+                topPos,
+                leftPos + imageWidth,
+                topPos + imageHeight,
+                BORDER_DARK
         );
     }
 
@@ -185,6 +203,10 @@ public class FoundryFaucetOutputScreen
             int rowIndex =
                     scrollOffset + visibleRow;
 
+            if (rowIndex >= totalRows) {
+                break;
+            }
+
             int rowLeft =
                     leftPos + ROW_X;
 
@@ -192,22 +214,15 @@ public class FoundryFaucetOutputScreen
                     topPos + ROW_Y
                             + visibleRow * ROW_STRIDE;
 
-            boolean available =
-                    rowIndex < totalRows;
-
             renderRowBackground(
                     graphics,
                     rowLeft,
                     rowTop,
                     visibleRow,
-                    available,
+                    rowIndex,
                     mouseX,
                     mouseY
             );
-
-            if (!available) {
-                continue;
-            }
 
             if (rowIndex == 0) {
                 renderAutomaticRow(
@@ -232,50 +247,37 @@ public class FoundryFaucetOutputScreen
             int left,
             int top,
             int visibleRow,
-            boolean available,
+            int absoluteRow,
             int mouseX,
             int mouseY
     ) {
-        int color =
-                ROW;
+        boolean selected =
+                isRowSelected(absoluteRow);
 
-        if (available) {
-            if (isRowSelected(scrollOffset + visibleRow)) {
-                color =
-                        ROW_SELECTED;
-            } else if (isMouseOverVisibleRow(
-                    mouseX,
-                    mouseY,
-                    visibleRow
-            )) {
-                color =
-                        ROW_HOVER;
-            }
+        FoundryControllerListDrawing.drawRow(
+                graphics,
+                left,
+                top,
+                selected,
+                true
+        );
+
+        if (
+                !selected
+                        && isMouseOverVisibleRow(
+                        mouseX,
+                        mouseY,
+                        visibleRow
+                )
+        ) {
+            graphics.fill(
+                    left + 2,
+                    top + 1,
+                    left + ROW_WIDTH - 2,
+                    top + ROW_HEIGHT - 1,
+                    HOVER_OVERLAY
+            );
         }
-
-        graphics.fill(
-                left,
-                top,
-                left + ROW_WIDTH,
-                top + ROW_HEIGHT,
-                color
-        );
-
-        graphics.fill(
-                left,
-                top,
-                left + ROW_WIDTH,
-                top + 1,
-                BORDER_DARK
-        );
-
-        graphics.fill(
-                left,
-                top + ROW_HEIGHT - 1,
-                left + ROW_WIDTH,
-                top + ROW_HEIGHT,
-                0xFF070707
-        );
     }
 
     private void renderAutomaticRow(
@@ -283,15 +285,17 @@ public class FoundryFaucetOutputScreen
             int left,
             int top
     ) {
-        graphics.drawString(
-                font,
-                Component.literal("Follow controller output"),
-                left + 6,
-                top + 6,
+        int color =
                 menu.isAutomaticSelected()
                         ? GREEN
-                        : TEXT,
-                false
+                        : TEXT;
+
+        FoundryControllerMetalsRenderer.drawScaledListText(
+                graphics,
+                Component.literal("Follow output"),
+                left + 6,
+                top + 6,
+                color
         );
     }
 
@@ -333,18 +337,17 @@ public class FoundryFaucetOutputScreen
                         FoundryControllerMetalsRenderer.displayName(
                                 definition.id()
                         ),
-                        118
+                        58
                 );
 
-        graphics.drawString(
-                font,
+        FoundryControllerMetalsRenderer.drawScaledListText(
+                graphics,
                 Component.literal(name),
-                left + 26,
+                left + 25,
                 top + 6,
                 menu.isSelected(definition)
                         ? GREEN
-                        : TEXT,
-                false
+                        : TEXT
         );
     }
 

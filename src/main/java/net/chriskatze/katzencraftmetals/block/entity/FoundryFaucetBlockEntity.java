@@ -231,6 +231,10 @@ public class FoundryFaucetBlockEntity
          */
         if (
                 context.cauldron().isFull()
+                        || !hasMoltenReachedFaucetHeight(
+                        context.tank(),
+                        context.network()
+                )
                         || context.network()
                         .getMoltenAmount(
                                 context.metal()
@@ -404,6 +408,14 @@ public class FoundryFaucetBlockEntity
 
         network.ensureMoltenContentsMigrated();
 
+        /*
+         * A Faucet can only draw from the physical tank block it is connected
+         * to once the molten column has actually reached that height.
+         */
+        if (!hasMoltenReachedFaucetHeight(tank, network)) {
+            return Optional.empty();
+        }
+
         if (selectedOutputMetal != null) {
             return network.getMoltenAmount(
                     selectedOutputMetal
@@ -450,10 +462,7 @@ public class FoundryFaucetBlockEntity
     // SMART SOURCE / TARGET LOOKUP
     // =========================
 
-    /**
-     * Retained for compatibility with older callers. This method has the old
-     * name, but the current Foundry uses the complete connected Tank network.
-     */
+    /** Retained for compatibility with older callers. */
     public static boolean hasMoltenAtFaucetHeight(
             FoundryTankBlockEntity tank
     ) {
@@ -476,36 +485,10 @@ public class FoundryFaucetBlockEntity
 
         network.ensureMoltenContentsMigrated();
 
-        FoundryControllerBlockEntity controller =
-                network.getAttachedController();
-
-        ResourceLocation selectedMetal =
-                controller != null
-                        ? controller.getSelectedOutputMetalOrDefault(
-                        network
-                )
-                        : tank.getTopLocalMetal();
-
-        if (
-                selectedMetal != null
-                        && network.getMoltenAmount(
-                        selectedMetal
-                ) >= TRANSFER_AMOUNT
-        ) {
-            return true;
-        }
-
-        for (MoltenMetalDefinition definition : ModMoltenMetals.heaviestFirst()) {
-            if (
-                    network.getMoltenAmount(
-                            definition.id()
-                    ) >= TRANSFER_AMOUNT
-            ) {
-                return true;
-            }
-        }
-
-        return false;
+        return hasMoltenReachedFaucetHeight(
+                tank,
+                network
+        );
     }
 
     public static boolean hasMoltenAtFaucetHeight(
@@ -532,9 +515,24 @@ public class FoundryFaucetBlockEntity
 
         network.ensureMoltenContentsMigrated();
 
-        return network.getMoltenAmount(
+        return hasMoltenReachedFaucetHeight(
+                tank,
+                network
+        )
+                && network.getMoltenAmount(
                 metal
         ) >= TRANSFER_AMOUNT;
+    }
+
+    private static boolean hasMoltenReachedFaucetHeight(
+            FoundryTankBlockEntity tank,
+            FoundryTankNetwork network
+    ) {
+        return tank != null
+                && network != null
+                && network.getLocalVisualMoltenAmount(
+                tank.getBlockPos()
+        ) > 0.0f;
     }
 
     @Nullable
@@ -615,6 +613,10 @@ public class FoundryFaucetBlockEntity
         }
 
         network.ensureMoltenContentsMigrated();
+
+        if (!hasMoltenReachedFaucetHeight(tank, network)) {
+            return null;
+        }
 
         ResourceLocation outputMetal =
                 faucet.pouringMetal != null
