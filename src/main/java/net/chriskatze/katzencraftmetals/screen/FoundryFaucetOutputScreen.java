@@ -19,22 +19,27 @@ public class FoundryFaucetOutputScreen
     private static final int BORDER_DARK = 0xFF050505;
     private static final int HOVER_OVERLAY = 0x18FFFFFF;
     private static final int TEXT = 0xFFE8E8E4;
-    private static final int MUTED_TEXT = 0xFF9A9A9A;
     private static final int GREEN = 0xFF86B85C;
 
-    private static final int ROW_X = 8;
-    private static final int ROW_Y = 22;
+    private static final String TITLE = "FAUCET LOCK";
+
+    private static final int ROW_X = 7;
+    private static final int ROW_Y = 21;
     private static final int ROW_WIDTH = 86;
     private static final int ROW_HEIGHT = 19;
     private static final int ROW_STRIDE = 21;
     private static final int VISIBLE_ROWS = 5;
 
-    private static final int SCROLL_X = 99;
+    /*
+     * Keep the scrollbar visually attached to the cards.
+     * ROW_X + ROW_WIDTH = 93, so SCROLL_X = 95 leaves only a 2 px gap.
+     */
+    private static final int SCROLL_X = 95;
     private static final int SCROLL_Y = ROW_Y;
+    private static final int SCROLL_WIDTH = 6;
     private static final int SCROLL_HEIGHT =
             VISIBLE_ROWS * ROW_STRIDE - 2;
 
-    private static final int TITLE_X = 8;
     private static final int TITLE_Y = 7;
 
     private int scrollOffset;
@@ -50,8 +55,16 @@ public class FoundryFaucetOutputScreen
                 title
         );
 
-        imageWidth = 113;
-        imageHeight = 133;
+        /*
+         * Tightly wraps:
+         * - 7 px left card padding
+         * - 86 px foundry-style cards
+         * - 2 px card/scroll gap
+         * - 6 px scrollbar
+         * - 4 px right padding
+         */
+        imageWidth = 105;
+        imageHeight = 128;
     }
 
     @Override
@@ -106,15 +119,7 @@ public class FoundryFaucetOutputScreen
         clampScroll();
 
         renderPanel(graphics);
-
-        graphics.drawString(
-                font,
-                Component.literal("FAUCET LOCK"),
-                leftPos + TITLE_X,
-                topPos + TITLE_Y,
-                TEXT,
-                false
-        );
+        renderTitle(graphics);
 
         renderRows(
                 graphics,
@@ -184,6 +189,20 @@ public class FoundryFaucetOutputScreen
                 leftPos + imageWidth,
                 topPos + imageHeight,
                 BORDER_DARK
+        );
+    }
+
+    private void renderTitle(
+            GuiGraphics graphics
+    ) {
+        graphics.drawString(
+                font,
+                Component.literal(TITLE),
+                leftPos
+                        + (imageWidth - font.width(TITLE)) / 2,
+                topPos + TITLE_Y,
+                TEXT,
+                false
         );
     }
 
@@ -406,7 +425,7 @@ public class FoundryFaucetOutputScreen
 
         if (
                 maxOffset <= 0
-                        || !isMouseOverList(
+                        || !isMouseOverListAndScrollbar(
                         mouseX,
                         mouseY
                 )
@@ -505,7 +524,7 @@ public class FoundryFaucetOutputScreen
             double mouseX,
             double mouseY
     ) {
-        if (!isMouseOverList(
+        if (!isMouseOverCards(
                 mouseX,
                 mouseY
         )) {
@@ -546,12 +565,23 @@ public class FoundryFaucetOutputScreen
         ) == visibleRow;
     }
 
-    private boolean isMouseOverList(
+    private boolean isMouseOverCards(
             double mouseX,
             double mouseY
     ) {
         return mouseX >= leftPos + ROW_X
                 && mouseX < leftPos + ROW_X + ROW_WIDTH
+                && mouseY >= topPos + ROW_Y
+                && mouseY < topPos + ROW_Y
+                + VISIBLE_ROWS * ROW_STRIDE;
+    }
+
+    private boolean isMouseOverListAndScrollbar(
+            double mouseX,
+            double mouseY
+    ) {
+        return mouseX >= leftPos + ROW_X
+                && mouseX < leftPos + SCROLL_X + SCROLL_WIDTH
                 && mouseY >= topPos + ROW_Y
                 && mouseY < topPos + ROW_Y
                 + VISIBLE_ROWS * ROW_STRIDE;
