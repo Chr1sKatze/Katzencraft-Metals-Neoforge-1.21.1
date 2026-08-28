@@ -18,7 +18,7 @@ import java.util.List;
 /** Renders the stored molten-metal selection list. */
 final class FoundryControllerMetalsRenderer {
 
-        static final float LIST_TEXT_SCALE = 0.75F;
+    static final float LIST_TEXT_SCALE = 0.75F;
     static final int LIST_TEXT_X_OFFSET = 25;
     static final int LIST_TEXT_WIDTH = 58;
 
@@ -78,10 +78,46 @@ final class FoundryControllerMetalsRenderer {
             double mouseY,
             int button
     ) {
-        /*
-         * The metal list is display-only. Faucet output selection is handled
-         * elsewhere, so clicking a stored-metal row intentionally does nothing.
-         */
+        if (button != 0) {
+            return false;
+        }
+
+        List<MoltenMetalDefinition> entries =
+                buildEntries();
+
+        for (
+                int visibleRow = 0;
+                visibleRow < FoundryControllerUiLayout.VISIBLE_METAL_ROWS;
+                visibleRow++
+        ) {
+            int index =
+                    scrollOffset + visibleRow;
+
+            if (index >= entries.size()) {
+                break;
+            }
+
+            if (!isMouseOverRow(
+                    mouseX,
+                    mouseY,
+                    visibleRow
+            )) {
+                continue;
+            }
+
+            int buttonId =
+                    FoundryControllerMenu.createSelectMetalButton(
+                            entries.get(index)
+                    );
+
+            if (buttonId < 0) {
+                return false;
+            }
+
+            screen.playButtonClickSound();
+            return screen.sendMenuButton(buttonId);
+        }
+
         return false;
     }
 
@@ -139,7 +175,56 @@ final class FoundryControllerMetalsRenderer {
             int mouseX,
             int mouseY
     ) {
-        /* Stored-metal rows intentionally have no hover tooltip. */
+        List<MoltenMetalDefinition> entries =
+                buildEntries();
+
+        for (
+                int visibleRow = 0;
+                visibleRow < FoundryControllerUiLayout.VISIBLE_METAL_ROWS;
+                visibleRow++
+        ) {
+            int index =
+                    scrollOffset + visibleRow;
+
+            if (index >= entries.size()) {
+                break;
+            }
+
+            if (!isMouseOverRow(
+                    mouseX,
+                    mouseY,
+                    visibleRow
+            )) {
+                continue;
+            }
+
+            MoltenMetalDefinition definition =
+                    entries.get(index);
+
+            String name =
+                    displayName(
+                            definition.id()
+                    );
+
+            Component tooltip =
+                    isSelected(definition)
+                            ? Component.literal(
+                            "Selected pouring output: " + name
+                    )
+                            : Component.literal(
+                            "Click to select " + name
+                                    + " as pouring output"
+                    );
+
+            graphics.renderTooltip(
+                    screen.uiFont(),
+                    tooltip,
+                    mouseX,
+                    mouseY
+            );
+
+            return;
+        }
     }
 
     private void renderEntry(
@@ -157,11 +242,14 @@ final class FoundryControllerMetalsRenderer {
                         + visibleRow
                         * FoundryControllerUiLayout.METAL_ROW_STRIDE;
 
+        boolean selected =
+                isSelected(definition);
+
         FoundryControllerListDrawing.drawRow(
                 graphics,
                 left,
                 top,
-                false,
+                selected,
                 true
         );
 
@@ -205,8 +293,22 @@ final class FoundryControllerMetalsRenderer {
                 Component.literal(amount),
                 left + LIST_TEXT_X_OFFSET,
                 top + METAL_AMOUNT_Y_OFFSET,
-                FoundryControllerUiDrawing.MUTED_TEXT
+                selected
+                        ? FoundryControllerUiDrawing.TEXT
+                        : FoundryControllerUiDrawing.MUTED_TEXT
         );
+    }
+
+    private boolean isSelected(
+            MoltenMetalDefinition definition
+    ) {
+        return menu().getSelectedMetalDefinition()
+                .map(
+                        selected ->
+                                selected.id()
+                                        .equals(definition.id())
+                )
+                .orElse(false);
     }
 
     private boolean isMouseOverRow(

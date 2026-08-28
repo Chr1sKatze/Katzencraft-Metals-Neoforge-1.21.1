@@ -155,7 +155,7 @@ public class FoundryFaucetOutputScreen
 
         graphics.drawString(
                 font,
-                Component.literal("FAUCET OUTPUT"),
+                Component.literal("FAUCET LOCK"),
                 left + 6,
                 top + 7,
                 TEXT,
@@ -283,14 +283,9 @@ public class FoundryFaucetOutputScreen
             int left,
             int top
     ) {
-        String label =
-                menu.isAutomaticSelected()
-                        ? "Automatic output"
-                        : "Automatic output";
-
         graphics.drawString(
                 font,
-                Component.literal(label),
+                Component.literal("Follow controller output"),
                 left + 6,
                 top + 6,
                 menu.isAutomaticSelected()
@@ -463,10 +458,10 @@ public class FoundryFaucetOutputScreen
         Component tooltip =
                 absoluteRow == 0
                         ? Component.literal(
-                        "Let the Faucet choose automatically."
+                        "Unlock Faucet: follow the Controller pouring output."
                 )
                         : Component.literal(
-                        "Set Faucet output to "
+                        "Lock Faucet to "
                                 + FoundryControllerMetalsRenderer
                                 .displayName(
                                         menu.getMetals()

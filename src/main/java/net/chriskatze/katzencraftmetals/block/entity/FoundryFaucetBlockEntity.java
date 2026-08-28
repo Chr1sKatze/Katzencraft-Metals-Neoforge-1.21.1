@@ -36,8 +36,6 @@ public class FoundryFaucetBlockEntity
      * Every currently registered molten metal uses 6 molten units per ore/ingot.
      * Keeping the transfer atomic prevents stopped pours from leaving decimal
      * displayed ore amounts such as 8.33 or 8.5.
-     *
-     * Old speed was 1 unit every 2 ticks, so one 6-unit step took 12 ticks.
      */
     public static final int TRANSFER_INTERVAL = 12;
     public static final int TRANSFER_AMOUNT = 6;
