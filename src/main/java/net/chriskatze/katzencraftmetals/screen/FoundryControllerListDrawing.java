@@ -13,12 +13,6 @@ final class FoundryControllerListDrawing {
                     "textures/gui/foundry_controller_list_row.png"
             );
 
-    private static final ResourceLocation SELECTED_ROW_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(
-                    KatzencraftMetalsMod.MODID,
-                    "textures/gui/foundry_controller_list_row_selected.png"
-            );
-
     private static final ResourceLocation SCROLLBAR_TRACK_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(
                     KatzencraftMetalsMod.MODID,
@@ -48,9 +42,7 @@ final class FoundryControllerListDrawing {
             boolean enabled
     ) {
         graphics.blit(
-                selected
-                        ? SELECTED_ROW_TEXTURE
-                        : ROW_TEXTURE,
+                ROW_TEXTURE,
                 left,
                 top,
                 0.0f,
@@ -60,6 +52,28 @@ final class FoundryControllerListDrawing {
                 ROW_WIDTH,
                 ROW_HEIGHT
         );
+
+        if (selected) {
+            /*
+             * The authored selected texture was too bright. Keep selection as a
+             * subtle light lift on the normal card instead.
+             */
+            graphics.fill(
+                    left + 2,
+                    top + 1,
+                    left + ROW_WIDTH - 2,
+                    top + ROW_HEIGHT - 1,
+                    0x22FFFFFF
+            );
+
+            graphics.fill(
+                    left + 2,
+                    top + 1,
+                    left + ROW_WIDTH - 2,
+                    top + 2,
+                    0x33FFFFFF
+            );
+        }
 
         if (!enabled) {
             graphics.fill(

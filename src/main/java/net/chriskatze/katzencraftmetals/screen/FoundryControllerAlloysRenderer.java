@@ -6,6 +6,7 @@ import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyIngredient;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyRecipe;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -147,10 +148,6 @@ final class FoundryControllerAlloysRenderer {
         boolean alloying =
                 menu().isAlloyJobActive();
 
-        /*
-         * During an active job, the main button becomes STOP and remains
-         * usable even though the quantity controls are locked.
-         */
         if (
                 alloying
                         && isMouseOverStart(
@@ -272,13 +269,6 @@ final class FoundryControllerAlloysRenderer {
             return true;
         }
 
-        /*
-         * Any left-click that was not an alloy recipe row and not one of the
-         * alloy controls clears the current recipe selection.
-         *
-         * Return false so normal container behavior still works, for example when
-         * the player clicks an inventory slot.
-         */
         if (!alloying) {
             clearSelection();
         }
@@ -358,16 +348,24 @@ final class FoundryControllerAlloysRenderer {
             }
 
             Entry entry = entries.get(index);
+            FoundryAlloyRecipe recipe =
+                    entry.holder().value();
+
+            Component tooltip =
+                    isTierLocked(recipe)
+                            ? Component.literal(
+                            "Requires Foundry Tier "
+                                    + recipe.requiredTier()
+                    ).withStyle(ChatFormatting.RED)
+                            : Component.literal(
+                            FoundryControllerMetalsRenderer.displayName(
+                                    recipe.outputMetal()
+                            )
+                    );
 
             graphics.renderTooltip(
                     screen.uiFont(),
-                    Component.literal(
-                            FoundryControllerMetalsRenderer.displayName(
-                                    entry.holder()
-                                            .value()
-                                            .outputMetal()
-                            )
-                    ),
+                    tooltip,
                     mouseX,
                     mouseY
             );
@@ -483,23 +481,27 @@ final class FoundryControllerAlloysRenderer {
                         + visibleRow
                         * FoundryControllerUiLayout.ALLOY_ROW_STRIDE;
 
+        FoundryAlloyRecipe recipe =
+                entry.holder().value();
+
         boolean selected =
                 focusedRecipeId != null
                         && focusedRecipeId.equals(
                         entry.holder().id()
                 );
 
-        boolean enabled =
-                menu().getMaxCraftableBatches(
-                        entry.holder().value()
-                ) > 0;
+        boolean tierLocked =
+                isTierLocked(recipe);
+
+        boolean craftable =
+                menu().getMaxCraftableBatches(recipe) > 0;
 
         FoundryControllerListDrawing.drawRow(
                 graphics,
                 left,
                 top,
                 selected,
-                enabled
+                tierLocked || craftable
         );
 
         ItemStack icon =
@@ -519,9 +521,7 @@ final class FoundryControllerAlloysRenderer {
                 FoundryControllerMetalsRenderer.fitText(
                         screen.uiFont(),
                         FoundryControllerMetalsRenderer.displayName(
-                                entry.holder()
-                                        .value()
-                                        .outputMetal()
+                                recipe.outputMetal()
                         ),
                         FoundryControllerMetalsRenderer.LIST_TEXT_WIDTH
                 );
@@ -547,7 +547,9 @@ final class FoundryControllerAlloysRenderer {
                         + FoundryControllerMetalsRenderer
                         .LIST_TEXT_X_OFFSET,
                 alloyNameY,
-                enabled
+                tierLocked
+                        ? FoundryControllerUiDrawing.RED
+                        : craftable
                         ? FoundryControllerUiDrawing.TEXT
                         : FoundryControllerUiDrawing.MUTED_TEXT
         );
@@ -972,10 +974,7 @@ final class FoundryControllerAlloysRenderer {
             FoundryAlloyRecipe recipe =
                     holder.value();
 
-            if (
-                    recipe.requiredTier() > menu().getFoundryTier()
-                            || !menu().isAlloyRecipeUnlocked(recipe)
-            ) {
+            if (!menu().isAlloyRecipeUnlocked(recipe)) {
                 continue;
             }
 
@@ -1016,10 +1015,6 @@ final class FoundryControllerAlloysRenderer {
                         .map(MoltenMetalDefinition::id)
                         .orElse(null);
 
-        /*
-         * During an active alloy job, keep the active recipe focused so the
-         * preview and STOP button still represent the running job.
-         */
         if (activeOutput != null) {
             for (Entry entry : entries) {
                 if (
@@ -1040,10 +1035,6 @@ final class FoundryControllerAlloysRenderer {
             }
         }
 
-        /*
-         * Outside an active job, do not auto-select the first recipe.
-         * The player may intentionally have no alloy recipe selected.
-         */
         clearSelection();
     }
 
@@ -1077,6 +1068,14 @@ final class FoundryControllerAlloysRenderer {
         }
 
         return null;
+    }
+
+    private boolean isTierLocked(
+            FoundryAlloyRecipe recipe
+    ) {
+        return recipe != null
+                && recipe.requiredTier()
+                > menu().getFoundryTier();
     }
 
     private boolean isMouseOverRow(
@@ -1206,41 +1205,6 @@ final class FoundryControllerAlloysRenderer {
                                 )
                         )
                 );
-    }
-
-    private static String recipeSummary(
-            FoundryAlloyRecipe recipe
-    ) {
-        StringBuilder result =
-                new StringBuilder();
-
-        for (
-                int index = 0;
-                index < recipe.ingredients().size();
-                index++
-        ) {
-            FoundryAlloyIngredient ingredient =
-                    recipe.ingredients().get(index);
-
-            if (index > 0) {
-                result.append(" + ");
-            }
-
-            result.append(
-                    FoundryControllerMetalsRenderer.displayName(
-                            ingredient.metal()
-                    )
-            );
-        }
-
-        result.append(" -> ");
-        result.append(
-                FoundryControllerMetalsRenderer.displayName(
-                        recipe.outputMetal()
-                )
-        );
-
-        return result.toString();
     }
 
     private static ResourceLocation texture(

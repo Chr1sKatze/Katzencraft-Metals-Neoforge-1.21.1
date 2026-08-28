@@ -23,6 +23,8 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -51,8 +53,9 @@ public class FoundryFaucetBlockEntity
     private int streamAnimationTimer;
 
     /*
-     * Per-Faucet output selection. Null means "automatic": use the old
-     * Controller-selected/default output behavior.
+     * Per-Faucet output selection. Null means unlocked: follow the Controller's
+     * selected/default pouring output. Non-null means this Faucet is locked to
+     * that exact metal.
      */
     @Nullable
     private ResourceLocation selectedOutputMetal;
@@ -288,6 +291,95 @@ public class FoundryFaucetBlockEntity
 
         setChanged();
         syncToClient();
+    }
+
+    public boolean hasDiscoveredLockableMetal(
+            ResourceLocation metal
+    ) {
+        if (
+                metal == null
+                        || !ModMoltenMetals.contains(metal)
+        ) {
+            return false;
+        }
+
+        FoundryControllerBlockEntity controller =
+                getAttachedControllerForLockMenu();
+
+        return controller != null
+                && controller.hasDiscoveredMoltenMetal(metal);
+    }
+
+    public List<MoltenMetalDefinition> getDiscoveredLockableMetals() {
+        FoundryControllerBlockEntity controller =
+                getAttachedControllerForLockMenu();
+
+        if (controller == null) {
+            return List.of();
+        }
+
+        List<MoltenMetalDefinition> result =
+                new ArrayList<>();
+
+        for (MoltenMetalDefinition definition : ModMoltenMetals.heaviestFirst()) {
+            if (controller.hasDiscoveredMoltenMetal(definition.id())) {
+                result.add(definition);
+            }
+        }
+
+        return result;
+    }
+
+    @Nullable
+    private FoundryControllerBlockEntity getAttachedControllerForLockMenu() {
+        FoundryTankBlockEntity tank =
+                getAttachedTankForLockMenu();
+
+        if (tank == null) {
+            return null;
+        }
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (
+                network == null
+                        || !network.isActive()
+        ) {
+            return null;
+        }
+
+        return network.getAttachedController();
+    }
+
+    @Nullable
+    private FoundryTankBlockEntity getAttachedTankForLockMenu() {
+        if (level == null) {
+            return null;
+        }
+
+        BlockState state =
+                getBlockState();
+
+        if (!state.hasProperty(FoundryFaucetBlock.FACING)) {
+            return null;
+        }
+
+        Direction facing =
+                state.getValue(
+                        FoundryFaucetBlock.FACING
+                );
+
+        BlockEntity blockEntity =
+                level.getBlockEntity(
+                        worldPosition.relative(
+                                facing.getOpposite()
+                        )
+                );
+
+        return blockEntity instanceof FoundryTankBlockEntity tank
+                ? tank
+                : null;
     }
 
     public Optional<ResourceLocation> resolveOutputMetal(

@@ -9,9 +9,12 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.ContainerLevelAccess;
+import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,8 +23,12 @@ public class FoundryFaucetOutputMenu extends AbstractContainerMenu {
     public static final int CLEAR_SELECTION_BUTTON = 0;
     public static final int SELECT_METAL_BUTTON_BASE = 1;
 
+    private static final int DATA_COUNT =
+            ModMoltenMetals.values().size();
+
     private final FoundryFaucetBlockEntity faucet;
     private final ContainerLevelAccess access;
+    private final ContainerData data;
 
     public FoundryFaucetOutputMenu(
             int containerId,
@@ -34,7 +41,8 @@ public class FoundryFaucetOutputMenu extends AbstractContainerMenu {
                 getBlockEntity(
                         playerInventory,
                         extraData
-                )
+                ),
+                new SimpleContainerData(DATA_COUNT)
         );
     }
 
@@ -43,18 +51,40 @@ public class FoundryFaucetOutputMenu extends AbstractContainerMenu {
             Inventory playerInventory,
             FoundryFaucetBlockEntity faucet
     ) {
+        this(
+                containerId,
+                playerInventory,
+                faucet,
+                createData(faucet)
+        );
+    }
+
+    private FoundryFaucetOutputMenu(
+            int containerId,
+            Inventory playerInventory,
+            FoundryFaucetBlockEntity faucet,
+            ContainerData data
+    ) {
         super(
                 ModMenuTypes.FOUNDRY_FAUCET_OUTPUT_MENU.get(),
                 containerId
         );
 
         this.faucet = faucet;
+        this.data = data;
 
         this.access =
                 ContainerLevelAccess.create(
                         faucet.getLevel(),
                         faucet.getBlockPos()
                 );
+
+        checkContainerDataCount(
+                data,
+                DATA_COUNT
+        );
+
+        addDataSlots(data);
     }
 
     private static FoundryFaucetBlockEntity getBlockEntity(
@@ -78,8 +108,60 @@ public class FoundryFaucetOutputMenu extends AbstractContainerMenu {
         );
     }
 
+    private static ContainerData createData(
+            FoundryFaucetBlockEntity faucet
+    ) {
+        return new ContainerData() {
+            @Override
+            public int get(
+                    int index
+            ) {
+                return ModMoltenMetals.bySyncId(index)
+                        .map(
+                                definition ->
+                                        faucet.hasDiscoveredLockableMetal(
+                                                definition.id()
+                                        )
+                                                ? 1
+                                                : 0
+                        )
+                        .orElse(0);
+            }
+
+            @Override
+            public void set(
+                    int index,
+                    int value
+            ) {
+                /* Server-owned data. */
+            }
+
+            @Override
+            public int getCount() {
+                return DATA_COUNT;
+            }
+        };
+    }
+
     public List<MoltenMetalDefinition> getMetals() {
-        return ModMoltenMetals.heaviestFirst();
+        List<MoltenMetalDefinition> metals =
+                new ArrayList<>();
+
+        for (MoltenMetalDefinition definition : ModMoltenMetals.heaviestFirst()) {
+            int syncId =
+                    ModMoltenMetals.getSyncId(
+                            definition.id()
+                    );
+
+            if (
+                    syncId >= 0
+                            && data.get(syncId) != 0
+            ) {
+                metals.add(definition);
+            }
+        }
+
+        return metals;
     }
 
     public Optional<ResourceLocation> getSelectedMetalId() {
