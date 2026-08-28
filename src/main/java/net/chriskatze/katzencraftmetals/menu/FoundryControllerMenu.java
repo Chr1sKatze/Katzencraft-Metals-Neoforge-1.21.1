@@ -45,7 +45,10 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
     private static final int FUEL_MENU_START = 8;
 
     private static final int PLAYER_INVENTORY_START = 12;
-    private static final int PLAYER_INVENTORY_END = 39;
+    private static final int PLAYER_MAIN_INVENTORY_START = PLAYER_INVENTORY_START;
+    private static final int PLAYER_MAIN_INVENTORY_END = 39;
+    private static final int PLAYER_HOTBAR_START = 39;
+    private static final int PLAYER_INVENTORY_END = 48;
 
     public static final int SELECT_METAL_BUTTON_BASE = 50_000;
     public static final int START_ALLOY_BUTTON_BASE = 100_000;
@@ -73,6 +76,7 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
 
     private static final int PLAYER_INVENTORY_X = 7;
     private static final int PLAYER_INVENTORY_Y = 155;
+    private static final int PLAYER_HOTBAR_Y = 209;
 
     private final FoundryControllerBlockEntity blockEntity;
     private final Container inputContainer;
@@ -739,6 +743,30 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             ) {
                 return ItemStack.EMPTY;
             }
+        } else if (index >= PLAYER_MAIN_INVENTORY_START
+                && index < PLAYER_MAIN_INVENTORY_END) {
+            if (
+                    !moveItemStackTo(
+                            stack,
+                            PLAYER_HOTBAR_START,
+                            PLAYER_INVENTORY_END,
+                            false
+                    )
+            ) {
+                return ItemStack.EMPTY;
+            }
+        } else if (index >= PLAYER_HOTBAR_START
+                && index < PLAYER_INVENTORY_END) {
+            if (
+                    !moveItemStackTo(
+                            stack,
+                            PLAYER_MAIN_INVENTORY_START,
+                            PLAYER_MAIN_INVENTORY_END,
+                            false
+                    )
+            ) {
+                return ItemStack.EMPTY;
+            }
         } else {
             return ItemStack.EMPTY;
         }
@@ -779,6 +807,17 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
                         )
                 );
             }
+        }
+
+        for (int column = 0; column < 9; column++) {
+            addSlot(
+                    new Slot(
+                            playerInventory,
+                            column,
+                            PLAYER_INVENTORY_X + column * 18,
+                            PLAYER_HOTBAR_Y
+                    )
+            );
         }
     }
 }

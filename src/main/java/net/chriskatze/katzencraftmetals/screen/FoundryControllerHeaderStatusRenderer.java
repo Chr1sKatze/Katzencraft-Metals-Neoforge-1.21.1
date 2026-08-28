@@ -10,7 +10,6 @@ import net.minecraft.resources.ResourceLocation;
 final class FoundryControllerHeaderStatusRenderer {
 
     private static final float XP_TEXT_SCALE = 0.75F;
-    private static final float STATUS_TEXT_SCALE = 0.75F;
 
     private static final ResourceLocation BAR_FRAME_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(
@@ -30,11 +29,6 @@ final class FoundryControllerHeaderStatusRenderer {
     private static final int BAR_HEIGHT = 16;
 
     private static final int XP_BAR_Y = 21;
-    private static final int STATUS_BAR_Y = 214;
-
-    private static final int STATUS_TEXT_X_OFFSET = 19;
-    private static final int STATUS_TEXT_RIGHT_PADDING = 6;
-    private static final int STATUS_ACTIVITY_WIDTH = 15;
 
     /*
      * Both empty tracks are fully opaque. The Foundry GUI background can never
@@ -45,21 +39,14 @@ final class FoundryControllerHeaderStatusRenderer {
     private static final int XP_TRACK_BOTTOM = 0xFF0B100C;
     private static final int XP_SEGMENT = 0x36FFFFFF;
 
-    private static final int STATUS_TRACK = 0xFF1A1A1A;
-    private static final int STATUS_TRACK_TOP = 0xFF303030;
-    private static final int STATUS_TRACK_BOTTOM = 0xFF090909;
-
     /*
      * XP is intentionally always light green, regardless of Foundry tier.
      */
-    private static final TierPalette XP_PALETTE =
-            new TierPalette(
-                    0xFFC9E09B,
-                    0xFF86B85C,
-                    0xFF3E7034,
-                    0xFFEAF4D7,
-                    0x6689BD69
-            );
+    private static final int XP_TEXT = 0xFFEAF4D7;
+    private static final int XP_TOP = 0xFFC9E09B;
+    private static final int XP_MIDDLE = 0xFF86B85C;
+    private static final int XP_BOTTOM = 0xFF3E7034;
+    private static final int XP_GLOW = 0x6689BD69;
 
     private final FoundryControllerScreen screen;
 
@@ -74,7 +61,12 @@ final class FoundryControllerHeaderStatusRenderer {
     ) {
         renderTier(graphics);
         renderExperience(graphics);
-        renderStatus(graphics);
+
+        /*
+         * The old bottom status/info bar was removed from the authored texture.
+         * Do not render "READY", "MELTING", activity glyphs, or the lower frame
+         * anymore; that space is now the player's hotbar row.
+         */
     }
 
     private void renderTier(
@@ -160,7 +152,7 @@ final class FoundryControllerHeaderStatusRenderer {
                 top,
                 BAR_WIDTH,
                 BAR_HEIGHT,
-                XP_PALETTE.text()
+                XP_TEXT
         );
 
         drawFrame(
@@ -185,7 +177,7 @@ final class FoundryControllerHeaderStatusRenderer {
                 top,
                 right,
                 top + BAR_HEIGHT,
-                XP_PALETTE.middle()
+                XP_MIDDLE
         );
 
         graphics.fill(
@@ -193,7 +185,7 @@ final class FoundryControllerHeaderStatusRenderer {
                 top,
                 right,
                 top + 2,
-                XP_PALETTE.top()
+                XP_TOP
         );
 
         graphics.fill(
@@ -201,7 +193,7 @@ final class FoundryControllerHeaderStatusRenderer {
                 top + BAR_HEIGHT - 2,
                 right,
                 top + BAR_HEIGHT,
-                XP_PALETTE.bottom()
+                XP_BOTTOM
         );
 
         if (right < left + BAR_WIDTH) {
@@ -210,7 +202,7 @@ final class FoundryControllerHeaderStatusRenderer {
                     top + 2,
                     right,
                     top + BAR_HEIGHT - 2,
-                    XP_PALETTE.glow()
+                    XP_GLOW
             );
         }
 
@@ -261,86 +253,6 @@ final class FoundryControllerHeaderStatusRenderer {
         }
     }
 
-    private void renderStatus(
-            GuiGraphics graphics
-    ) {
-        FoundryStatus status =
-                resolveStatus();
-
-        TierPalette palette =
-                statusPalette();
-
-        int left =
-                screen.guiLeft()
-                        + BAR_X;
-
-        int top =
-                screen.guiTop()
-                        + STATUS_BAR_Y;
-
-        drawFullTrack(
-                graphics,
-                left,
-                top,
-                STATUS_TRACK,
-                STATUS_TRACK_TOP,
-                STATUS_TRACK_BOTTOM
-        );
-
-        /*
-         * Restore the small glowing status dot used by the earlier design.
-         */
-        drawStatusDot(
-                graphics,
-                left + 6,
-                top + 5,
-                palette
-        );
-
-        int activityWidth =
-                status.working()
-                        ? STATUS_ACTIVITY_WIDTH
-                        : 0;
-
-        int availableTextWidth =
-                BAR_WIDTH
-                        - STATUS_TEXT_X_OFFSET
-                        - STATUS_TEXT_RIGHT_PADDING
-                        - activityWidth;
-
-        String fitted =
-                fitScaledText(
-                        screen.uiFont(),
-                        status.text().getString(),
-                        availableTextWidth,
-                        STATUS_TEXT_SCALE
-                );
-
-        drawScaledLeftText(
-                graphics,
-                Component.literal(fitted),
-                left + STATUS_TEXT_X_OFFSET,
-                top,
-                BAR_HEIGHT,
-                palette.text()
-        );
-
-        if (status.working()) {
-            drawActivityGlyphs(
-                    graphics,
-                    left + BAR_WIDTH - STATUS_ACTIVITY_WIDTH,
-                    top,
-                    palette
-            );
-        }
-
-        drawFrame(
-                graphics,
-                left,
-                top
-        );
-    }
-
     private void drawFullTrack(
             GuiGraphics graphics,
             int left,
@@ -372,117 +284,6 @@ final class FoundryControllerHeaderStatusRenderer {
                 top + BAR_HEIGHT,
                 shadow
         );
-    }
-
-    private void drawStatusDot(
-            GuiGraphics graphics,
-            int left,
-            int top,
-            TierPalette palette
-    ) {
-        /*
-         * Five-pixel rounded orb:
-         *
-         *   xxx
-         *  xxxxx
-         * xxxxxxx
-         *  xxxxx
-         *   xxx
-         */
-        graphics.fill(
-                left + 2,
-                top,
-                left + 5,
-                top + 1,
-                palette.top()
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 1,
-                left + 6,
-                top + 2,
-                palette.middle()
-        );
-
-        graphics.fill(
-                left,
-                top + 2,
-                left + 7,
-                top + 3,
-                palette.middle()
-        );
-
-        graphics.fill(
-                left + 1,
-                top + 3,
-                left + 6,
-                top + 4,
-                palette.middle()
-        );
-
-        graphics.fill(
-                left + 2,
-                top + 4,
-                left + 5,
-                top + 5,
-                palette.bottom()
-        );
-
-        drawPixel(
-                graphics,
-                left + 2,
-                top + 1,
-                0xCCFFFFFF
-        );
-
-        drawPixel(
-                graphics,
-                left + 5,
-                top + 2,
-                palette.glow()
-        );
-    }
-
-    private void drawActivityGlyphs(
-            GuiGraphics graphics,
-            int left,
-            int top,
-            TierPalette palette
-    ) {
-        int phase =
-                (int) (
-                        System.currentTimeMillis()
-                                / 220L
-                                % 3L
-                );
-
-        for (int index = 0; index < 3; index++) {
-            int glyphLeft =
-                    left
-                            + index * 4;
-
-            int color =
-                    index == phase
-                            ? palette.top()
-                            : palette.bottom();
-
-            graphics.fill(
-                    glyphLeft,
-                    top + 7,
-                    glyphLeft + 2,
-                    top + 8,
-                    color
-            );
-
-            graphics.fill(
-                    glyphLeft + 1,
-                    top + 6,
-                    glyphLeft + 2,
-                    top + 9,
-                    color
-            );
-        }
     }
 
     private void drawFrame(
@@ -564,165 +365,6 @@ final class FoundryControllerHeaderStatusRenderer {
         graphics.pose().popPose();
     }
 
-    private void drawScaledLeftText(
-            GuiGraphics graphics,
-            Component text,
-            int left,
-            int top,
-            int height,
-            int color
-    ) {
-        Font font =
-                screen.uiFont();
-
-        float scaledHeight =
-                font.lineHeight
-                        * STATUS_TEXT_SCALE;
-
-        float textY =
-                top
-                        + (
-                        height
-                                - scaledHeight
-                ) / 2.0F
-                        + 0.5F;
-
-        graphics.pose().pushPose();
-
-        graphics.pose().translate(
-                left,
-                textY,
-                100.0F
-        );
-
-        graphics.pose().scale(
-                STATUS_TEXT_SCALE,
-                STATUS_TEXT_SCALE,
-                1.0F
-        );
-
-        graphics.drawString(
-                font,
-                text,
-                0,
-                0,
-                color,
-                true
-        );
-
-        graphics.pose().popPose();
-    }
-
-    private TierPalette statusPalette() {
-        return new TierPalette(
-                0xFFF4F4F1,
-                0xFFD4D5D0,
-                0xFF8E908A,
-                0xFFE8E8E4,
-                0x66F2F2ED
-        );
-    }
-
-    private static String fitScaledText(
-            Font font,
-            String text,
-            int renderedWidth,
-            float scale
-    ) {
-        if (
-                text == null
-                        || text.isEmpty()
-                        || renderedWidth <= 0
-                        || scale <= 0.0F
-        ) {
-            return "";
-        }
-
-        int maximumWidth =
-                Math.max(
-                        1,
-                        (int) Math.floor(
-                                renderedWidth
-                                        / scale
-                        )
-                );
-
-        if (font.width(text) <= maximumWidth) {
-            return text;
-        }
-
-        String suffix = "...";
-        int suffixWidth =
-                font.width(suffix);
-
-        if (suffixWidth >= maximumWidth) {
-            return font.plainSubstrByWidth(
-                    text,
-                    maximumWidth
-            );
-        }
-
-        return font.plainSubstrByWidth(
-                text,
-                maximumWidth - suffixWidth
-        ) + suffix;
-    }
-
-    private FoundryStatus resolveStatus() {
-        return switch (menu().getProcessingStatus()) {
-            case 1 -> new FoundryStatus(
-                    Component.literal("NO TANKS CONNECTED"),
-                    false
-            );
-            case 2 -> new FoundryStatus(
-                    Component.literal("TANK FULL"),
-                    false
-            );
-            case 3 -> new FoundryStatus(
-                    Component.literal("MISSING FUEL"),
-                    false
-            );
-            case 4 -> new FoundryStatus(
-                    Component.literal("MELTING ").append(
-                            menu().getInputMoltenMetalDefinition()
-                                    .<Component>map(
-                                            definition ->
-                                                    Component.literal(
-                                                            displayName(
-                                                                    definition.id()
-                                                            )
-                                                    )
-                                    )
-                                    .orElse(
-                                            Component.literal("ORE")
-                                    )
-                    ),
-                    true
-            );
-            case 5 -> new FoundryStatus(
-                    Component.literal("ALLOYING ").append(
-                            menu().getActiveAlloyOutput()
-                                    .<Component>map(
-                                            definition ->
-                                                    Component.literal(
-                                                            displayName(
-                                                                    definition.id()
-                                                            )
-                                                    )
-                                    )
-                                    .orElse(
-                                            Component.literal("ALLOY")
-                                    )
-                    ),
-                    true
-            );
-            default -> new FoundryStatus(
-                    Component.literal("READY"),
-                    false
-            );
-        };
-    }
-
     private static void drawPixel(
             GuiGraphics graphics,
             int x,
@@ -738,42 +380,7 @@ final class FoundryControllerHeaderStatusRenderer {
         );
     }
 
-    private static String displayName(
-            ResourceLocation id
-    ) {
-        String path =
-                id.getPath()
-                        .replace(
-                                '_',
-                                ' '
-                        );
-
-        if (path.isEmpty()) {
-            return "";
-        }
-
-        return Character.toUpperCase(
-                path.charAt(0)
-        )
-                + path.substring(1);
-    }
-
     private FoundryControllerMenu menu() {
         return screen.controllerMenu();
-    }
-
-    private record FoundryStatus(
-            Component text,
-            boolean working
-    ) {
-    }
-
-    private record TierPalette(
-            int top,
-            int middle,
-            int bottom,
-            int text,
-            int glow
-    ) {
     }
 }
