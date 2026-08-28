@@ -12,8 +12,11 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.ItemInteractionResult;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
@@ -344,6 +347,43 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
     // =========================
 
     @Override
+    protected ItemInteractionResult useItemOn(
+            ItemStack stack,
+            BlockState state,
+            Level level,
+            BlockPos pos,
+            Player player,
+            InteractionHand hand,
+            BlockHitResult hitResult
+    ) {
+        /*
+         * Shift-right-click must open the lock menu even when the player holds
+         * a block or item. Returning SUCCESS consumes the item interaction before
+         * block placement/use can steal the click.
+         */
+        if (
+                player.isShiftKeyDown()
+                        && openFaucetLockMenu(
+                        level,
+                        pos,
+                        player
+                )
+        ) {
+            return ItemInteractionResult.SUCCESS;
+        }
+
+        return super.useItemOn(
+                stack,
+                state,
+                level,
+                pos,
+                player,
+                hand,
+                hitResult
+        );
+    }
+
+    @Override
     protected InteractionResult useWithoutItem(
             BlockState state,
             Level level,
@@ -368,14 +408,13 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
          * player can inspect or change the selection intentionally.
          */
         if (player.isShiftKeyDown()) {
-            if (player instanceof ServerPlayer serverPlayer) {
-                serverPlayer.openMenu(
-                        faucet,
-                        buffer -> buffer.writeBlockPos(pos)
-                );
-            }
-
-            return InteractionResult.CONSUME;
+            return openFaucetLockMenu(
+                    level,
+                    pos,
+                    player
+            )
+                    ? InteractionResult.CONSUME
+                    : InteractionResult.PASS;
         }
 
         /*
@@ -519,6 +558,32 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
         );
 
         return InteractionResult.CONSUME;
+    }
+
+    private static boolean openFaucetLockMenu(
+            Level level,
+            BlockPos pos,
+            Player player
+    ) {
+        if (level.isClientSide()) {
+            return true;
+        }
+
+        BlockEntity blockEntity =
+                level.getBlockEntity(pos);
+
+        if (!(blockEntity instanceof FoundryFaucetBlockEntity faucet)) {
+            return false;
+        }
+
+        if (player instanceof ServerPlayer serverPlayer) {
+            serverPlayer.openMenu(
+                    faucet,
+                    buffer -> buffer.writeBlockPos(pos)
+            );
+        }
+
+        return true;
     }
 
     // =========================

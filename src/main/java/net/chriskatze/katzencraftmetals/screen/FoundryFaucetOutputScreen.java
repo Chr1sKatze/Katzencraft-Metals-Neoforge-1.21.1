@@ -19,24 +19,22 @@ public class FoundryFaucetOutputScreen
     private static final int BORDER_DARK = 0xFF050505;
     private static final int HOVER_OVERLAY = 0x18FFFFFF;
     private static final int TEXT = 0xFFE8E8E4;
-    private static final int GREEN = 0xFF86B85C;
-
-    private static final String TITLE = "FAUCET LOCK";
 
     private static final int ROW_X = 7;
-    private static final int ROW_Y = 21;
+    private static final int ROW_Y = 22;
     private static final int ROW_WIDTH = 86;
     private static final int ROW_HEIGHT = 19;
     private static final int ROW_STRIDE = 21;
-    private static final int VISIBLE_ROWS = 5;
 
     /*
-     * Keep the scrollbar visually attached to the cards.
-     * ROW_X + ROW_WIDTH = 93, so SCROLL_X = 95 leaves only a 2 px gap.
+     * The first visible row is always Default. This means the menu shows
+     * Default + three discovered metals before scrolling is needed.
      */
+    private static final int VISIBLE_ROWS = 4;
+
     private static final int SCROLL_X = 95;
-    private static final int SCROLL_Y = ROW_Y;
     private static final int SCROLL_WIDTH = 6;
+    private static final int SCROLL_Y = ROW_Y;
     private static final int SCROLL_HEIGHT =
             VISIBLE_ROWS * ROW_STRIDE - 2;
 
@@ -55,16 +53,8 @@ public class FoundryFaucetOutputScreen
                 title
         );
 
-        /*
-         * Tightly wraps:
-         * - 7 px left card padding
-         * - 86 px foundry-style cards
-         * - 2 px card/scroll gap
-         * - 6 px scrollbar
-         * - 4 px right padding
-         */
         imageWidth = 105;
-        imageHeight = 128;
+        imageHeight = 112;
     }
 
     @Override
@@ -195,11 +185,14 @@ public class FoundryFaucetOutputScreen
     private void renderTitle(
             GuiGraphics graphics
     ) {
+        Component title =
+                Component.literal("FAUCET LOCK");
+
         graphics.drawString(
                 font,
-                Component.literal(TITLE),
+                title,
                 leftPos
-                        + (imageWidth - font.width(TITLE)) / 2,
+                        + (imageWidth - font.width(title)) / 2,
                 topPos + TITLE_Y,
                 TEXT,
                 false
@@ -244,7 +237,7 @@ public class FoundryFaucetOutputScreen
             );
 
             if (rowIndex == 0) {
-                renderAutomaticRow(
+                renderDefaultRow(
                         graphics,
                         rowLeft,
                         rowTop
@@ -299,22 +292,21 @@ public class FoundryFaucetOutputScreen
         }
     }
 
-    private void renderAutomaticRow(
+    private void renderDefaultRow(
             GuiGraphics graphics,
             int left,
             int top
     ) {
-        int color =
-                menu.isAutomaticSelected()
-                        ? GREEN
-                        : TEXT;
-
+        /*
+         * Selection is communicated by the card highlight only. The text stays
+         * neutral so selected rows do not get an extra green emphasis.
+         */
         FoundryControllerMetalsRenderer.drawScaledListText(
                 graphics,
-                Component.literal("Follow output"),
+                Component.literal("Default"),
                 left + 6,
                 top + 6,
-                color
+                TEXT
         );
     }
 
@@ -359,14 +351,16 @@ public class FoundryFaucetOutputScreen
                         58
                 );
 
+        /*
+         * Selection is communicated by the card highlight only. The text stays
+         * neutral so selected rows do not get an extra green emphasis.
+         */
         FoundryControllerMetalsRenderer.drawScaledListText(
                 graphics,
                 Component.literal(name),
                 left + 25,
                 top + 6,
-                menu.isSelected(definition)
-                        ? GREEN
-                        : TEXT
+                TEXT
         );
     }
 
@@ -425,7 +419,7 @@ public class FoundryFaucetOutputScreen
 
         if (
                 maxOffset <= 0
-                        || !isMouseOverListAndScrollbar(
+                        || !isMouseOverScrollableArea(
                         mouseX,
                         mouseY
                 )
@@ -480,7 +474,7 @@ public class FoundryFaucetOutputScreen
         Component tooltip =
                 absoluteRow == 0
                         ? Component.literal(
-                        "Unlock Faucet: follow the Controller pouring output."
+                        "Lock Faucet to Controller output."
                 )
                         : Component.literal(
                         "Lock Faucet to "
@@ -524,7 +518,7 @@ public class FoundryFaucetOutputScreen
             double mouseX,
             double mouseY
     ) {
-        if (!isMouseOverCards(
+        if (!isMouseOverRows(
                 mouseX,
                 mouseY
         )) {
@@ -565,7 +559,7 @@ public class FoundryFaucetOutputScreen
         ) == visibleRow;
     }
 
-    private boolean isMouseOverCards(
+    private boolean isMouseOverRows(
             double mouseX,
             double mouseY
     ) {
@@ -576,7 +570,7 @@ public class FoundryFaucetOutputScreen
                 + VISIBLE_ROWS * ROW_STRIDE;
     }
 
-    private boolean isMouseOverListAndScrollbar(
+    private boolean isMouseOverScrollableArea(
             double mouseX,
             double mouseY
     ) {
