@@ -36,6 +36,9 @@ final class FoundryControllerHeaderStatusRenderer {
     private static final int XP_SEGMENT_TOP_INSET = 3;
     private static final int XP_SEGMENT_BOTTOM_INSET = 3;
 
+    private static final int TIER_TEXT_RIGHT = 278;
+    private static final int TIER_TEXT_Y = 7;
+
     /*
      * Softer, less yellow XP palette.
      *
@@ -76,22 +79,103 @@ final class FoundryControllerHeaderStatusRenderer {
     private void renderTier(
             GuiGraphics graphics
     ) {
+        int tierLevel =
+                Math.max(
+                        1,
+                        menu().getFoundryTier()
+                );
+
         Component tier =
                 Component.literal(
                         "TIER "
-                                + menu().getFoundryTier()
+                                + tierLevel
                 );
 
-        graphics.drawString(
-                screen.uiFont(),
-                tier,
+        TierTextPalette palette =
+                tierTextPalette(tierLevel);
+
+        Font font =
+                screen.uiFont();
+
+        int textWidth =
+                font.width(tier);
+
+        int textX =
                 screen.guiLeft()
-                        + 278
-                        - screen.uiFont().width(tier),
-                screen.guiTop() + 7,
-                FoundryControllerUiDrawing.TEXT,
+                        + TIER_TEXT_RIGHT
+                        - textWidth;
+
+        int textY =
+                screen.guiTop()
+                        + TIER_TEXT_Y;
+
+        /*
+         * Restrained rank styling:
+         * - keeps the original top-right text placement
+         * - adds a soft dark shadow for depth
+         * - uses tier-specific text color
+         * - adds a tiny accent under the word "TIER" only
+         */
+        graphics.drawString(
+                font,
+                tier,
+                textX + 1,
+                textY + 1,
+                0xAA000000,
                 false
         );
+
+        graphics.drawString(
+                font,
+                tier,
+                textX,
+                textY,
+                palette.text(),
+                false
+        );
+
+        int underlineY =
+                textY
+                        + font.lineHeight
+                        + 1;
+
+        int tierWordWidth =
+                font.width("TIER");
+
+        graphics.fill(
+                textX,
+                underlineY,
+                textX + tierWordWidth,
+                underlineY + 1,
+                palette.line()
+        );
+    }
+
+    private static TierTextPalette tierTextPalette(
+            int tier
+    ) {
+        return switch (tier) {
+            case 1 -> new TierTextPalette(
+                    0xFFE6E4DC,
+                    0x668D8D86
+            );
+            case 2 -> new TierTextPalette(
+                    0xFFE4A05F,
+                    0xAA8A4E2C
+            );
+            case 3 -> new TierTextPalette(
+                    0xFFC7E8F0,
+                    0xAA6FA4B5
+            );
+            case 4 -> new TierTextPalette(
+                    0xFFE0B6FF,
+                    0xAA8C4DC2
+            );
+            default -> new TierTextPalette(
+                    0xFFE0B6FF,
+                    0xAA8C4DC2
+            );
+        };
     }
 
     private void renderExperience(
@@ -355,5 +439,11 @@ final class FoundryControllerHeaderStatusRenderer {
 
     private FoundryControllerMenu menu() {
         return screen.controllerMenu();
+    }
+
+    private record TierTextPalette(
+            int text,
+            int line
+    ) {
     }
 }
