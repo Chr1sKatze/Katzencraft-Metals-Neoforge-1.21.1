@@ -71,7 +71,10 @@ public final class ModMoltenMetals {
                                     "steel"
                             )
                             .animatedTexture(
-                                    "molten_iron"
+                                    "molten_steel"
+                            )
+                            .flowingTexture(
+                                    "molten_steel_flowing"
                             )
                             .cooledTexture(
                                     "steel_block"
@@ -94,7 +97,10 @@ public final class ModMoltenMetals {
                                     "mythril"
                             )
                             .animatedTexture(
-                                    "molten_copper"
+                                    "molten_mythril"
+                            )
+                            .flowingTexture(
+                                    "molten_mythril_flowing"
                             )
                             .cooledTexture(
                                     "mythril_block"
@@ -143,7 +149,10 @@ public final class ModMoltenMetals {
                                     "platinum"
                             )
                             .animatedTexture(
-                                    "molten_copper"
+                                    "molten_platinum"
+                            )
+                            .flowingTexture(
+                                    "molten_platinum_flowing"
                             )
                             .cooledTexture(
                                     "platinum_block"
