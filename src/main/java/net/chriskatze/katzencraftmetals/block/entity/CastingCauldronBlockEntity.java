@@ -3,6 +3,7 @@ package net.chriskatze.katzencraftmetals.block.entity;
 import net.chriskatze.katzencraftmetals.block.custom.CastingCauldronBlock;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
@@ -10,6 +11,8 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.WorldlyContainer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
@@ -17,7 +20,9 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
-public class CastingCauldronBlockEntity extends BlockEntity {
+public class CastingCauldronBlockEntity
+        extends BlockEntity
+        implements WorldlyContainer {
 
     /*
      * Six molten units represent one ingot.
@@ -34,6 +39,9 @@ public class CastingCauldronBlockEntity extends BlockEntity {
      * Cooling begins only once the cauldron is completely full.
      */
     public static final int MAX_COOLING_PROGRESS = 100;
+
+    private static final int OUTPUT_SLOT = 0;
+    private static final int[] OUTPUT_SLOTS = new int[]{OUTPUT_SLOT};
 
     @Nullable
     private ResourceLocation storedMetal;
@@ -157,6 +165,138 @@ public class CastingCauldronBlockEntity extends BlockEntity {
         syncToClient();
 
         return amount;
+    }
+
+    // =========================
+    // HOPPER / SIDED OUTPUT
+    // =========================
+
+    @Override
+    public int getContainerSize() {
+        return 1;
+    }
+
+    @Override
+    public ItemStack getItem(
+            int slot
+    ) {
+        if (slot != OUTPUT_SLOT) {
+            return ItemStack.EMPTY;
+        }
+
+        return getResultCopy();
+    }
+
+    @Override
+    public ItemStack removeItem(
+            int slot,
+            int amount
+    ) {
+        if (
+                slot != OUTPUT_SLOT
+                        || amount <= 0
+        ) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack result =
+                getResultCopy();
+
+        if (
+                result.isEmpty()
+                        || amount < result.getCount()
+        ) {
+            return ItemStack.EMPTY;
+        }
+
+        clear();
+
+        return result;
+    }
+
+    @Override
+    public ItemStack removeItemNoUpdate(
+            int slot
+    ) {
+        if (slot != OUTPUT_SLOT) {
+            return ItemStack.EMPTY;
+        }
+
+        ItemStack result =
+                getResultCopy();
+
+        if (result.isEmpty()) {
+            return ItemStack.EMPTY;
+        }
+
+        clear();
+
+        return result;
+    }
+
+    @Override
+    public void setItem(
+            int slot,
+            ItemStack stack
+    ) {
+        /*
+         * The Casting Cauldron is output-only for item automation.
+         * Molten metal still enters exclusively through Faucet insertion.
+         */
+    }
+
+    @Override
+    public boolean canPlaceItem(
+            int slot,
+            ItemStack stack
+    ) {
+        return false;
+    }
+
+    @Override
+    public boolean stillValid(
+            Player player
+    ) {
+        return level != null
+                && level.getBlockEntity(
+                worldPosition
+        ) == this
+                && player.distanceToSqr(
+                worldPosition.getX() + 0.5,
+                worldPosition.getY() + 0.5,
+                worldPosition.getZ() + 0.5
+        ) <= 64.0;
+    }
+
+    @Override
+    public void clearContent() {
+        clear();
+    }
+
+    @Override
+    public int[] getSlotsForFace(
+            Direction side
+    ) {
+        return OUTPUT_SLOTS;
+    }
+
+    @Override
+    public boolean canPlaceItemThroughFace(
+            int slot,
+            ItemStack stack,
+            @Nullable Direction direction
+    ) {
+        return false;
+    }
+
+    @Override
+    public boolean canTakeItemThroughFace(
+            int slot,
+            ItemStack stack,
+            Direction direction
+    ) {
+        return slot == OUTPUT_SLOT
+                && !getResultCopy().isEmpty();
     }
 
     // =========================
