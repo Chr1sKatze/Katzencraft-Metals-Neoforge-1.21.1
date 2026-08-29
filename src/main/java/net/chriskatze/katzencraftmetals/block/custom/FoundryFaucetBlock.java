@@ -302,26 +302,20 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
         Direction clickedFace =
                 context.getClickedFace();
 
-        /*
-         * Faucets are side-mounted blocks. Placing one from the top or bottom of
-         * a tank would make the "tank behind the faucet" ambiguous, so only
-         * horizontal tank faces are valid placement targets.
-         */
         if (!clickedFace.getAxis().isHorizontal()) {
             return null;
         }
 
-        if (!isFoundryTank(
-                context.getLevel()
-                        .getBlockState(
-                                context.getClickedPos()
-                        )
-        )) {
-            return null;
-        }
+        BlockState placementState =
+                defaultBlockState()
+                        .setValue(FACING, clickedFace);
 
-        return defaultBlockState()
-                .setValue(FACING, clickedFace);
+        return placementState.canSurvive(
+                context.getLevel(),
+                context.getClickedPos()
+        )
+                ? placementState
+                : null;
     }
 
     @Override
