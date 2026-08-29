@@ -48,6 +48,7 @@ public class FoundryFaucetBlockEntity
     public static final int STREAM_ANIMATION_STEPS = 8;
 
     private boolean pouring;
+    private boolean automaticPouring;
     private int transferTimer;
     private int streamAnimationStep;
     private int streamAnimationTimer;
@@ -115,6 +116,14 @@ public class FoundryFaucetBlockEntity
             return;
         }
 
+        boolean automaticPourSignal =
+                FoundryTankLeverAutoPourControl
+                        .isAutoPourEnabledForFaucet(
+                                level,
+                                pos,
+                                state
+                        );
+
         if (!faucet.pouring) {
             if (faucet.streamAnimationStep > 0) {
                 faucet.streamAnimationTimer++;
@@ -134,12 +143,34 @@ public class FoundryFaucetBlockEntity
                     faucet.setChanged();
                     faucet.syncToClient();
                 }
+
+                return;
             } else if (faucet.pouringMetal != null) {
                 faucet.pouringMetal = null;
                 faucet.setChanged();
                 faucet.syncToClient();
             }
 
+            if (
+                    FoundryTankAutoPourScheduler
+                            .mayAutoStartFaucet(
+                                    level,
+                                    pos,
+                                    state,
+                                    faucet
+                            )
+            ) {
+                faucet.startAutomaticPouring();
+            }
+
+            return;
+        }
+
+        if (
+                faucet.automaticPouring
+                        && !automaticPourSignal
+        ) {
+            faucet.stopPouring();
             return;
         }
 
@@ -697,6 +728,7 @@ public class FoundryFaucetBlockEntity
             return;
         }
 
+        automaticPouring = false;
         pouringMetal =
                 metal;
 
@@ -723,8 +755,37 @@ public class FoundryFaucetBlockEntity
             return;
         }
 
+        automaticPouring = false;
         pouringMetal =
                 context.metal();
+
+        setPouring(true);
+    }
+
+    private void startAutomaticPouring() {
+        if (
+                level == null
+                        || level.isClientSide()
+        ) {
+            return;
+        }
+
+        PouringContext context =
+                resolvePouringContext(
+                        level,
+                        worldPosition,
+                        getBlockState(),
+                        this
+                );
+
+        if (context == null) {
+            return;
+        }
+
+        pouringMetal =
+                context.metal();
+
+        automaticPouring = true;
 
         setPouring(true);
     }
@@ -741,6 +802,11 @@ public class FoundryFaucetBlockEntity
         }
 
         this.pouring = pouring;
+
+        if (!pouring) {
+            this.automaticPouring = false;
+        }
+
         this.transferTimer = 0;
         this.streamAnimationTimer = 0;
 
@@ -828,6 +894,11 @@ public class FoundryFaucetBlockEntity
                 pouring
         );
 
+        tag.putBoolean(
+                "AutomaticPouring",
+                automaticPouring
+        );
+
         tag.putInt(
                 "StreamAnimationStep",
                 streamAnimationStep
@@ -861,6 +932,11 @@ public class FoundryFaucetBlockEntity
         pouring =
                 tag.getBoolean(
                         "Pouring"
+                );
+
+        automaticPouring =
+                tag.getBoolean(
+                        "AutomaticPouring"
                 );
 
         transferTimer = 0;
@@ -925,6 +1001,10 @@ public class FoundryFaucetBlockEntity
                         && streamAnimationStep <= 0
         ) {
             pouring = false;
+        }
+
+        if (!pouring) {
+            automaticPouring = false;
         }
     }
 }
