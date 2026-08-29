@@ -17,12 +17,14 @@ import java.util.Set;
 /**
  * Detects global auto-pour levers for one connected Foundry Tank network.
  *
- * Only powered vanilla levers count. Random powered blocks, dust, buttons,
+ * Only powered vanilla-style levers count. Random powered blocks, dust, buttons,
  * redstone torches, repeaters, comparators, and pressure plates do not count.
  *
  * A lever counts if it is attached to:
  * - one of the connected tank blocks
  * - or a block directly adjacent to one of the connected tank blocks
+ * - or one of the attached faucet blocks
+ * - or a block directly adjacent to one of the attached faucet blocks
  */
 final class FoundryTankLeverAutoPourControl {
 
@@ -77,7 +79,8 @@ final class FoundryTankLeverAutoPourControl {
             @Nullable FoundryTankNetwork network
     ) {
         if (
-                network == null
+                level == null
+                        || network == null
                         || !network.isActive()
         ) {
             return false;
@@ -85,6 +88,7 @@ final class FoundryTankLeverAutoPourControl {
 
         Set<BlockPos> candidateAnchors =
                 collectLeverAnchorCandidates(
+                        level,
                         network
                 );
 
@@ -101,26 +105,55 @@ final class FoundryTankLeverAutoPourControl {
     }
 
     private static Set<BlockPos> collectLeverAnchorCandidates(
+            Level level,
             FoundryTankNetwork network
     ) {
         Set<BlockPos> anchors =
                 new HashSet<>();
 
         for (BlockPos tankPos : network.getTankPositions()) {
-            anchors.add(
-                    tankPos.immutable()
+            addAnchorAndNeighbors(
+                    anchors,
+                    tankPos
             );
+        }
 
-            for (Direction direction : Direction.values()) {
-                anchors.add(
-                        tankPos.relative(
-                                direction
-                        ).immutable()
-                );
-            }
+        /*
+         * Free tank-side Faucets are now treated as foundry attachments instead
+         * of crafted standalone gameplay blocks. For lever auto-pour, that means
+         * levers around the attached Faucet should count as part of the same
+         * foundry control area.
+         */
+        for (
+                BlockPos faucetPos : FoundryTankNetwork.findAttachedFaucets(
+                level,
+                network.getTankPositions()
+        )
+        ) {
+            addAnchorAndNeighbors(
+                    anchors,
+                    faucetPos
+            );
         }
 
         return anchors;
+    }
+
+    private static void addAnchorAndNeighbors(
+            Set<BlockPos> anchors,
+            BlockPos center
+    ) {
+        anchors.add(
+                center.immutable()
+        );
+
+        for (Direction direction : Direction.values()) {
+            anchors.add(
+                    center.relative(
+                            direction
+                    ).immutable()
+            );
+        }
     }
 
     private static boolean hasPoweredLeverAttachedToAnchor(
