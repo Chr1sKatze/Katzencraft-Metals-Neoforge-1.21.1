@@ -22,6 +22,8 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
 final class FoundryTankMoltenRenderer {
 
     private final FoundryTankMoltenLayerBuilder layerBuilder;
+    private final FoundryTankSurfaceEffectsRenderer surfaceEffectsRenderer =
+            new FoundryTankSurfaceEffectsRenderer();
 
     FoundryTankMoltenRenderer(
             FoundryTankMoltenLayerBuilder layerBuilder
@@ -90,7 +92,10 @@ final class FoundryTankMoltenRenderer {
                         ? 1.0f
                         : LIQUID_MAX_INSET;
 
-        for (FoundryTankRenderedMetalLayer renderedLayer : renderedLayers) {
+        for (int index = 0; index < renderedLayers.size(); index++) {
+            FoundryTankRenderedMetalLayer renderedLayer =
+                    renderedLayers.get(index);
+
             MoltenMetalDefinition definition =
                     ModMoltenMetals.get(
                                     renderedLayer.metal()
@@ -161,6 +166,29 @@ final class FoundryTankMoltenRenderer {
                         partialTick,
                         consumer,
                         pose,
+                        packedOverlay,
+                        frameMinV,
+                        frameMaxV
+                );
+            }
+
+            /*
+             * renderTop() can also be true for internal metal boundaries inside
+             * one tank section. Surface effects should only belong to the actual
+             * exposed top liquid surface.
+             */
+            boolean exposedTopSurfaceLayer =
+                    index == renderedLayers.size() - 1
+                            && renderedLayer.renderTop();
+
+            if (exposedTopSurfaceLayer) {
+                surfaceEffectsRenderer.renderAndSpawn(
+                        tank,
+                        definition,
+                        geometry,
+                        partialTick,
+                        pose,
+                        bufferSource,
                         packedOverlay,
                         frameMinV,
                         frameMaxV

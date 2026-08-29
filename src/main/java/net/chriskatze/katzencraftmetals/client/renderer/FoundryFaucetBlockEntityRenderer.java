@@ -21,6 +21,9 @@ public class FoundryFaucetBlockEntityRenderer
             streamRenderStates =
             new WeakHashMap<>();
 
+    private final FoundryFaucetPourParticleEffects particleEffects =
+            new FoundryFaucetPourParticleEffects();
+
     public FoundryFaucetBlockEntityRenderer(
             BlockEntityRendererProvider.Context context
     ) {
@@ -136,6 +139,12 @@ public class FoundryFaucetBlockEntityRenderer
         );
 
         poseStack.popPose();
+
+        particleEffects.spawnWhilePouring(
+                faucet,
+                context,
+                animationProgress
+        );
     }
 
     @Override

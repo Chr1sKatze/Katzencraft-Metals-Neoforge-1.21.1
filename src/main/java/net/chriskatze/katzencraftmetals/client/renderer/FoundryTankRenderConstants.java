@@ -98,6 +98,40 @@ final class FoundryTankRenderConstants {
     static final float DRAIN_ANIMATION_TICKS =
             FoundryFaucetBlockEntity.TRANSFER_INTERVAL;
 
+    /*
+     * Tank surface effect tuning.
+     *
+     * Tanks are the closed-storage visual. They only get surface bubbles and
+     * restrained smoke in the available headspace. Lava particles belong to
+     * the active pour/faucet/casting target instead.
+     */
+    static final int HOT_SPOT_COUNT =
+            3;
+
+    static final float HOT_SPOT_MIN_SIZE =
+            0.7f * PIXEL;
+
+    static final float HOT_SPOT_MAX_SIZE =
+            1.5f * PIXEL;
+
+    static final float HOT_SPOT_MARGIN =
+            1.5f * PIXEL;
+
+    static final float HOT_SPOT_Y_OFFSET =
+            0.0010f;
+
+    static final long SURFACE_PARTICLE_INTERVAL_TICKS =
+            8L;
+
+    static final float SURFACE_PARTICLE_TOP_LIMIT =
+            0.94f;
+
+    static final float SURFACE_SMOKE_HEADROOM_REQUIRED =
+            0.08f;
+
+    static final float SURFACE_SMOKE_PARTICLE_SPAWN_OFFSET =
+            0.02f;
+
     private FoundryTankRenderConstants() {
     }
 }
