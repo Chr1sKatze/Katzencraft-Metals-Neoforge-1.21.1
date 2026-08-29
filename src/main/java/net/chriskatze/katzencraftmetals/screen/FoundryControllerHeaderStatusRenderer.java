@@ -30,23 +30,27 @@ final class FoundryControllerHeaderStatusRenderer {
 
     private static final int XP_BAR_Y = 21;
 
-    /*
-     * Both empty tracks are fully opaque. The Foundry GUI background can never
-     * show through the transparent interior of the authored frame.
-     */
-    private static final int XP_TRACK = 0xFF172218;
-    private static final int XP_TRACK_TOP = 0xFF273C29;
-    private static final int XP_TRACK_BOTTOM = 0xFF0B100C;
-    private static final int XP_SEGMENT = 0x36FFFFFF;
+    private static final int XP_SEGMENT_COUNT = 10;
+    private static final int XP_SEGMENT_LEFT_INSET = 2;
+    private static final int XP_SEGMENT_RIGHT_INSET = 2;
+    private static final int XP_SEGMENT_TOP_INSET = 3;
+    private static final int XP_SEGMENT_BOTTOM_INSET = 3;
 
     /*
-     * XP is intentionally always light green, regardless of Foundry tier.
+     * Softer, less yellow XP palette.
+     *
+     * The foreground is now a clean flat fill: no sparkle dots and no brighter
+     * trailing edge pixels at the current progress boundary.
      */
-    private static final int XP_TEXT = 0xFFEAF4D7;
-    private static final int XP_TOP = 0xFFC9E09B;
-    private static final int XP_MIDDLE = 0xFF86B85C;
-    private static final int XP_BOTTOM = 0xFF3E7034;
-    private static final int XP_GLOW = 0x6689BD69;
+    private static final int XP_TRACK = 0xFF131E17;
+    private static final int XP_TRACK_TOP = 0xFF223428;
+    private static final int XP_TRACK_BOTTOM = 0xFF090F0B;
+    private static final int XP_SEGMENT = 0x2FEAF4D7;
+
+    private static final int XP_TEXT = 0xFFE4EEDC;
+    private static final int XP_TOP = 0xFFA6C99A;
+    private static final int XP_MIDDLE = 0xFF6F9A68;
+    private static final int XP_BOTTOM = 0xFF385F3E;
 
     private final FoundryControllerScreen screen;
 
@@ -195,40 +199,6 @@ final class FoundryControllerHeaderStatusRenderer {
                 top + BAR_HEIGHT,
                 XP_BOTTOM
         );
-
-        if (right < left + BAR_WIDTH) {
-            graphics.fill(
-                    Math.max(left, right - 2),
-                    top + 2,
-                    right,
-                    top + BAR_HEIGHT - 2,
-                    XP_GLOW
-            );
-        }
-
-        int[] sparkleOffsets = {
-                9,
-                31,
-                53,
-                75,
-                97,
-                119,
-                141,
-                163
-        };
-
-        for (int offset : sparkleOffsets) {
-            if (offset >= fillWidth - 1) {
-                break;
-            }
-
-            drawPixel(
-                    graphics,
-                    left + offset,
-                    top + 4,
-                    0xA6FFFFFF
-            );
-        }
     }
 
     private void drawExperienceSegments(
@@ -236,18 +206,36 @@ final class FoundryControllerHeaderStatusRenderer {
             int left,
             int top
     ) {
-        for (int segment = 1; segment < 10; segment++) {
+        int segmentAreaLeft =
+                left
+                        + XP_SEGMENT_LEFT_INSET;
+
+        int segmentAreaWidth =
+                BAR_WIDTH
+                        - XP_SEGMENT_LEFT_INSET
+                        - XP_SEGMENT_RIGHT_INSET;
+
+        /*
+         * Use rounded floating-point placement instead of integer truncation.
+         *
+         * Pixel art can never split every possible interior width perfectly, but
+         * rounding distributes the remainder evenly instead of pushing all error
+         * toward the right side of the bar.
+         */
+        for (int segment = 1; segment < XP_SEGMENT_COUNT; segment++) {
             int segmentX =
-                    left
-                            + segment
-                            * BAR_WIDTH
-                            / 10;
+                    segmentAreaLeft
+                            + Math.round(
+                            segment
+                                    * segmentAreaWidth
+                                    / (float) XP_SEGMENT_COUNT
+                    );
 
             graphics.fill(
                     segmentX,
-                    top + 2,
+                    top + XP_SEGMENT_TOP_INSET,
                     segmentX + 1,
-                    top + BAR_HEIGHT - 2,
+                    top + BAR_HEIGHT - XP_SEGMENT_BOTTOM_INSET,
                     XP_SEGMENT
             );
         }
@@ -363,21 +351,6 @@ final class FoundryControllerHeaderStatusRenderer {
         );
 
         graphics.pose().popPose();
-    }
-
-    private static void drawPixel(
-            GuiGraphics graphics,
-            int x,
-            int y,
-            int color
-    ) {
-        graphics.fill(
-                x,
-                y,
-                x + 1,
-                y + 1,
-                color
-        );
     }
 
     private FoundryControllerMenu menu() {
