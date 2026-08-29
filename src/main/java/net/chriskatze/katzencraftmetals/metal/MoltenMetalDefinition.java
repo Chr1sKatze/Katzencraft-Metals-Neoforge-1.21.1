@@ -20,6 +20,7 @@ public record MoltenMetalDefinition(
         ResourceLocation id,
         String translationKey,
         ResourceLocation animatedTexture,
+        ResourceLocation flowingTexture,
         ResourceLocation cooledTexture,
         int density,
         int unitsPerOre,
@@ -45,6 +46,12 @@ public record MoltenMetalDefinition(
         if (animatedTexture == null) {
             throw new IllegalArgumentException(
                     "Molten metal animated texture cannot be null."
+            );
+        }
+
+        if (flowingTexture == null) {
+            throw new IllegalArgumentException(
+                    "Molten metal flowing texture cannot be null."
             );
         }
 

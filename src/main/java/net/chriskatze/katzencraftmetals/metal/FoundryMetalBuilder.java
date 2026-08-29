@@ -24,6 +24,11 @@ public final class FoundryMetalBuilder {
                     "molten_copper"
             );
 
+    private ResourceLocation flowingTexture =
+            animatedTexture;
+
+    private boolean customFlowingTexture;
+
     private ResourceLocation cooledTexture =
             modBlockTexture(
                     "steel_block"
@@ -76,25 +81,23 @@ public final class FoundryMetalBuilder {
     public FoundryMetalBuilder animatedTexture(
             String textureName
     ) {
-        animatedTexture =
+        return animatedTexture(
                 modBlockTexture(
                         textureName
-                );
-
-        return this;
+                )
+        );
     }
 
     public FoundryMetalBuilder animatedTexture(
             String namespace,
             String textureName
     ) {
-        animatedTexture =
+        return animatedTexture(
                 blockTexture(
                         namespace,
                         textureName
-                );
-
-        return this;
+                )
+        );
     }
 
     public FoundryMetalBuilder animatedTexture(
@@ -102,6 +105,50 @@ public final class FoundryMetalBuilder {
     ) {
         animatedTexture =
                 texture;
+
+        /*
+         * Most metals can use the same texture for still liquid and faucet
+         * streams. A custom flowing texture only overrides this fallback when
+         * flowingTexture(...) is called explicitly.
+         */
+        if (!customFlowingTexture) {
+            flowingTexture =
+                    texture;
+        }
+
+        return this;
+    }
+
+    public FoundryMetalBuilder flowingTexture(
+            String textureName
+    ) {
+        return flowingTexture(
+                modBlockTexture(
+                        textureName
+                )
+        );
+    }
+
+    public FoundryMetalBuilder flowingTexture(
+            String namespace,
+            String textureName
+    ) {
+        return flowingTexture(
+                blockTexture(
+                        namespace,
+                        textureName
+                )
+        );
+    }
+
+    public FoundryMetalBuilder flowingTexture(
+            ResourceLocation texture
+    ) {
+        flowingTexture =
+                texture;
+
+        customFlowingTexture =
+                true;
 
         return this;
     }
@@ -194,6 +241,7 @@ public final class FoundryMetalBuilder {
                 id,
                 translationKey,
                 animatedTexture,
+                flowingTexture,
                 cooledTexture,
                 density,
                 unitsPerOre,

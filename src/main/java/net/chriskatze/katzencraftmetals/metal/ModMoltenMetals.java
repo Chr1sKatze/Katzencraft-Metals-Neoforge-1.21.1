@@ -117,7 +117,10 @@ public final class ModMoltenMetals {
                                     "gold"
                             )
                             .animatedTexture(
-                                    "molten_copper"
+                                    "molten_gold"
+                            )
+                            .flowingTexture(
+                                    "molten_gold_flowing"
                             )
                             .vanillaCooledTexture(
                                     "gold_block"

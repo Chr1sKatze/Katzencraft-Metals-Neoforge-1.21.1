@@ -109,7 +109,7 @@ public class FoundryFaucetBlockEntityRenderer
         VertexConsumer consumer =
                 bufferSource.getBuffer(
                         RenderType.entityTranslucent(
-                                context.metal().animatedTexture()
+                                context.metal().flowingTexture()
                         )
                 );
 
