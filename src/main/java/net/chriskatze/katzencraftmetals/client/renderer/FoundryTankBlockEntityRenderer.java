@@ -62,6 +62,14 @@ public class FoundryTankBlockEntityRenderer
                 packedOverlay
         );
 
+        FoundryTankIntakeHatchRenderer.render(
+                tank,
+                pose,
+                bufferSource,
+                packedLight,
+                packedOverlay
+        );
+
         moltenRenderer.render(
                 tank,
                 partialTick,

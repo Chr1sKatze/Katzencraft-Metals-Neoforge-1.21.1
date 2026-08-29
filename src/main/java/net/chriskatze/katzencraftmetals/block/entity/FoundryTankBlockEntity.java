@@ -54,6 +54,8 @@ public class FoundryTankBlockEntity extends BlockEntity {
     private long cachedNetworkGameTime =
             Long.MIN_VALUE;
 
+    private boolean intakeHatchOpen;
+
     public FoundryTankBlockEntity(
             BlockPos pos,
             BlockState state
@@ -150,6 +152,35 @@ public class FoundryTankBlockEntity extends BlockEntity {
 
         return network != null
                 && network.isActive();
+    }
+
+    // =========================
+    // INTAKE HATCH
+    // =========================
+
+    public boolean isIntakeHatchOpen() {
+        return intakeHatchOpen;
+    }
+
+    public void setIntakeHatchOpen(
+            boolean open
+    ) {
+        if (intakeHatchOpen == open) {
+            return;
+        }
+
+        intakeHatchOpen =
+                open;
+
+        setChanged();
+        syncToClient();
+    }
+
+    public boolean isTopTank() {
+        return level != null
+                && !(level.getBlockEntity(
+                worldPosition.above()
+        ) instanceof FoundryTankBlockEntity);
     }
 
     // =========================
@@ -605,6 +636,11 @@ public class FoundryTankBlockEntity extends BlockEntity {
             );
         }
 
+        tag.putBoolean(
+                "IntakeHatchOpen",
+                intakeHatchOpen
+        );
+
         /*
          * Preserve an untouched pre-multi-metal save until its owning network
          * gets one chance to migrate it. Do not write an empty new-format list
@@ -710,6 +746,11 @@ public class FoundryTankBlockEntity extends BlockEntity {
                         null;
             }
         }
+
+        intakeHatchOpen =
+                tag.getBoolean(
+                        "IntakeHatchOpen"
+                );
 
         if (
                 tag.contains(

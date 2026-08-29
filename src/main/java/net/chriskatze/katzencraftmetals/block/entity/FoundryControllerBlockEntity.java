@@ -304,9 +304,11 @@ public class FoundryControllerBlockEntity
         }
 
         /*
-         * Melting or alloying may have inserted a new metal during this tick.
+         * Melting, alloying, or an intake hatch may have inserted a new metal or
+         * new process item during this tick.
          */
         if (!level.isClientSide()) {
+            FoundryTankIntakeHatch.processOpenHatches(controller);
             controller.discoverCurrentTankMetals();
         }
     }
