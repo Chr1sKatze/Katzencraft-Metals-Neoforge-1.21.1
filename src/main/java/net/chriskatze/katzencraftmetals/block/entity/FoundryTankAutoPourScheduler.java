@@ -19,10 +19,9 @@ import java.util.Set;
 /**
  * Network-level scheduler for lever-controlled automatic pouring.
  *
- * The scheduler checks the total molten column height at the faucet tank, not
- * the physical height of the selected metal layer. This matches the Faucet's
- * existing gameplay behavior: the selected output metal may be drawn from the
- * connected network as long as the combined molten level reaches the Faucet.
+ * The scheduler draws the selected metal from the complete connected network,
+ * but the physical liquid height must still be able to sustain a full scheduled
+ * pour at the faucet's tank level.
  */
 final class FoundryTankAutoPourScheduler {
 
@@ -129,8 +128,8 @@ final class FoundryTankAutoPourScheduler {
                         network.getMoltenContents()
                 );
 
-        Map<BlockPos, Integer> localAvailableByTank =
-                createLocalAvailabilityMap(
+        Map<Integer, Integer> availableVolumeAtOrAboveY =
+                createHeightAvailabilityMap(
                         network
                 );
 
@@ -176,7 +175,7 @@ final class FoundryTankAutoPourScheduler {
                 reserveActivePour(
                         candidate,
                         availableByMetal,
-                        localAvailableByTank
+                        availableVolumeAtOrAboveY
                 );
             }
         }
@@ -216,13 +215,13 @@ final class FoundryTankAutoPourScheduler {
                             && canReserve(
                             candidate,
                             availableByMetal,
-                            localAvailableByTank
+                            availableVolumeAtOrAboveY
                     )
             ) {
                 reserve(
                         candidate,
                         availableByMetal,
-                        localAvailableByTank
+                        availableVolumeAtOrAboveY
                 );
 
                 allowedStarts.add(
@@ -234,27 +233,63 @@ final class FoundryTankAutoPourScheduler {
         return allowedStarts;
     }
 
-    private static Map<BlockPos, Integer> createLocalAvailabilityMap(
+    /**
+     * For each tank Y-level, count how much total molten volume exists at or
+     * above that level.
+     *
+     * Example:
+     * - bottom faucet: capacity below = 0, so it can use the whole network
+     *   volume as its height source.
+     * - upper faucet: capacity below = every tank block in lower layers, so it
+     *   waits until enough molten volume exists above those lower layers.
+     *
+     * This avoids the old mistake of requiring one single local tank column to
+     * contain the whole cauldron amount.
+     */
+    private static Map<Integer, Integer> createHeightAvailabilityMap(
             FoundryTankNetwork network
     ) {
-        Map<BlockPos, Integer> localAvailableByTank =
+        Map<Integer, Integer> tanksPerY =
                 new HashMap<>();
 
         for (BlockPos tankPos : network.getTankPositions()) {
-            localAvailableByTank.put(
-                    tankPos.immutable(),
+            tanksPerY.merge(
+                    tankPos.getY(),
+                    1,
+                    Integer::sum
+            );
+        }
+
+        Map<Integer, Integer> result =
+                new HashMap<>();
+
+        int totalMoltenAmount =
+                network.getTotalMoltenAmount();
+
+        for (Integer y : tanksPerY.keySet()) {
+            int capacityBelowY =
+                    0;
+
+            for (Map.Entry<Integer, Integer> entry : tanksPerY.entrySet()) {
+                if (entry.getKey() >= y) {
+                    continue;
+                }
+
+                capacityBelowY +=
+                        entry.getValue()
+                                * FoundryTankBlockEntity.CAPACITY;
+            }
+
+            result.put(
+                    y,
                     Math.max(
                             0,
-                            (int) Math.floor(
-                                    network.getLocalVisualMoltenAmount(
-                                            tankPos
-                                    )
-                            )
+                            totalMoltenAmount - capacityBelowY
                     )
             );
         }
 
-        return localAvailableByTank;
+        return result;
     }
 
     @Nullable
@@ -335,8 +370,9 @@ final class FoundryTankAutoPourScheduler {
 
         /*
          * For automatic scheduling, the basin must be able to accept the whole
-         * planned job. Height is checked by total molten amount at this physical
-         * faucet tank, not by the selected metal's layer height.
+         * planned job. The selected metal may be drawn from the complete
+         * connected network, but the total liquid height at this faucet's
+         * physical Y-level must also be able to sustain the full pour.
          */
         if (!cauldron.canAccept(
                 metal,
@@ -348,6 +384,7 @@ final class FoundryTankAutoPourScheduler {
         return new FaucetPlanCandidate(
                 faucetPos.immutable(),
                 tankPos.immutable(),
+                tankPos.getY(),
                 metal,
                 requiredAmount
         );
@@ -356,14 +393,14 @@ final class FoundryTankAutoPourScheduler {
     private static boolean canReserve(
             FaucetPlanCandidate candidate,
             Map<ResourceLocation, Integer> availableByMetal,
-            Map<BlockPos, Integer> localAvailableByTank
+            Map<Integer, Integer> availableVolumeAtOrAboveY
     ) {
         return availableByMetal.getOrDefault(
                 candidate.metal(),
                 0
         ) >= candidate.requiredAmount()
-                && localAvailableByTank.getOrDefault(
-                candidate.tankPos(),
+                && availableVolumeAtOrAboveY.getOrDefault(
+                candidate.tankY(),
                 0
         ) >= candidate.requiredAmount();
     }
@@ -371,17 +408,17 @@ final class FoundryTankAutoPourScheduler {
     private static void reserveActivePour(
             FaucetPlanCandidate candidate,
             Map<ResourceLocation, Integer> availableByMetal,
-            Map<BlockPos, Integer> localAvailableByTank
+            Map<Integer, Integer> availableVolumeAtOrAboveY
     ) {
         if (canReserve(
                 candidate,
                 availableByMetal,
-                localAvailableByTank
+                availableVolumeAtOrAboveY
         )) {
             reserve(
                     candidate,
                     availableByMetal,
-                    localAvailableByTank
+                    availableVolumeAtOrAboveY
             );
 
             return;
@@ -397,16 +434,16 @@ final class FoundryTankAutoPourScheduler {
                 0
         );
 
-        localAvailableByTank.put(
-                candidate.tankPos(),
-                0
+        zeroHeightAvailabilityAtOrAbove(
+                candidate.tankY(),
+                availableVolumeAtOrAboveY
         );
     }
 
     private static void reserve(
             FaucetPlanCandidate candidate,
             Map<ResourceLocation, Integer> availableByMetal,
-            Map<BlockPos, Integer> localAvailableByTank
+            Map<Integer, Integer> availableVolumeAtOrAboveY
     ) {
         availableByMetal.put(
                 candidate.metal(),
@@ -416,18 +453,38 @@ final class FoundryTankAutoPourScheduler {
                 ) - candidate.requiredAmount()
         );
 
-        localAvailableByTank.put(
-                candidate.tankPos(),
-                localAvailableByTank.getOrDefault(
-                        candidate.tankPos(),
+        /*
+         * A successful pour reservation removes that much total liquid volume
+         * from the network, so every faucet height budget must be reduced.
+         */
+        for (Map.Entry<Integer, Integer> entry : availableVolumeAtOrAboveY.entrySet()) {
+            entry.setValue(
+                    Math.max(
+                            0,
+                            entry.getValue()
+                                    - candidate.requiredAmount()
+                    )
+            );
+        }
+    }
+
+    private static void zeroHeightAvailabilityAtOrAbove(
+            int tankY,
+            Map<Integer, Integer> availableVolumeAtOrAboveY
+    ) {
+        for (Map.Entry<Integer, Integer> entry : availableVolumeAtOrAboveY.entrySet()) {
+            if (entry.getKey() >= tankY) {
+                entry.setValue(
                         0
-                ) - candidate.requiredAmount()
-        );
+                );
+            }
+        }
     }
 
     private record FaucetPlanCandidate(
             BlockPos faucetPos,
             BlockPos tankPos,
+            int tankY,
             ResourceLocation metal,
             int requiredAmount
     ) {
