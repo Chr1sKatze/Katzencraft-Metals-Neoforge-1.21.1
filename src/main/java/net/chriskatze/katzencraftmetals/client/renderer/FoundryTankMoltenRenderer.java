@@ -21,6 +21,9 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
  */
 final class FoundryTankMoltenRenderer {
 
+    private static final double SURFACE_EFFECT_RENDER_DISTANCE_SQ =
+            24.0D * 24.0D;
+
     /*
      * If the camera is very close to the tank center, render all side faces.
      * This avoids obvious side popping while walking directly beside/through a
@@ -61,9 +64,20 @@ final class FoundryTankMoltenRenderer {
                         partialTick
                 );
 
-        if (renderedLayers.isEmpty()) {
+        if (
+                renderedLayers.isEmpty()
+                        || !hasAnyVisibleMoltenQuad(
+                        tank,
+                        renderedLayers
+                )
+        ) {
             return;
         }
+
+        double distanceSquared =
+                distanceSquaredToCamera(
+                        tank
+                );
 
         MoltenIronAnimation.Frame animationFrame =
                 MoltenIronAnimation.getFrame(
@@ -198,7 +212,15 @@ final class FoundryTankMoltenRenderer {
                     index == renderedLayers.size() - 1
                             && renderedLayer.renderTop();
 
-            if (exposedTopSurfaceLayer) {
+            /*
+             * Surface effects already stop at 24 blocks internally. This cheap
+             * outer distance gate avoids entering the effect renderer for
+             * mid/far Tanks where it cannot render hot spots or smoke anyway.
+             */
+            if (
+                    exposedTopSurfaceLayer
+                            && distanceSquared <= SURFACE_EFFECT_RENDER_DISTANCE_SQ
+            ) {
                 surfaceEffectsRenderer.renderAndSpawn(
                         tank,
                         definition,
@@ -260,6 +282,77 @@ final class FoundryTankMoltenRenderer {
                 frameMinV,
                 frameMaxV
         );
+    }
+
+    private static boolean hasAnyVisibleMoltenQuad(
+            FoundryTankBlockEntity tank,
+            List<FoundryTankRenderedMetalLayer> renderedLayers
+    ) {
+        for (FoundryTankRenderedMetalLayer renderedLayer : renderedLayers) {
+            if (
+                    renderedLayer.renderTop()
+                            || renderedLayer.renderBottom()
+            ) {
+                return true;
+            }
+        }
+
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            if (
+                    shouldRenderLiquidSideForCamera(
+                            tank,
+                            side
+                    )
+                            && !FoundryTankVisualConnections.isSameComponent(
+                            tank,
+                            side
+                    )
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static double distanceSquaredToCamera(
+            FoundryTankBlockEntity tank
+    ) {
+        Entity camera =
+                Minecraft.getInstance()
+                        .cameraEntity;
+
+        if (camera == null) {
+            return 0.0D;
+        }
+
+        double tankCenterX =
+                tank.getBlockPos()
+                        .getX()
+                        + 0.5D;
+
+        double tankCenterY =
+                tank.getBlockPos()
+                        .getY()
+                        + 0.5D;
+
+        double tankCenterZ =
+                tank.getBlockPos()
+                        .getZ()
+                        + 0.5D;
+
+        double deltaX =
+                camera.getX() - tankCenterX;
+
+        double deltaY =
+                camera.getY() - tankCenterY;
+
+        double deltaZ =
+                camera.getZ() - tankCenterZ;
+
+        return deltaX * deltaX
+                + deltaY * deltaY
+                + deltaZ * deltaZ;
     }
 
     private static boolean shouldRenderLiquidSideForCamera(

@@ -28,11 +28,7 @@ final class FoundryTankFaucetOverlayRenderer {
             int packedOverlay
     ) {
         VertexConsumer overlayConsumer =
-                bufferSource.getBuffer(
-                        RenderType.entityTranslucent(
-                                FAUCET_OVERLAY_TEXTURE
-                        )
-                );
+                null;
 
         for (Direction face : Direction.Plane.HORIZONTAL) {
             if (
@@ -61,6 +57,15 @@ final class FoundryTankFaucetOverlayRenderer {
                     )
             ) {
                 continue;
+            }
+
+            if (overlayConsumer == null) {
+                overlayConsumer =
+                        bufferSource.getBuffer(
+                                RenderType.entityTranslucent(
+                                        FAUCET_OVERLAY_TEXTURE
+                                )
+                        );
             }
 
             renderFaucetOverlay(
