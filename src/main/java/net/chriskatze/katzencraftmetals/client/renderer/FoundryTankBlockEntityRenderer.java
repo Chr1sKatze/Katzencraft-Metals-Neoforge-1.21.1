@@ -2,12 +2,22 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
+import net.chriskatze.katzencraftmetals.metal.FoundryMetalLayer;
+import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Dynamically renders the complete visual Foundry Tank multiblock.
@@ -46,6 +56,39 @@ public class FoundryTankBlockEntityRenderer
                     moltenLayerBuilder
             );
 
+    /*
+     * Patch AD:
+     *
+     * AC cached these values only for one render frame. That barely helped,
+     * because a Tank block entity is usually rendered once per frame.
+     *
+     * These values do not depend on partialTick. They are block/world structure
+     * facts for the current client game tick:
+     *
+     * - whether this Tank is completely surrounded by the same component
+     * - whether this Tank is the top Tank in its column
+     * - whether this Tank has any attached faucet
+     * - whether this Tank structure has any renderable molten metal
+     *
+     * Keeping the cache for the whole client tick lets every rendered frame
+     * inside that tick reuse the expensive neighbor/network checks.
+     */
+    private final Map<BlockPos, Boolean> completelyHiddenTickCache =
+            new HashMap<>();
+
+    private final Map<BlockPos, Boolean> topTankTickCache =
+            new HashMap<>();
+
+    private final Map<BlockPos, Boolean> attachedFaucetTickCache =
+            new HashMap<>();
+
+    private final Map<TankStructureRenderKey, Boolean> emptyStructureTickCache =
+            new HashMap<>();
+
+    private Level renderTickCacheLevel;
+    private long renderTickCacheGameTime =
+            Long.MIN_VALUE;
+
     public FoundryTankBlockEntityRenderer(
             BlockEntityRendererProvider.Context context
     ) {
@@ -60,14 +103,44 @@ public class FoundryTankBlockEntityRenderer
             int packedLight,
             int packedOverlay
     ) {
-        if (tank.getLevel() == null) {
+        Level level =
+                tank.getLevel();
+
+        if (level == null) {
             return;
         }
 
+        prepareRenderTickCache(
+                level
+        );
+
         boolean completelyHiddenInsideSameComponent =
-                isCompletelyHiddenInsideSameComponent(
+                isCompletelyHiddenInsideSameComponentCached(
                         tank
                 );
+
+        boolean emptyStructure =
+                isCurrentStructureEmptyCached(
+                        tank
+                );
+
+        /*
+         * Fully internal empty Tanks cannot draw anything:
+         *
+         * - no exterior casing
+         * - no top hatch
+         * - no faucet overlay
+         * - no liquid
+         *
+         * Returning here preserves the exact same image while avoiding the
+         * remaining hatch/liquid/overlay paths for internal empty Tanks.
+         */
+        if (
+                completelyHiddenInsideSameComponent
+                        && emptyStructure
+        ) {
+            return;
+        }
 
         poseStack.pushPose();
 
@@ -83,34 +156,45 @@ public class FoundryTankBlockEntityRenderer
                     packedOverlay
             );
 
-            FoundryTankIntakeHatchRenderer.render(
+            /*
+             * Intake hatch geometry can only be visible on the top Tank of a
+             * column. The hatch renderer already protects itself, but avoiding
+             * the call here saves a large number of no-op renderer entries in
+             * stacked 4x4x4 structures.
+             */
+            if (isTopTankCached(
+                    tank
+            )) {
+                FoundryTankIntakeHatchRenderer.render(
+                        tank,
+                        pose,
+                        bufferSource,
+                        packedLight,
+                        packedOverlay
+                );
+            }
+        }
+
+        /*
+         * Patch AB already makes the molten renderer cheap for empty
+         * structures, but skipping the call entirely here avoids entering the
+         * liquid renderer from hundreds of empty Tank block entities.
+         */
+        if (!emptyStructure) {
+            moltenRenderer.render(
                     tank,
+                    partialTick,
                     pose,
                     bufferSource,
-                    packedLight,
                     packedOverlay
             );
         }
 
-        /*
-         * Even a Tank surrounded by same-component Tank blocks can still need
-         * to render molten metal.
-         *
-         * Example: if the Tank above is empty, a liquid surface inside this
-         * otherwise internal Tank is visible through the transparent upper Tank
-         * volume. Skipping molten rendering here caused the 2x2 center hole in
-         * full 4x4x4 foundries with multiple metals.
-         */
-        moltenRenderer.render(
-                tank,
-                partialTick,
-                pose,
-                bufferSource,
-                packedOverlay
-        );
-
         if (
                 !completelyHiddenInsideSameComponent
+                        && hasAttachedFaucetCached(
+                        tank
+                )
                         && shouldRenderFaucetOverlay(
                         tank
                 )
@@ -137,6 +221,144 @@ public class FoundryTankBlockEntityRenderer
         poseStack.popPose();
     }
 
+    private void prepareRenderTickCache(
+            Level level
+    ) {
+        long gameTime =
+                level.getGameTime();
+
+        if (
+                renderTickCacheLevel != level
+                        || renderTickCacheGameTime != gameTime
+        ) {
+            completelyHiddenTickCache.clear();
+            topTankTickCache.clear();
+            attachedFaucetTickCache.clear();
+            emptyStructureTickCache.clear();
+
+            renderTickCacheLevel =
+                    level;
+
+            renderTickCacheGameTime =
+                    gameTime;
+        }
+    }
+
+    private boolean isCompletelyHiddenInsideSameComponentCached(
+            FoundryTankBlockEntity tank
+    ) {
+        BlockPos cacheKey =
+                tank.getBlockPos()
+                        .immutable();
+
+        Boolean cached =
+                completelyHiddenTickCache.get(
+                        cacheKey
+                );
+
+        if (cached != null) {
+            return cached;
+        }
+
+        boolean hidden =
+                isCompletelyHiddenInsideSameComponent(
+                        tank
+                );
+
+        completelyHiddenTickCache.put(
+                cacheKey,
+                hidden
+        );
+
+        return hidden;
+    }
+
+    private boolean isTopTankCached(
+            FoundryTankBlockEntity tank
+    ) {
+        BlockPos cacheKey =
+                tank.getBlockPos()
+                        .immutable();
+
+        Boolean cached =
+                topTankTickCache.get(
+                        cacheKey
+                );
+
+        if (cached != null) {
+            return cached;
+        }
+
+        boolean topTank =
+                tank.isTopTank();
+
+        topTankTickCache.put(
+                cacheKey,
+                topTank
+        );
+
+        return topTank;
+    }
+
+    private boolean hasAttachedFaucetCached(
+            FoundryTankBlockEntity tank
+    ) {
+        BlockPos cacheKey =
+                tank.getBlockPos()
+                        .immutable();
+
+        Boolean cached =
+                attachedFaucetTickCache.get(
+                        cacheKey
+                );
+
+        if (cached != null) {
+            return cached;
+        }
+
+        boolean hasAttachedFaucet =
+                hasAttachedFaucet(
+                        tank
+                );
+
+        attachedFaucetTickCache.put(
+                cacheKey,
+                hasAttachedFaucet
+        );
+
+        return hasAttachedFaucet;
+    }
+
+    private boolean isCurrentStructureEmptyCached(
+            FoundryTankBlockEntity tank
+    ) {
+        TankStructureRenderKey cacheKey =
+                createStructureRenderKey(
+                        tank
+                );
+
+        Boolean cached =
+                emptyStructureTickCache.get(
+                        cacheKey
+                );
+
+        if (cached != null) {
+            return cached;
+        }
+
+        boolean empty =
+                isCurrentStructureEmpty(
+                        tank
+                );
+
+        emptyStructureTickCache.put(
+                cacheKey,
+                empty
+        );
+
+        return empty;
+    }
+
     private static boolean isCompletelyHiddenInsideSameComponent(
             FoundryTankBlockEntity tank
     ) {
@@ -157,6 +379,179 @@ public class FoundryTankBlockEntityRenderer
         }
 
         return true;
+    }
+
+    private static boolean hasAttachedFaucet(
+            FoundryTankBlockEntity tank
+    ) {
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            if (FoundryTankVisualConnections.hasAttachedFaucet(
+                    tank,
+                    direction
+            )) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean isCurrentStructureEmpty(
+            FoundryTankBlockEntity tank
+    ) {
+        Level level =
+                tank.getLevel();
+
+        if (level == null) {
+            return true;
+        }
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (
+                network == null
+                        || network.getTankPositions()
+                        .isEmpty()
+        ) {
+            return !tankHasAnyRenderableLocalMetal(
+                    tank
+            );
+        }
+
+        for (BlockPos tankPos : network.getTankPositions()) {
+            if (
+                    level.getBlockEntity(
+                            tankPos
+                    )
+                            instanceof FoundryTankBlockEntity networkTank
+                            && tankHasAnyRenderableLocalMetal(
+                            networkTank
+                    )
+            ) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static boolean tankHasAnyRenderableLocalMetal(
+            FoundryTankBlockEntity tank
+    ) {
+        for (FoundryMetalLayer layer : tank.getLocalMetalLayers()) {
+            if (
+                    layer.amount() > 0
+                            && ModMoltenMetals.contains(
+                            layer.metal()
+                    )
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static TankStructureRenderKey createStructureRenderKey(
+            FoundryTankBlockEntity tank
+    ) {
+        Level level =
+                tank.getLevel();
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (network != null) {
+            UUID ownerId =
+                    network.getOwnerId();
+
+            if (ownerId != null) {
+                return new TankStructureRenderKey(
+                        level,
+                        ownerId,
+                        BlockPos.ZERO
+                );
+            }
+
+            return new TankStructureRenderKey(
+                    level,
+                    null,
+                    canonicalNetworkAnchor(
+                            network.getTankPositions(),
+                            tank.getBlockPos()
+                    )
+            );
+        }
+
+        return new TankStructureRenderKey(
+                level,
+                null,
+                tank.getBlockPos()
+                        .immutable()
+        );
+    }
+
+    private static BlockPos canonicalNetworkAnchor(
+            Set<BlockPos> positions,
+            BlockPos fallback
+    ) {
+        if (
+                positions == null
+                        || positions.isEmpty()
+        ) {
+            return fallback.immutable();
+        }
+
+        BlockPos best =
+                null;
+
+        for (BlockPos position : positions) {
+            if (
+                    best == null
+                            || compareBlockPositions(
+                            position,
+                            best
+                    ) < 0
+            ) {
+                best =
+                        position;
+            }
+        }
+
+        return best == null
+                ? fallback.immutable()
+                : best.immutable();
+    }
+
+    private static int compareBlockPositions(
+            BlockPos first,
+            BlockPos second
+    ) {
+        int byY =
+                Integer.compare(
+                        first.getY(),
+                        second.getY()
+                );
+
+        if (byY != 0) {
+            return byY;
+        }
+
+        int byX =
+                Integer.compare(
+                        first.getX(),
+                        second.getX()
+                );
+
+        if (byX != 0) {
+            return byX;
+        }
+
+        return Integer.compare(
+                first.getZ(),
+                second.getZ()
+        );
     }
 
     private static boolean shouldRenderFaucetOverlay(
@@ -235,5 +630,12 @@ public class FoundryTankBlockEntityRenderer
          * render distance.
          */
         return VIEW_DISTANCE;
+    }
+
+    private record TankStructureRenderKey(
+            Level level,
+            UUID ownerId,
+            BlockPos fallbackAnchor
+    ) {
     }
 }
