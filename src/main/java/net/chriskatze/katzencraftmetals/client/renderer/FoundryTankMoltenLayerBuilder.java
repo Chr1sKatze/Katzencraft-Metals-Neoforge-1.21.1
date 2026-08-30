@@ -3,11 +3,14 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -21,6 +24,27 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
 final class FoundryTankMoltenLayerBuilder {
 
     private final FoundryTankLiquidSmoother liquidSmoother;
+
+    /*
+     * The molten renderer can ask for the same Tank's rendered layers several
+     * times in one frame:
+     *
+     * - once for the Tank currently being rendered
+     * - again when a side-neighbor compares liquid intervals
+     * - again when an above/below Tank is checked by another Tank render
+     *
+     * Building this list may call the liquid smoother for the Tank itself and
+     * for its vertical neighbors, so caching the final rendered layer list is a
+     * cheap and safe win.
+     */
+    private final Map<BlockPos, List<FoundryTankRenderedMetalLayer>>
+            renderedLayersFrameCache =
+            new HashMap<>();
+
+    private Level renderedLayersFrameCacheLevel;
+    private long renderedLayersFrameCacheGameTime =
+            Long.MIN_VALUE;
+    private int renderedLayersFrameCachePartialBits;
 
     FoundryTankMoltenLayerBuilder(
             FoundryTankLiquidSmoother liquidSmoother
@@ -38,6 +62,71 @@ final class FoundryTankMoltenLayerBuilder {
      * has one perfectly level surface and identical metal boundaries.
      */
     List<FoundryTankRenderedMetalLayer> createRenderedLayers(
+            FoundryTankBlockEntity tank,
+            float partialTick
+    ) {
+        Level level =
+                tank.getLevel();
+
+        if (level == null) {
+            return List.of();
+        }
+
+        long gameTime =
+                level.getGameTime();
+
+        int partialBits =
+                Float.floatToIntBits(
+                        partialTick
+                );
+
+        if (
+                renderedLayersFrameCacheLevel != level
+                        || renderedLayersFrameCacheGameTime != gameTime
+                        || renderedLayersFrameCachePartialBits != partialBits
+        ) {
+            renderedLayersFrameCache.clear();
+
+            renderedLayersFrameCacheLevel =
+                    level;
+
+            renderedLayersFrameCacheGameTime =
+                    gameTime;
+
+            renderedLayersFrameCachePartialBits =
+                    partialBits;
+        }
+
+        BlockPos cacheKey =
+                tank.getBlockPos()
+                        .immutable();
+
+        List<FoundryTankRenderedMetalLayer> cachedLayers =
+                renderedLayersFrameCache.get(
+                        cacheKey
+                );
+
+        if (cachedLayers != null) {
+            return cachedLayers;
+        }
+
+        List<FoundryTankRenderedMetalLayer> renderedLayers =
+                List.copyOf(
+                        buildRenderedLayers(
+                                tank,
+                                partialTick
+                        )
+                );
+
+        renderedLayersFrameCache.put(
+                cacheKey,
+                renderedLayers
+        );
+
+        return renderedLayers;
+    }
+
+    private List<FoundryTankRenderedMetalLayer> buildRenderedLayers(
             FoundryTankBlockEntity tank,
             float partialTick
     ) {
