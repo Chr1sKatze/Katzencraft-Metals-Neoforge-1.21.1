@@ -42,7 +42,7 @@ public class FoundryFaucetBlockEntity
     public static final int TRANSFER_INTERVAL = 12;
     public static final int TRANSFER_AMOUNT = 6;
 
-    public static final int MAX_CAULDRON_DISTANCE = 3;
+    public static final int MAX_CAULDRON_DISTANCE = 4;
 
     public static final int STREAM_ANIMATION_INTERVAL = 2;
     public static final int STREAM_ANIMATION_STEPS = 8;
