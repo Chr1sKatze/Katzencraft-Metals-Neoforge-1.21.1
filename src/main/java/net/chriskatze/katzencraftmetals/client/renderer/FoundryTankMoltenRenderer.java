@@ -3,15 +3,23 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
+import net.chriskatze.katzencraftmetals.metal.FoundryMetalLayer;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_INSET;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_MAX_INSET;
@@ -44,6 +52,27 @@ final class FoundryTankMoltenRenderer {
     private final FoundryTankSurfaceEffectsRenderer surfaceEffectsRenderer =
             new FoundryTankSurfaceEffectsRenderer();
 
+    /*
+     * Empty Tank structures are very common while building/testing large
+     * foundries. Without this guard, every visible empty Tank still enters the
+     * molten layer builder, which asks the liquid smoother for displayed
+     * horizontal layer amounts and can perform network-level visual snapshot
+     * work before eventually returning no rendered layers.
+     *
+     * This per-tick cache keeps empty structures on the cheap path:
+     *
+     * - one cheap local-layer scan per Tank structure per client tick
+     * - every rendered Tank in that same empty structure then returns before
+     *   liquid smoothing, animation frame lookup, translucent buffer lookup, or
+     *   surface-effect checks
+     */
+    private final Map<EmptyLiquidCheckKey, Boolean> hasRenderableMetalFrameCache =
+            new HashMap<>();
+
+    private Level hasRenderableMetalFrameCacheLevel;
+    private long hasRenderableMetalFrameCacheGameTime =
+            Long.MIN_VALUE;
+
     FoundryTankMoltenRenderer(
             FoundryTankMoltenLayerBuilder layerBuilder
     ) {
@@ -58,6 +87,12 @@ final class FoundryTankMoltenRenderer {
             MultiBufferSource bufferSource,
             int packedOverlay
     ) {
+        if (!hasAnyRenderableMetalInCurrentStructure(
+                tank
+        )) {
+            return;
+        }
+
         List<FoundryTankRenderedMetalLayer> renderedLayers =
                 layerBuilder.createRenderedLayers(
                         tank,
@@ -236,6 +271,217 @@ final class FoundryTankMoltenRenderer {
         }
     }
 
+    private boolean hasAnyRenderableMetalInCurrentStructure(
+            FoundryTankBlockEntity tank
+    ) {
+        Level level =
+                tank.getLevel();
+
+        if (level == null) {
+            return false;
+        }
+
+        long gameTime =
+                level.getGameTime();
+
+        if (
+                hasRenderableMetalFrameCacheLevel != level
+                        || hasRenderableMetalFrameCacheGameTime != gameTime
+        ) {
+            hasRenderableMetalFrameCache.clear();
+
+            hasRenderableMetalFrameCacheLevel =
+                    level;
+
+            hasRenderableMetalFrameCacheGameTime =
+                    gameTime;
+        }
+
+        EmptyLiquidCheckKey cacheKey =
+                createEmptyLiquidCheckKey(
+                        tank
+                );
+
+        Boolean cached =
+                hasRenderableMetalFrameCache.get(
+                        cacheKey
+                );
+
+        if (cached != null) {
+            return cached;
+        }
+
+        boolean hasMetal =
+                computeHasAnyRenderableMetalInCurrentStructure(
+                        tank
+                );
+
+        hasRenderableMetalFrameCache.put(
+                cacheKey,
+                hasMetal
+        );
+
+        return hasMetal;
+    }
+
+    private static boolean computeHasAnyRenderableMetalInCurrentStructure(
+            FoundryTankBlockEntity tank
+    ) {
+        Level level =
+                tank.getLevel();
+
+        if (level == null) {
+            return false;
+        }
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (
+                network == null
+                        || network.getTankPositions()
+                        .isEmpty()
+        ) {
+            return tankHasAnyRenderableLocalMetal(
+                    tank
+            );
+        }
+
+        for (BlockPos tankPos : network.getTankPositions()) {
+            if (
+                    level.getBlockEntity(
+                            tankPos
+                    )
+                            instanceof FoundryTankBlockEntity networkTank
+                            && tankHasAnyRenderableLocalMetal(
+                            networkTank
+                    )
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static boolean tankHasAnyRenderableLocalMetal(
+            FoundryTankBlockEntity tank
+    ) {
+        for (FoundryMetalLayer layer : tank.getLocalMetalLayers()) {
+            if (
+                    layer.amount() > 0
+                            && ModMoltenMetals.contains(
+                            layer.metal()
+                    )
+            ) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static EmptyLiquidCheckKey createEmptyLiquidCheckKey(
+            FoundryTankBlockEntity tank
+    ) {
+        Level level =
+                tank.getLevel();
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (network != null) {
+            UUID ownerId =
+                    network.getOwnerId();
+
+            if (ownerId != null) {
+                return new EmptyLiquidCheckKey(
+                        level,
+                        ownerId,
+                        BlockPos.ZERO
+                );
+            }
+
+            return new EmptyLiquidCheckKey(
+                    level,
+                    null,
+                    canonicalNetworkAnchor(
+                            network.getTankPositions(),
+                            tank.getBlockPos()
+                    )
+            );
+        }
+
+        return new EmptyLiquidCheckKey(
+                level,
+                null,
+                tank.getBlockPos()
+                        .immutable()
+        );
+    }
+
+    private static BlockPos canonicalNetworkAnchor(
+            Set<BlockPos> positions,
+            BlockPos fallback
+    ) {
+        if (
+                positions == null
+                        || positions.isEmpty()
+        ) {
+            return fallback.immutable();
+        }
+
+        BlockPos best =
+                null;
+
+        for (BlockPos position : positions) {
+            if (
+                    best == null
+                            || compareBlockPositions(
+                            position,
+                            best
+                    ) < 0
+            ) {
+                best =
+                        position;
+            }
+        }
+
+        return best == null
+                ? fallback.immutable()
+                : best.immutable();
+    }
+
+    private static int compareBlockPositions(
+            BlockPos first,
+            BlockPos second
+    ) {
+        int byY =
+                Integer.compare(
+                        first.getY(),
+                        second.getY()
+                );
+
+        if (byY != 0) {
+            return byY;
+        }
+
+        int byX =
+                Integer.compare(
+                        first.getX(),
+                        second.getX()
+                );
+
+        if (byX != 0) {
+            return byX;
+        }
+
+        return Integer.compare(
+                first.getZ(),
+                second.getZ()
+        );
+    }
+
     private void renderLayerSide(
             FoundryTankBlockEntity tank,
             Direction side,
@@ -398,6 +644,13 @@ final class FoundryTankMoltenRenderer {
             case EAST -> deltaX > -SIDE_CAMERA_EPSILON;
             default -> true;
         };
+    }
+
+    private record EmptyLiquidCheckKey(
+            Level level,
+            UUID ownerId,
+            BlockPos fallbackAnchor
+    ) {
     }
 
 }
