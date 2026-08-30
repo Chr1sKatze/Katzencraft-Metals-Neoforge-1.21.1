@@ -5,8 +5,10 @@ import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.metal.FoundryMetalLayer;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.util.Mth;
 import net.minecraft.world.level.Level;
 
@@ -40,6 +42,24 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
  */
 final class FoundryTankLiquidSmoother {
 
+    private static final double NEAR_SNAPSHOT_REFRESH_DISTANCE_SQ =
+            12.0D * 12.0D;
+
+    private static final double MEDIUM_SNAPSHOT_REFRESH_DISTANCE_SQ =
+            24.0D * 24.0D;
+
+    private static final int NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            1;
+
+    private static final int MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            3;
+
+    private static final int FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            6;
+
+    private static final long STALE_SNAPSHOT_PRUNE_TICKS =
+            200L;
+
     private final Map<LiquidColumnKey, LiquidColumnRenderState>
             liquidColumnRenderStates =
             new HashMap<>();
@@ -67,15 +87,19 @@ final class FoundryTankLiquidSmoother {
      * Tanks, and without this cache every visible Tank can trigger that same
      * 64-Tank scan again.
      *
-     * This cache builds the aggregate liquid-column snapshot once per game tick
-     * per foundry network. It intentionally does not depend on partialTick,
-     * because the expensive raw aggregate data is the same for every rendered
-     * frame inside that tick.
+     * This cache builds the aggregate liquid-column snapshot on a staggered
+     * visual refresh schedule per foundry network. It intentionally does not
+     * depend on partialTick, because the expensive raw aggregate data is the
+     * same for every rendered frame inside that tick.
+     *
+     * Close networks still refresh every client tick. More distant networks
+     * refresh every 2 or 4 ticks, with a stable offset so multiple foundries do
+     * not all run their expensive 4x4x4 scan on the same client tick.
      *
      * Every Tank in that network then only slices the already-prepared
      * displayed boundaries for its own Y level.
      */
-    private final Map<LiquidColumnKey, LiquidColumnFrameSnapshot>
+    private final Map<LiquidColumnKey, CachedLiquidColumnFrameSnapshot>
             liquidColumnFrameSnapshotCache =
             new HashMap<>();
 
@@ -85,8 +109,6 @@ final class FoundryTankLiquidSmoother {
     private int displayedAmountsFrameCachePartialBits;
 
     private Level liquidColumnSnapshotCacheLevel;
-    private long liquidColumnSnapshotCacheGameTime =
-            Long.MIN_VALUE;
 
     Map<ResourceLocation, Float> getDisplayedHorizontalLayerAmounts(
             FoundryTankBlockEntity tank,
@@ -120,23 +142,22 @@ final class FoundryTankLiquidSmoother {
                     partialBits;
         }
 
-        /*
-         * The raw network snapshot does not depend on partialTick.
-         * It only needs to refresh when the client game tick advances or the
-         * level changes. This lets multiple rendered frames inside the same
-         * game tick reuse the same expensive 4x4x4 aggregate scan.
-         */
-        if (
-                liquidColumnSnapshotCacheLevel != level
-                        || liquidColumnSnapshotCacheGameTime != gameTime
-        ) {
+        if (liquidColumnSnapshotCacheLevel != level) {
             liquidColumnFrameSnapshotCache.clear();
 
             liquidColumnSnapshotCacheLevel =
                     level;
+        }
 
-            liquidColumnSnapshotCacheGameTime =
-                    gameTime;
+        if (gameTime % STALE_SNAPSHOT_PRUNE_TICKS == 0L) {
+            liquidColumnFrameSnapshotCache.entrySet()
+                    .removeIf(
+                            entry ->
+                                    gameTime
+                                            - entry.getValue()
+                                                    .lastRefreshGameTime()
+                                            > STALE_SNAPSHOT_PRUNE_TICKS
+                    );
         }
 
         BlockPos cacheKey =
@@ -157,14 +178,15 @@ final class FoundryTankLiquidSmoother {
                         tank
                 );
 
-        LiquidColumnFrameSnapshot frameSnapshot =
-                liquidColumnFrameSnapshotCache.computeIfAbsent(
+        CachedLiquidColumnFrameSnapshot cachedFrameSnapshot =
+                getOrRefreshLiquidColumnFrameSnapshot(
+                        tank,
                         columnKey,
-                        ignored -> createLiquidColumnFrameSnapshot(
-                                tank,
-                                columnKey
-                        )
+                        gameTime
                 );
+
+        LiquidColumnFrameSnapshot frameSnapshot =
+                cachedFrameSnapshot.snapshot();
 
         double currentRenderTime =
                 gameTime
@@ -200,6 +222,182 @@ final class FoundryTankLiquidSmoother {
         );
 
         return displayedAmounts;
+    }
+
+    private CachedLiquidColumnFrameSnapshot getOrRefreshLiquidColumnFrameSnapshot(
+            FoundryTankBlockEntity tank,
+            LiquidColumnKey columnKey,
+            long gameTime
+    ) {
+        CachedLiquidColumnFrameSnapshot cachedSnapshot =
+                liquidColumnFrameSnapshotCache.get(
+                        columnKey
+                );
+
+        int refreshInterval =
+                liquidColumnSnapshotRefreshInterval(
+                        tank
+                );
+
+        if (
+                cachedSnapshot == null
+                        || shouldRefreshLiquidColumnSnapshot(
+                        columnKey,
+                        cachedSnapshot,
+                        gameTime,
+                        refreshInterval
+                )
+        ) {
+            cachedSnapshot =
+                    new CachedLiquidColumnFrameSnapshot(
+                            createLiquidColumnFrameSnapshot(
+                                    tank,
+                                    columnKey
+                            ),
+                            gameTime
+                    );
+
+            liquidColumnFrameSnapshotCache.put(
+                    columnKey,
+                    cachedSnapshot
+            );
+        }
+
+        return cachedSnapshot;
+    }
+
+    private static boolean shouldRefreshLiquidColumnSnapshot(
+            LiquidColumnKey columnKey,
+            CachedLiquidColumnFrameSnapshot cachedSnapshot,
+            long gameTime,
+            int refreshInterval
+    ) {
+        long age =
+                gameTime - cachedSnapshot.lastRefreshGameTime();
+
+        if (age <= 0L) {
+            return false;
+        }
+
+        if (refreshInterval <= 1) {
+            return true;
+        }
+
+        if (age < refreshInterval) {
+            return false;
+        }
+
+        int staggerOffset =
+                liquidColumnSnapshotStaggerOffset(
+                        columnKey,
+                        refreshInterval
+                );
+
+        if (
+                (int) Math.floorMod(
+                        gameTime,
+                        (long) refreshInterval
+                ) == staggerOffset
+        ) {
+            return true;
+        }
+
+        /*
+         * If the first build happened off the stagger phase, do not let this
+         * wait forever. This only allows a small extra delay and keeps systems
+         * spread across ticks.
+         */
+        return age >= refreshInterval * 2L;
+    }
+
+    private static int liquidColumnSnapshotRefreshInterval(
+            FoundryTankBlockEntity tank
+    ) {
+        Entity camera =
+                Minecraft.getInstance()
+                        .cameraEntity;
+
+        if (camera == null) {
+            return NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+        }
+
+        double tankCenterX =
+                tank.getBlockPos()
+                        .getX()
+                        + 0.5D;
+
+        double tankCenterY =
+                tank.getBlockPos()
+                        .getY()
+                        + 0.5D;
+
+        double tankCenterZ =
+                tank.getBlockPos()
+                        .getZ()
+                        + 0.5D;
+
+        double deltaX =
+                camera.getX() - tankCenterX;
+
+        double deltaY =
+                camera.getY() - tankCenterY;
+
+        double deltaZ =
+                camera.getZ() - tankCenterZ;
+
+        double distanceSquared =
+                deltaX * deltaX
+                        + deltaY * deltaY
+                        + deltaZ * deltaZ;
+
+        if (distanceSquared <= NEAR_SNAPSHOT_REFRESH_DISTANCE_SQ) {
+            return NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+        }
+
+        if (distanceSquared <= MEDIUM_SNAPSHOT_REFRESH_DISTANCE_SQ) {
+            return MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+        }
+
+        return FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+    }
+
+    private static int liquidColumnSnapshotStaggerOffset(
+            LiquidColumnKey columnKey,
+            int refreshInterval
+    ) {
+        if (refreshInterval <= 1) {
+            return 0;
+        }
+
+        long seed =
+                columnKey.ownerId() != null
+                        ? columnKey.ownerId()
+                                .getMostSignificantBits()
+                                ^ columnKey.ownerId()
+                                        .getLeastSignificantBits()
+                        : columnKey.fallbackAnchor()
+                                .asLong();
+
+        return (int) Math.floorMod(
+                mix64(
+                        seed
+                ),
+                (long) refreshInterval
+        );
+    }
+
+    private static long mix64(
+            long value
+    ) {
+        value =
+                (value ^ (value >>> 33))
+                        * 0xff51afd7ed558ccdL;
+
+        value =
+                (value ^ (value >>> 33))
+                        * 0xc4ceb9fe1a85ec53L;
+
+        return value ^ (value >>> 33);
     }
 
     private static LiquidColumnKey createLiquidColumnKey(
@@ -613,6 +811,12 @@ final class FoundryTankLiquidSmoother {
         }
 
         return total;
+    }
+
+    private record CachedLiquidColumnFrameSnapshot(
+            LiquidColumnFrameSnapshot snapshot,
+            long lastRefreshGameTime
+    ) {
     }
 
     private record LiquidColumnFrameSnapshot(
