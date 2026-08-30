@@ -44,17 +44,78 @@ final class FoundryTankLiquidSmoother {
             liquidColumnRenderStates =
             new HashMap<>();
 
+    /*
+     * Multiple render paths ask for the same Tank's displayed amounts during
+     * one frame:
+     *
+     * - the Tank itself
+     * - the Tank above/below
+     * - horizontal neighbor side comparisons
+     *
+     * This tiny per-frame cache avoids rebuilding the complete network
+     * snapshot for the same Tank repeatedly during one render frame.
+     */
+    private final Map<BlockPos, Map<ResourceLocation, Float>>
+            displayedAmountsFrameCache =
+            new HashMap<>();
+
+    private Level displayedAmountsFrameCacheLevel;
+    private long displayedAmountsFrameCacheGameTime =
+            Long.MIN_VALUE;
+    private int displayedAmountsFrameCachePartialBits;
+
     Map<ResourceLocation, Float> getDisplayedHorizontalLayerAmounts(
             FoundryTankBlockEntity tank,
             float partialTick
     ) {
+        Level level =
+                tank.getLevel();
+
+        long gameTime =
+                level.getGameTime();
+
+        int partialBits =
+                Float.floatToIntBits(
+                        partialTick
+                );
+
+        if (
+                displayedAmountsFrameCacheLevel != level
+                        || displayedAmountsFrameCacheGameTime != gameTime
+                        || displayedAmountsFrameCachePartialBits != partialBits
+        ) {
+            displayedAmountsFrameCache.clear();
+
+            displayedAmountsFrameCacheLevel =
+                    level;
+
+            displayedAmountsFrameCacheGameTime =
+                    gameTime;
+
+            displayedAmountsFrameCachePartialBits =
+                    partialBits;
+        }
+
+        BlockPos cacheKey =
+                tank.getBlockPos()
+                        .immutable();
+
+        Map<ResourceLocation, Float> cachedAmounts =
+                displayedAmountsFrameCache.get(
+                        cacheKey
+                );
+
+        if (cachedAmounts != null) {
+            return cachedAmounts;
+        }
+
         LiquidColumnSnapshot snapshot =
                 createLiquidColumnSnapshot(
                         tank
                 );
 
         double currentRenderTime =
-                tank.getLevel().getGameTime()
+                gameTime
                         + partialTick;
 
         LiquidColumnRenderState renderState =
@@ -73,10 +134,18 @@ final class FoundryTankLiquidSmoother {
                         currentRenderTime
                 );
 
-        return sliceDisplayedBoundariesForLayer(
-                snapshot,
-                displayedBoundaries
+        Map<ResourceLocation, Float> displayedAmounts =
+                sliceDisplayedBoundariesForLayer(
+                        snapshot,
+                        displayedBoundaries
+                );
+
+        displayedAmountsFrameCache.put(
+                cacheKey,
+                displayedAmounts
         );
+
+        return displayedAmounts;
     }
 
     private static LiquidColumnSnapshot createLiquidColumnSnapshot(
@@ -552,6 +621,25 @@ final class FoundryTankLiquidSmoother {
                             requestedTargets
                     );
 
+            /*
+             * Empty is a hard visual state. If the server says the network is
+             * empty, drop all displayed/transition boundaries immediately.
+             *
+             * Without this, a tank that becomes empty for a very short time can
+             * keep stale old displayed boundaries. When it receives the first
+             * new unit of metal again, the smoother can briefly produce tiny
+             * zero-thickness entries for several metals, which looks like the
+             * liquid cycling through every molten color.
+             */
+            if (normalizedTargets.isEmpty()) {
+                resetTo(
+                        Map.of(),
+                        currentRenderTime
+                );
+
+                return displayedBoundaries;
+            }
+
             updateDisplayedBoundaries(
                     currentRenderTime
             );
@@ -594,6 +682,34 @@ final class FoundryTankLiquidSmoother {
             );
 
             return displayedBoundaries;
+        }
+
+        private void resetTo(
+                Map<ResourceLocation, Float> boundaries,
+                double currentRenderTime
+        ) {
+            Map<ResourceLocation, Float> normalizedBoundaries =
+                    normalizeBoundaryMap(
+                            boundaries
+                    );
+
+            displayedBoundaries =
+                    normalizedBoundaries;
+
+            transitionStartBoundaries =
+                    normalizedBoundaries;
+
+            transitionTargetBoundaries =
+                    normalizedBoundaries;
+
+            lastTargetBoundaries =
+                    normalizedBoundaries;
+
+            transitionStartTime =
+                    currentRenderTime;
+
+            transitionDuration =
+                    0.0f;
         }
 
         private void updateDisplayedBoundaries(
@@ -652,7 +768,15 @@ final class FoundryTankLiquidSmoother {
                                 displayed
                         );
 
-                if (displayed > LIQUID_EPSILON) {
+                /*
+                 * Only write real layer thickness.
+                 *
+                 * The old code wrote any metal whose absolute boundary was
+                 * above zero. That allowed zero-thickness trailing metals to
+                 * leak into the displayed boundary map whenever a heavier metal
+                 * already occupied space below them.
+                 */
+                if (displayed - previousBoundary > LIQUID_EPSILON) {
                     updated.put(
                             metal,
                             displayed
@@ -683,18 +807,32 @@ final class FoundryTankLiquidSmoother {
                         MoltenMetalDefinition definition :
                         ModMoltenMetals.heaviestFirst()
                 ) {
+                    ResourceLocation metal =
+                            definition.id();
+
+                    if (!source.containsKey(
+                            metal
+                    )) {
+                        continue;
+                    }
+
                     float boundary =
                             Math.max(
                                     previousBoundary,
                                     source.getOrDefault(
-                                            definition.id(),
+                                            metal,
                                             previousBoundary
                                     )
                             );
 
-                    if (boundary > LIQUID_EPSILON) {
+                    /*
+                     * Only keep metals that actually add visible thickness.
+                     * Do not duplicate the previous boundary for every lighter
+                     * metal that is absent from the source map.
+                     */
+                    if (boundary - previousBoundary > LIQUID_EPSILON) {
                         normalized.put(
-                                definition.id(),
+                                metal,
                                 boundary
                         );
                     }

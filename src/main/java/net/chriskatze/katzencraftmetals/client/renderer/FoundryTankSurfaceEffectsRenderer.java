@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -12,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 
 import java.util.Map;
 import java.util.Set;
@@ -40,6 +42,18 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
  */
 final class FoundryTankSurfaceEffectsRenderer {
 
+    private static final double FULL_HOT_SPOT_DISTANCE_SQ =
+            12.0D * 12.0D;
+
+    private static final double MEDIUM_HOT_SPOT_DISTANCE_SQ =
+            20.0D * 20.0D;
+
+    private static final double MAX_HOT_SPOT_DISTANCE_SQ =
+            28.0D * 28.0D;
+
+    private static final double MAX_SMOKE_DISTANCE_SQ =
+            18.0D * 18.0D;
+
     private final Map<FoundryTankBlockEntity, Long> lastParticleTickByTank =
             new WeakHashMap<>();
 
@@ -58,22 +72,97 @@ final class FoundryTankSurfaceEffectsRenderer {
             return;
         }
 
-        renderHotSpots(
-                tank,
-                definition,
-                geometry,
-                partialTick,
-                pose,
-                bufferSource,
-                packedOverlay,
-                frameMinV,
-                frameMaxV
-        );
+        double distanceSquared =
+                distanceSquaredToCamera(
+                        tank
+                );
 
-        maybeSpawnSmokeParticle(
-                tank,
-                geometry
-        );
+        int hotSpotCount =
+                hotSpotCountForDistance(
+                        distanceSquared
+                );
+
+        if (hotSpotCount > 0) {
+            renderHotSpots(
+                    tank,
+                    definition,
+                    geometry,
+                    partialTick,
+                    pose,
+                    bufferSource,
+                    packedOverlay,
+                    frameMinV,
+                    frameMaxV,
+                    hotSpotCount
+            );
+        }
+
+        if (distanceSquared <= MAX_SMOKE_DISTANCE_SQ) {
+            maybeSpawnSmokeParticle(
+                    tank,
+                    geometry
+            );
+        }
+    }
+
+    private static int hotSpotCountForDistance(
+            double distanceSquared
+    ) {
+        if (distanceSquared <= FULL_HOT_SPOT_DISTANCE_SQ) {
+            return HOT_SPOT_COUNT;
+        }
+
+        if (distanceSquared <= MEDIUM_HOT_SPOT_DISTANCE_SQ) {
+            return Math.max(
+                    1,
+                    HOT_SPOT_COUNT / 2
+            );
+        }
+
+        if (distanceSquared <= MAX_HOT_SPOT_DISTANCE_SQ) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    private static double distanceSquaredToCamera(
+            FoundryTankBlockEntity tank
+    ) {
+        Minecraft minecraft =
+                Minecraft.getInstance();
+
+        Entity camera =
+                minecraft.getCameraEntity();
+
+        if (camera == null) {
+            return Double.POSITIVE_INFINITY;
+        }
+
+        BlockPos pos =
+                tank.getBlockPos();
+
+        double centerX =
+                pos.getX() + 0.5D;
+
+        double centerY =
+                pos.getY() + 0.5D;
+
+        double centerZ =
+                pos.getZ() + 0.5D;
+
+        double dx =
+                camera.getX() - centerX;
+
+        double dy =
+                camera.getY() - centerY;
+
+        double dz =
+                camera.getZ() - centerZ;
+
+        return dx * dx
+                + dy * dy
+                + dz * dz;
     }
 
     private void renderHotSpots(
@@ -85,7 +174,8 @@ final class FoundryTankSurfaceEffectsRenderer {
             MultiBufferSource bufferSource,
             int packedOverlay,
             float frameMinV,
-            float frameMaxV
+            float frameMaxV,
+            int hotSpotCount
     ) {
         VertexConsumer consumer =
                 bufferSource.getBuffer(
@@ -124,7 +214,16 @@ final class FoundryTankSurfaceEffectsRenderer {
                                 + HOT_SPOT_Y_OFFSET
                 );
 
-        for (int index = 0; index < HOT_SPOT_COUNT; index++) {
+        int count =
+                Math.min(
+                        HOT_SPOT_COUNT,
+                        Math.max(
+                                0,
+                                hotSpotCount
+                        )
+                );
+
+        for (int index = 0; index < count; index++) {
             float pulse =
                     hotSpotPulse(
                             tank.getBlockPos(),

@@ -5,12 +5,16 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_EPSILON;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_INSET;
@@ -20,6 +24,22 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
  * Renders seamless molten-metal volumes inside connected Foundry Tanks.
  */
 final class FoundryTankMoltenRenderer {
+
+    /*
+     * If the camera is very close to the tank center, render all side faces.
+     * This avoids obvious side popping while walking directly beside/through a
+     * transparent tank wall.
+     */
+    private static final double CLOSE_CAMERA_SIDE_RENDER_DISTANCE_SQ =
+            1.75D * 1.75D;
+
+    /*
+     * Small dead-zone around the tank center line. At a perfect diagonal or
+     * when the camera coordinate is nearly aligned with the center, allow both
+     * relevant side directions instead of causing fast flip-flopping.
+     */
+    private static final double SIDE_CAMERA_EPSILON =
+            0.025D;
 
     private final FoundryTankMoltenLayerBuilder layerBuilder;
     private final FoundryTankSurfaceEffectsRenderer surfaceEffectsRenderer =
@@ -92,6 +112,11 @@ final class FoundryTankMoltenRenderer {
                         ? 1.0f
                         : LIQUID_MAX_INSET;
 
+        Map<Direction, List<FoundryTankRenderedMetalLayer>> neighborLayerCache =
+                new EnumMap<>(
+                        Direction.class
+                );
+
         for (int index = 0; index < renderedLayers.size(); index++) {
             FoundryTankRenderedMetalLayer renderedLayer =
                     renderedLayers.get(index);
@@ -158,6 +183,13 @@ final class FoundryTankMoltenRenderer {
             }
 
             for (Direction side : Direction.Plane.HORIZONTAL) {
+                if (!shouldRenderLiquidSideForCamera(
+                        tank,
+                        side
+                )) {
+                    continue;
+                }
+
                 renderLayerSide(
                         tank,
                         side,
@@ -168,7 +200,8 @@ final class FoundryTankMoltenRenderer {
                         pose,
                         packedOverlay,
                         frameMinV,
-                        frameMaxV
+                        frameMaxV,
+                        neighborLayerCache
                 );
             }
 
@@ -207,7 +240,8 @@ final class FoundryTankMoltenRenderer {
             PoseStack.Pose pose,
             int packedOverlay,
             float frameMinV,
-            float frameMaxV
+            float frameMaxV,
+            Map<Direction, List<FoundryTankRenderedMetalLayer>> neighborLayerCache
     ) {
         FoundryTankBlockEntity neighbor =
                 FoundryTankVisualConnections.getSameComponentNeighbor(
@@ -242,13 +276,16 @@ final class FoundryTankMoltenRenderer {
                 )
         );
 
-        for (
-                FoundryTankRenderedMetalLayer neighborLayer :
-                layerBuilder.createRenderedLayers(
-                        neighbor,
-                        partialTick
-                )
-        ) {
+        List<FoundryTankRenderedMetalLayer> neighborLayers =
+                neighborLayerCache.computeIfAbsent(
+                        side,
+                        ignored -> layerBuilder.createRenderedLayers(
+                                neighbor,
+                                partialTick
+                        )
+                );
+
+        for (FoundryTankRenderedMetalLayer neighborLayer : neighborLayers) {
             /*
              * All Tanks in one horizontal level now use the same averaged
              * visual layer boundaries. Internal faces therefore disappear
@@ -282,6 +319,51 @@ final class FoundryTankMoltenRenderer {
                     frameMaxV
             );
         }
+    }
+
+    private static boolean shouldRenderLiquidSideForCamera(
+            FoundryTankBlockEntity tank,
+            Direction side
+    ) {
+        Entity camera =
+                Minecraft.getInstance()
+                        .cameraEntity;
+
+        if (camera == null) {
+            return true;
+        }
+
+        double tankCenterX =
+                tank.getBlockPos()
+                        .getX()
+                        + 0.5D;
+
+        double tankCenterZ =
+                tank.getBlockPos()
+                        .getZ()
+                        + 0.5D;
+
+        double deltaX =
+                camera.getX() - tankCenterX;
+
+        double deltaZ =
+                camera.getZ() - tankCenterZ;
+
+        double horizontalDistanceSq =
+                deltaX * deltaX
+                        + deltaZ * deltaZ;
+
+        if (horizontalDistanceSq <= CLOSE_CAMERA_SIDE_RENDER_DISTANCE_SQ) {
+            return true;
+        }
+
+        return switch (side) {
+            case NORTH -> deltaZ < SIDE_CAMERA_EPSILON;
+            case SOUTH -> deltaZ > -SIDE_CAMERA_EPSILON;
+            case WEST -> deltaX < SIDE_CAMERA_EPSILON;
+            case EAST -> deltaX > -SIDE_CAMERA_EPSILON;
+            default -> true;
+        };
     }
 
     private static List<FoundryTankVerticalInterval> subtractInterval(
