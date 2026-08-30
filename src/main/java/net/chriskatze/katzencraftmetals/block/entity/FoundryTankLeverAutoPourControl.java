@@ -11,7 +11,9 @@ import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -23,8 +25,13 @@ import java.util.Set;
  * A lever counts if it is attached to:
  * - one of the connected tank blocks
  * - or a block directly adjacent to one of the connected tank blocks
+ * - or a solid support block directly connected to one of those adjacent blocks
  * - or one of the attached faucet blocks
  * - or a block directly adjacent to one of the attached faucet blocks
+ * - or a solid support block directly connected to one of those adjacent blocks
+ *
+ * This allows a small attached control rim/platform around the foundry, without
+ * flood-filling through an entire building.
  */
 final class FoundryTankLeverAutoPourControl {
 
@@ -112,15 +119,16 @@ final class FoundryTankLeverAutoPourControl {
                 new HashSet<>();
 
         for (BlockPos tankPos : network.getTankPositions()) {
-            addAnchorAndNeighbors(
+            addFoundryBlockLeverAnchors(
+                    level,
                     anchors,
                     tankPos
             );
         }
 
         /*
-         * Free tank-side Faucets are now treated as foundry attachments instead
-         * of crafted standalone gameplay blocks. For lever auto-pour, that means
+         * Free tank-side Faucets are treated as foundry attachments instead of
+         * crafted standalone gameplay blocks. For lever auto-pour, that means
          * levers around the attached Faucet should count as part of the same
          * foundry control area.
          */
@@ -130,7 +138,8 @@ final class FoundryTankLeverAutoPourControl {
                 network.getTankPositions()
         )
         ) {
-            addAnchorAndNeighbors(
+            addFoundryBlockLeverAnchors(
+                    level,
                     anchors,
                     faucetPos
             );
@@ -139,21 +148,98 @@ final class FoundryTankLeverAutoPourControl {
         return anchors;
     }
 
-    private static void addAnchorAndNeighbors(
+    private static void addFoundryBlockLeverAnchors(
+            Level level,
             Set<BlockPos> anchors,
-            BlockPos center
+            BlockPos foundryBlockPos
     ) {
         anchors.add(
-                center.immutable()
+                foundryBlockPos.immutable()
         );
 
+        List<BlockPos> directSupportCandidates =
+                new ArrayList<>();
+
         for (Direction direction : Direction.values()) {
-            anchors.add(
-                    center.relative(
+            BlockPos directNeighbor =
+                    foundryBlockPos.relative(
                             direction
-                    ).immutable()
+                    ).immutable();
+
+            /*
+             * Existing behavior: levers attached directly to a neighboring block
+             * around the tank/faucet count.
+             */
+            anchors.add(
+                    directNeighbor
+            );
+
+            directSupportCandidates.add(
+                    directNeighbor
             );
         }
+
+        /*
+         * New behavior: one extra bounded step through solid blocks directly
+         * touching the foundry edge. This supports a small rim/platform like:
+         *
+         * [P][P][P][P]
+         * [T][T][T][P]
+         * [T][T][T][P]
+         *
+         * without searching through the rest of the building.
+         */
+        for (BlockPos supportPos : directSupportCandidates) {
+            if (!canExtendLeverAnchorsThroughSupportBlock(
+                    level,
+                    supportPos
+            )) {
+                continue;
+            }
+
+            for (Direction direction : Direction.values()) {
+                anchors.add(
+                        supportPos.relative(
+                                direction
+                        ).immutable()
+                );
+            }
+        }
+    }
+
+    private static boolean canExtendLeverAnchorsThroughSupportBlock(
+            Level level,
+            BlockPos supportPos
+    ) {
+        BlockState state =
+                level.getBlockState(
+                        supportPos
+                );
+
+        if (
+                state.isAir()
+                        || !state.getFluidState()
+                        .isEmpty()
+        ) {
+            return false;
+        }
+
+        /*
+         * Do not extend through random non-solid things. If a block has at least
+         * one sturdy face, it is a reasonable lever support / control-platform
+         * block.
+         */
+        for (Direction direction : Direction.values()) {
+            if (state.isFaceSturdy(
+                    level,
+                    supportPos,
+                    direction
+            )) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static boolean hasPoweredLeverAttachedToAnchor(
