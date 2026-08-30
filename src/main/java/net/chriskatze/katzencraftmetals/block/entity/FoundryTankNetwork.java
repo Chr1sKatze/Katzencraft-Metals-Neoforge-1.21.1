@@ -20,9 +20,9 @@ import java.util.UUID;
  */
 public final class FoundryTankNetwork {
 
-    public static final int MAX_SHORT_SIDE = 3;
+    public static final int MAX_SHORT_SIDE = 4;
     public static final int MAX_LONG_SIDE = 4;
-    public static final int MAX_HEIGHT = 3;
+    public static final int MAX_HEIGHT = 4;
     public static final int MAX_COLUMN_COUNT =
             MAX_SHORT_SIDE * MAX_LONG_SIDE;
     public static final int MAX_TANK_COUNT =

@@ -1,11 +1,15 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.Container;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.HopperBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayList;
@@ -17,6 +21,7 @@ import java.util.List;
  *
  * The hatch is process-item-only:
  * - meltable items landing on top are pulled into the Controller input slots
+ * - a downward-facing Hopper above the hatch can feed meltable items into it
  * - fuel and random junk are ignored
  * - no items are ever extracted through the hatch
  */
@@ -104,6 +109,12 @@ final class FoundryTankIntakeHatch {
             BlockPos hatchPos,
             FoundryControllerBlockEntity controller
     ) {
+        pullConnectedHopperIntoController(
+                level,
+                hatchPos,
+                controller
+        );
+
         AABB suctionBox =
                 new AABB(
                         hatchPos.getX() + 0.125,
@@ -149,6 +160,89 @@ final class FoundryTankIntakeHatch {
                 );
             }
         }
+    }
+
+    private static void pullConnectedHopperIntoController(
+            Level level,
+            BlockPos hatchPos,
+            FoundryControllerBlockEntity controller
+    ) {
+        BlockPos hopperPos =
+                hatchPos.above();
+
+        BlockState hopperState =
+                level.getBlockState(
+                        hopperPos
+                );
+
+        if (!isDownwardEnabledHopper(hopperState)) {
+            return;
+        }
+
+        BlockEntity blockEntity =
+                level.getBlockEntity(
+                        hopperPos
+                );
+
+        if (!(blockEntity instanceof Container hopperInventory)) {
+            return;
+        }
+
+        for (
+                int slot = 0;
+                slot < hopperInventory.getContainerSize();
+                slot++
+        ) {
+            ItemStack hopperStack =
+                    hopperInventory.getItem(
+                            slot
+                    );
+
+            if (hopperStack.isEmpty()) {
+                continue;
+            }
+
+            int inserted =
+                    insertIntoControllerInputs(
+                            controller,
+                            hopperStack
+                    );
+
+            if (inserted <= 0) {
+                continue;
+            }
+
+            hopperStack.shrink(
+                    inserted
+            );
+
+            hopperInventory.setItem(
+                    slot,
+                    hopperStack
+            );
+
+            hopperInventory.setChanged();
+        }
+    }
+
+    private static boolean isDownwardEnabledHopper(
+            BlockState state
+    ) {
+        return state.getBlock() instanceof HopperBlock
+                && state.hasProperty(
+                HopperBlock.FACING
+        )
+                && state.getValue(
+                HopperBlock.FACING
+        ) == Direction.DOWN
+                && (
+                !state.hasProperty(
+                        HopperBlock.ENABLED
+                )
+                        || state.getValue(
+                        HopperBlock.ENABLED
+                )
+        );
     }
 
     private static int insertIntoControllerInputs(
