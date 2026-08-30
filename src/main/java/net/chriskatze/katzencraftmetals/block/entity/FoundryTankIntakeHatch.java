@@ -21,7 +21,8 @@ import java.util.List;
  *
  * The hatch is process-item-only:
  * - meltable items landing on top are pulled into the Controller input slots
- * - a downward-facing Hopper above the hatch can feed meltable items into it
+ * - a downward-facing Hopper above the hatch feeds one meltable item at normal
+ *   Hopper speed
  * - every successful pull spawns a short-lived fake visual item falling into
  *   the Tank interior
  * - fuel and random junk are ignored
@@ -29,7 +30,11 @@ import java.util.List;
  */
 final class FoundryTankIntakeHatch {
 
-    private static final int SUCTION_INTERVAL_TICKS = 5;
+    private static final int SUCTION_INTERVAL_TICKS =
+            5;
+
+    private static final int HOPPER_TRANSFER_INTERVAL_TICKS =
+            8;
 
     private static final Comparator<BlockPos> POSITION_ORDER =
             Comparator
@@ -49,11 +54,12 @@ final class FoundryTankIntakeHatch {
         if (
                 level == null
                         || level.isClientSide()
-                        || level.getGameTime()
-                        % SUCTION_INTERVAL_TICKS != 0L
         ) {
             return;
         }
+
+        long gameTime =
+                level.getGameTime();
 
         FoundryTankNetwork network =
                 controller.getOwnedTankNetwork();
@@ -101,7 +107,8 @@ final class FoundryTankIntakeHatch {
             pullItemsIntoController(
                     level,
                     tankPos,
-                    controller
+                    controller,
+                    gameTime
             );
         }
     }
@@ -109,14 +116,41 @@ final class FoundryTankIntakeHatch {
     private static void pullItemsIntoController(
             Level level,
             BlockPos hatchPos,
-            FoundryControllerBlockEntity controller
+            FoundryControllerBlockEntity controller,
+            long gameTime
     ) {
-        pullConnectedHopperIntoController(
+        if (
+                gameTime
+                        % HOPPER_TRANSFER_INTERVAL_TICKS
+                        == 0L
+        ) {
+            pullConnectedHopperIntoController(
+                    level,
+                    hatchPos,
+                    controller
+            );
+        }
+
+        if (
+                gameTime
+                        % SUCTION_INTERVAL_TICKS
+                        != 0L
+        ) {
+            return;
+        }
+
+        pullLooseItemsIntoController(
                 level,
                 hatchPos,
                 controller
         );
+    }
 
+    private static void pullLooseItemsIntoController(
+            Level level,
+            BlockPos hatchPos,
+            FoundryControllerBlockEntity controller
+    ) {
         AABB suctionBox =
                 new AABB(
                         hatchPos.getX() + 0.125,
@@ -219,7 +253,7 @@ final class FoundryTankIntakeHatch {
                     hopperStack.copy();
 
             int inserted =
-                    insertIntoControllerInputs(
+                    insertOneItemIntoControllerInputs(
                             controller,
                             hopperStack
                     );
@@ -246,6 +280,11 @@ final class FoundryTankIntakeHatch {
             );
 
             hopperInventory.setChanged();
+
+            /*
+             * Match normal Hopper behavior: one item per transfer cycle.
+             */
+            return;
         }
     }
 
@@ -266,6 +305,27 @@ final class FoundryTankIntakeHatch {
                         || state.getValue(
                         HopperBlock.ENABLED
                 )
+        );
+    }
+
+    private static int insertOneItemIntoControllerInputs(
+            FoundryControllerBlockEntity controller,
+            ItemStack sourceStack
+    ) {
+        if (sourceStack.isEmpty()) {
+            return 0;
+        }
+
+        ItemStack singleItem =
+                sourceStack.copy();
+
+        singleItem.setCount(
+                1
+        );
+
+        return insertIntoControllerInputs(
+                controller,
+                singleItem
         );
     }
 
