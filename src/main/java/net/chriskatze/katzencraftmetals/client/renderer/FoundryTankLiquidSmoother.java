@@ -67,9 +67,13 @@ final class FoundryTankLiquidSmoother {
      * Tanks, and without this cache every visible Tank can trigger that same
      * 64-Tank scan again.
      *
-     * This cache builds the aggregate liquid-column snapshot once per frame per
-     * foundry network. Every Tank in that network then only slices the already
-     * prepared displayed boundaries for its own Y level.
+     * This cache builds the aggregate liquid-column snapshot once per game tick
+     * per foundry network. It intentionally does not depend on partialTick,
+     * because the expensive raw aggregate data is the same for every rendered
+     * frame inside that tick.
+     *
+     * Every Tank in that network then only slices the already-prepared
+     * displayed boundaries for its own Y level.
      */
     private final Map<LiquidColumnKey, LiquidColumnFrameSnapshot>
             liquidColumnFrameSnapshotCache =
@@ -79,6 +83,10 @@ final class FoundryTankLiquidSmoother {
     private long displayedAmountsFrameCacheGameTime =
             Long.MIN_VALUE;
     private int displayedAmountsFrameCachePartialBits;
+
+    private Level liquidColumnSnapshotCacheLevel;
+    private long liquidColumnSnapshotCacheGameTime =
+            Long.MIN_VALUE;
 
     Map<ResourceLocation, Float> getDisplayedHorizontalLayerAmounts(
             FoundryTankBlockEntity tank,
@@ -102,8 +110,6 @@ final class FoundryTankLiquidSmoother {
         ) {
             displayedAmountsFrameCache.clear();
 
-            liquidColumnFrameSnapshotCache.clear();
-
             displayedAmountsFrameCacheLevel =
                     level;
 
@@ -112,6 +118,25 @@ final class FoundryTankLiquidSmoother {
 
             displayedAmountsFrameCachePartialBits =
                     partialBits;
+        }
+
+        /*
+         * The raw network snapshot does not depend on partialTick.
+         * It only needs to refresh when the client game tick advances or the
+         * level changes. This lets multiple rendered frames inside the same
+         * game tick reuse the same expensive 4x4x4 aggregate scan.
+         */
+        if (
+                liquidColumnSnapshotCacheLevel != level
+                        || liquidColumnSnapshotCacheGameTime != gameTime
+        ) {
+            liquidColumnFrameSnapshotCache.clear();
+
+            liquidColumnSnapshotCacheLevel =
+                    level;
+
+            liquidColumnSnapshotCacheGameTime =
+                    gameTime;
         }
 
         BlockPos cacheKey =
