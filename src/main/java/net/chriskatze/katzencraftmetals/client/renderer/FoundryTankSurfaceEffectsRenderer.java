@@ -14,9 +14,12 @@ import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.WeakHashMap;
 
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_COUNT;
@@ -46,16 +49,34 @@ final class FoundryTankSurfaceEffectsRenderer {
             12.0D * 12.0D;
 
     private static final double MEDIUM_HOT_SPOT_DISTANCE_SQ =
-            20.0D * 20.0D;
+            18.0D * 18.0D;
 
     private static final double MAX_HOT_SPOT_DISTANCE_SQ =
-            28.0D * 28.0D;
+            24.0D * 24.0D;
 
     private static final double MAX_SMOKE_DISTANCE_SQ =
-            18.0D * 18.0D;
+            24.0D * 24.0D;
+
+    private static final int LARGE_NETWORK_TANK_COUNT =
+            32;
+
+    private static final int HUGE_NETWORK_TANK_COUNT =
+            48;
+
+    private static final int MEDIUM_HOT_SPOT_SELECTION_MODULO =
+            2;
+
+    private static final int FAR_HOT_SPOT_SELECTION_MODULO =
+            3;
+
+    private static final long STALE_SMOKE_NETWORK_ENTRY_PRUNE_TICKS =
+            200L;
 
     private final Map<FoundryTankBlockEntity, Long> lastParticleTickByTank =
             new WeakHashMap<>();
+
+    private final Map<SurfaceEffectNetworkKey, Long> lastSmokeAttemptTickByNetwork =
+            new HashMap<>();
 
     void renderAndSpawn(
             FoundryTankBlockEntity tank,
@@ -77,12 +98,28 @@ final class FoundryTankSurfaceEffectsRenderer {
                         tank
                 );
 
-        int hotSpotCount =
-                hotSpotCountForDistance(
-                        distanceSquared
+        int networkTankCount =
+                networkTankCount(
+                        tank
                 );
 
-        if (hotSpotCount > 0) {
+        int hotSpotCount =
+                adjustedHotSpotCountForDistanceAndNetworkSize(
+                        hotSpotCountForDistance(
+                                distanceSquared
+                        ),
+                        distanceSquared,
+                        networkTankCount
+                );
+
+        if (
+                hotSpotCount > 0
+                        && shouldRenderHotSpotsForTank(
+                        tank,
+                        distanceSquared,
+                        networkTankCount
+                )
+        ) {
             renderHotSpots(
                     tank,
                     definition,
@@ -124,6 +161,90 @@ final class FoundryTankSurfaceEffectsRenderer {
         }
 
         return 0;
+    }
+
+    private static int adjustedHotSpotCountForDistanceAndNetworkSize(
+            int baseHotSpotCount,
+            double distanceSquared,
+            int networkTankCount
+    ) {
+        if (baseHotSpotCount <= 0) {
+            return 0;
+        }
+
+        if (
+                networkTankCount >= HUGE_NETWORK_TANK_COUNT
+                        && distanceSquared <= FULL_HOT_SPOT_DISTANCE_SQ
+        ) {
+            return Math.max(
+                    1,
+                    baseHotSpotCount / 2
+            );
+        }
+
+        if (networkTankCount >= HUGE_NETWORK_TANK_COUNT) {
+            return 1;
+        }
+
+        if (
+                networkTankCount >= LARGE_NETWORK_TANK_COUNT
+                        && distanceSquared > FULL_HOT_SPOT_DISTANCE_SQ
+        ) {
+            return Math.max(
+                    1,
+                    baseHotSpotCount / 2
+            );
+        }
+
+        return baseHotSpotCount;
+    }
+
+    private static boolean shouldRenderHotSpotsForTank(
+            FoundryTankBlockEntity tank,
+            double distanceSquared,
+            int networkTankCount
+    ) {
+        if (
+                networkTankCount < LARGE_NETWORK_TANK_COUNT
+                        || distanceSquared <= FULL_HOT_SPOT_DISTANCE_SQ
+        ) {
+            return true;
+        }
+
+        int modulo =
+                distanceSquared <= MEDIUM_HOT_SPOT_DISTANCE_SQ
+                        ? MEDIUM_HOT_SPOT_SELECTION_MODULO
+                        : FAR_HOT_SPOT_SELECTION_MODULO;
+
+        long seed =
+                tank.getBlockPos()
+                        .asLong()
+                        ^ (long) networkTankCount
+                        * 0x9E3779B97F4A7C15L;
+
+        return Math.floorMod(
+                mix64(
+                        seed
+                ),
+                modulo
+        ) == 0L;
+    }
+
+    private static int networkTankCount(
+            FoundryTankBlockEntity tank
+    ) {
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (network == null) {
+            return 1;
+        }
+
+        return Math.max(
+                1,
+                network.getTankPositions()
+                        .size()
+        );
     }
 
     private static double distanceSquaredToCamera(
@@ -344,6 +465,13 @@ final class FoundryTankSurfaceEffectsRenderer {
             return;
         }
 
+        if (!claimNetworkSmokeAttempt(
+                tank,
+                gameTime
+        )) {
+            return;
+        }
+
         double topCeilingY =
                 resolveParticleCeilingWorldY(
                         tank
@@ -370,7 +498,7 @@ final class FoundryTankSurfaceEffectsRenderer {
                                 ^ (gameTime * 0x9E3779B97F4A7C15L)
                 );
 
-        if (unitFloat(cycleSeed ^ 0x51A7L) >= 0.30f) {
+        if (unitFloat(cycleSeed ^ 0x51A7L) >= 0.45f) {
             return;
         }
 
@@ -429,6 +557,112 @@ final class FoundryTankSurfaceEffectsRenderer {
                         cycleSeed ^ 0x7103L
                 )
         );
+    }
+
+    private boolean claimNetworkSmokeAttempt(
+            FoundryTankBlockEntity tank,
+            long gameTime
+    ) {
+        if (gameTime % STALE_SMOKE_NETWORK_ENTRY_PRUNE_TICKS == 0L) {
+            lastSmokeAttemptTickByNetwork.entrySet()
+                    .removeIf(
+                            entry ->
+                                    gameTime
+                                            - entry.getValue()
+                                            > STALE_SMOKE_NETWORK_ENTRY_PRUNE_TICKS
+                    );
+        }
+
+        SurfaceEffectNetworkKey key =
+                surfaceEffectNetworkKey(
+                        tank
+                );
+
+        Long lastProcessedTick =
+                lastSmokeAttemptTickByNetwork.get(
+                        key
+                );
+
+        if (
+                lastProcessedTick != null
+                        && lastProcessedTick == gameTime
+        ) {
+            return false;
+        }
+
+        lastSmokeAttemptTickByNetwork.put(
+                key,
+                gameTime
+        );
+
+        return true;
+    }
+
+    private static SurfaceEffectNetworkKey surfaceEffectNetworkKey(
+            FoundryTankBlockEntity tank
+    ) {
+        Level level =
+                tank.getLevel();
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (network == null) {
+            return new SurfaceEffectNetworkKey(
+                    level,
+                    null,
+                    tank.getBlockPos()
+                            .immutable()
+            );
+        }
+
+        UUID ownerId =
+                network.getOwnerId();
+
+        if (ownerId != null) {
+            return new SurfaceEffectNetworkKey(
+                    level,
+                    ownerId,
+                    BlockPos.ZERO
+            );
+        }
+
+        return new SurfaceEffectNetworkKey(
+                level,
+                null,
+                findNetworkAnchor(
+                        network.getTankPositions(),
+                        tank.getBlockPos()
+                )
+        );
+    }
+
+    private static BlockPos findNetworkAnchor(
+            Set<BlockPos> positions,
+            BlockPos fallback
+    ) {
+        BlockPos anchor =
+                fallback;
+
+        for (BlockPos position : positions) {
+            if (
+                    position.getY() < anchor.getY()
+                            || (
+                            position.getY() == anchor.getY()
+                                    && position.getX() < anchor.getX()
+                    )
+                            || (
+                            position.getY() == anchor.getY()
+                                    && position.getX() == anchor.getX()
+                                    && position.getZ() < anchor.getZ()
+                    )
+            ) {
+                anchor =
+                        position;
+            }
+        }
+
+        return anchor.immutable();
     }
 
     private static double resolveParticleCeilingWorldY(
@@ -754,4 +988,11 @@ final class FoundryTankSurfaceEffectsRenderer {
                         normalZ
                 );
     }
+    private record SurfaceEffectNetworkKey(
+            Level level,
+            UUID ownerId,
+            BlockPos fallbackAnchor
+    ) {
+    }
+
 }
