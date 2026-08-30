@@ -93,43 +93,26 @@ final class FoundryTankStructureValidation {
         }
 
         /*
-         * Every occupied vertical column must still be solid inside itself.
+         * Important:
          *
-         * A column no longer has to start at the global minY. This allows
-         * simple overhangs and normal U-shapes.
+         * Occupied vertical columns are allowed to contain air gaps now.
          *
-         * But a column may not contain an internal gap.
+         * A vertical C / arch shape needs columns like this:
+         *
+         * Top:    [T]
+         * Middle: [E]
+         * Bottom: [T]
+         *
+         * That is valid if the top and bottom blocks are connected through some
+         * other side column, because the whole tank volume is still one
+         * connected 3D component and liquid can still equalize through the
+         * connected path.
+         *
+         * We therefore do NOT require each individual x/z column to be solid.
+         * The bottom-up connectivity rule below still rejects upside-down cup
+         * shapes where lower liquid pockets would be split before they can
+         * connect through an upper bridge.
          */
-        for (Set<Integer> yValues : columnHeights.values()) {
-            int columnMinY = yValues.stream()
-                    .mapToInt(Integer::intValue)
-                    .min()
-                    .orElse(minY);
-
-            int columnMaxY = yValues.stream()
-                    .mapToInt(Integer::intValue)
-                    .max()
-                    .orElse(minY);
-
-            int columnHeight =
-                    columnMaxY
-                            - columnMinY
-                            + 1;
-
-            if (
-                    columnHeight < 1
-                            || columnHeight > FoundryTankNetwork.MAX_HEIGHT
-                            || yValues.size() != columnHeight
-            ) {
-                return ValidationResult.invalid();
-            }
-
-            for (int y = columnMinY; y <= columnMaxY; y++) {
-                if (!yValues.contains(y)) {
-                    return ValidationResult.invalid();
-                }
-            }
-        }
 
         /*
          * The complete structure must be face-connected in 3D.
@@ -151,21 +134,22 @@ final class FoundryTankStructureValidation {
          * For every height, the filled volume from the bottom up to that height
          * must be connected.
          *
-         * This allows a normal U:
+         * This allows a vertical C / arch:
          *
-         * Layer 2: [T][ ][ ][T]
+         * Layer 3: [T][T][T][T]
+         * Layer 2: [T][ ][ ][ ]
          * Layer 1: [T][T][T][T]
          *
-         * At layer 1 the bottom is connected. At layer 2 the full bottom plus
-         * both raised sides are still one connected volume.
+         * At each partial fill height, the liquid volume is still connected
+         * through the left side.
          *
-         * But it rejects an upside-down U:
+         * But it rejects an upside-down cup:
          *
-         * Layer 2: [T][T][T][T]
-         * Layer 1: [T][ ][ ][T]
+         * Layer 3: [T][T][T][T]
+         * Layer 2: [T][ ][ ][T]
          *
-         * At layer 1 the lower liquid pockets are already split, so they would
-         * only equalize later by spilling over the upper bridge.
+         * because the lower side pockets are split before the upper bridge
+         * connects them.
          */
         for (int y = minY; y <= maxY; y++) {
             Set<BlockPos> bottomAccessiblePrefix =

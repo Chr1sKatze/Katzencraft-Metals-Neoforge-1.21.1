@@ -74,20 +74,21 @@ final class FoundryControllerNetwork {
         Direction facing =
                 getFacing(controller);
 
+        BlockPos directlyInFront =
+                controller.getBlockPos()
+                        .relative(
+                                facing
+                        );
+
         for (BlockPos tankPos : tankPositions) {
-            int deltaX =
-                    tankPos.getX()
-                            - controller.getBlockPos().getX();
-
-            int deltaZ =
-                    tankPos.getZ()
-                            - controller.getBlockPos().getZ();
-
-            int forwardDistance =
-                    deltaX * facing.getStepX()
-                            + deltaZ * facing.getStepZ();
-
-            if (forwardDistance > 0) {
+            /*
+             * The controller front face itself must stay clear.
+             *
+             * Tanks farther in front are allowed so C-shaped or ring-like
+             * footprints can wrap around the controller, but the directly
+             * blocked front face still stays invalid.
+             */
+            if (tankPos.equals(directlyInFront)) {
                 return false;
             }
 

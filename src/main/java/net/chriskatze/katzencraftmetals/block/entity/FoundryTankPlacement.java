@@ -157,7 +157,7 @@ final class FoundryTankPlacement {
 
     /**
      * Finds the largest valid unassigned layout containing startPos. When a
-     * controller is supplied, layouts containing a Tank in front are rejected.
+     * controller is supplied, ownership rules are also checked.
      */
     private static CandidateLayout findLargestValidUnassignedLayout(
             Level level,
@@ -281,33 +281,43 @@ final class FoundryTankPlacement {
             Level level,
             BlockPos startPos
     ) {
-        BlockPos current = startPos;
+        /*
+         * C/arch shapes may have air gaps inside an x/z column. Because of
+         * that, the base search can no longer stop at the first air block below
+         * startPos.
+         *
+         * Instead, look down through the maximum allowed height window and use
+         * the lowest unassigned Tank in this column as the local base.
+         */
+        int startY =
+                startPos.getY();
 
-        for (int offset = 0; offset < FoundryTankNetwork.MAX_HEIGHT; offset++) {
-            BlockPos below = current.below();
-            BlockEntity blockEntity = level.getBlockEntity(below);
+        int lowestY =
+                startY;
+
+        for (int offset = 1; offset < FoundryTankNetwork.MAX_HEIGHT; offset++) {
+            BlockPos checkPos =
+                    new BlockPos(
+                            startPos.getX(),
+                            startY - offset,
+                            startPos.getZ()
+                    );
+
+            BlockEntity blockEntity =
+                    level.getBlockEntity(
+                            checkPos
+                    );
 
             if (
                     blockEntity instanceof FoundryTankBlockEntity tank
                             && tank.getNetworkId() == null
             ) {
-                current = below;
-                continue;
+                lowestY =
+                        checkPos.getY();
             }
-
-            return current.getY();
         }
 
-        BlockEntity blockEntity = level.getBlockEntity(current.below());
-
-        if (
-                blockEntity instanceof FoundryTankBlockEntity tank
-                        && tank.getNetworkId() == null
-        ) {
-            return Integer.MIN_VALUE;
-        }
-
-        return current.getY();
+        return lowestY;
     }
 
     private static Set<BlockPos> readValidUnassignedColumn(
@@ -328,8 +338,6 @@ final class FoundryTankPlacement {
         }
 
         Set<BlockPos> column = new LinkedHashSet<>();
-        boolean foundTank = false;
-        boolean foundGapAfterTank = false;
 
         for (int height = 0; height < FoundryTankNetwork.MAX_HEIGHT; height++) {
             BlockPos checkPos = new BlockPos(x, baseY + height, z);
@@ -340,15 +348,7 @@ final class FoundryTankPlacement {
                             && tank.getNetworkId() == null;
 
             if (isUnassignedTank) {
-                if (foundGapAfterTank) {
-                    return Set.of();
-                }
-
-                foundTank = true;
-
                 column.add(checkPos.immutable());
-            } else if (foundTank) {
-                foundGapAfterTank = true;
             }
         }
 
