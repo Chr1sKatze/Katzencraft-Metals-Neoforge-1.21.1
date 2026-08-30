@@ -59,6 +59,22 @@ final class FoundryTankLiquidSmoother {
             displayedAmountsFrameCache =
             new HashMap<>();
 
+    /*
+     * The important 4x4x4 optimization:
+     *
+     * Building a liquid column snapshot scans every Tank in the network and
+     * aggregates all local metal layers. A full 4x4x4 foundry has up to 64
+     * Tanks, and without this cache every visible Tank can trigger that same
+     * 64-Tank scan again.
+     *
+     * This cache builds the aggregate liquid-column snapshot once per frame per
+     * foundry network. Every Tank in that network then only slices the already
+     * prepared displayed boundaries for its own Y level.
+     */
+    private final Map<LiquidColumnKey, LiquidColumnFrameSnapshot>
+            liquidColumnFrameSnapshotCache =
+            new HashMap<>();
+
     private Level displayedAmountsFrameCacheLevel;
     private long displayedAmountsFrameCacheGameTime =
             Long.MIN_VALUE;
@@ -86,6 +102,8 @@ final class FoundryTankLiquidSmoother {
         ) {
             displayedAmountsFrameCache.clear();
 
+            liquidColumnFrameSnapshotCache.clear();
+
             displayedAmountsFrameCacheLevel =
                     level;
 
@@ -109,9 +127,18 @@ final class FoundryTankLiquidSmoother {
             return cachedAmounts;
         }
 
-        LiquidColumnSnapshot snapshot =
-                createLiquidColumnSnapshot(
+        LiquidColumnKey columnKey =
+                createLiquidColumnKey(
                         tank
+                );
+
+        LiquidColumnFrameSnapshot frameSnapshot =
+                liquidColumnFrameSnapshotCache.computeIfAbsent(
+                        columnKey,
+                        ignored -> createLiquidColumnFrameSnapshot(
+                                tank,
+                                columnKey
+                        )
                 );
 
         double currentRenderTime =
@@ -120,23 +147,25 @@ final class FoundryTankLiquidSmoother {
 
         LiquidColumnRenderState renderState =
                 liquidColumnRenderStates.computeIfAbsent(
-                        snapshot.key(),
+                        frameSnapshot.key(),
                         ignored ->
                                 new LiquidColumnRenderState(
-                                        snapshot.targetBoundaries(),
+                                        frameSnapshot.targetBoundaries(),
                                         currentRenderTime
                                 )
                 );
 
         Map<ResourceLocation, Float> displayedBoundaries =
                 renderState.updateAndGet(
-                        snapshot.targetBoundaries(),
+                        frameSnapshot.targetBoundaries(),
                         currentRenderTime
                 );
 
         Map<ResourceLocation, Float> displayedAmounts =
                 sliceDisplayedBoundariesForLayer(
-                        snapshot,
+                        frameSnapshot,
+                        tank.getBlockPos()
+                                .getY(),
                         displayedBoundaries
                 );
 
@@ -148,8 +177,34 @@ final class FoundryTankLiquidSmoother {
         return displayedAmounts;
     }
 
-    private static LiquidColumnSnapshot createLiquidColumnSnapshot(
+    private static LiquidColumnKey createLiquidColumnKey(
             FoundryTankBlockEntity tank
+    ) {
+        Level level =
+                tank.getLevel();
+
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (network != null) {
+            return new LiquidColumnKey(
+                    level,
+                    network.getOwnerId(),
+                    BlockPos.ZERO
+            );
+        }
+
+        return new LiquidColumnKey(
+                level,
+                null,
+                tank.getBlockPos()
+                        .immutable()
+        );
+    }
+
+    private static LiquidColumnFrameSnapshot createLiquidColumnFrameSnapshot(
+            FoundryTankBlockEntity tank,
+            LiquidColumnKey key
     ) {
         Level level =
                 tank.getLevel();
@@ -191,28 +246,6 @@ final class FoundryTankLiquidSmoother {
                             tank.getBlockPos()
                     );
         }
-
-        BlockPos anchor =
-                sortedPositions.getFirst()
-                        .immutable();
-
-        UUID ownerId =
-                network != null
-                        ? network.getOwnerId()
-                        : null;
-
-        /*
-         * Owned networks keep the same key while their shape changes.
-         * Unowned/orphan Tank groups fall back to their physical anchor.
-         */
-        LiquidColumnKey key =
-                new LiquidColumnKey(
-                        level,
-                        ownerId,
-                        ownerId == null
-                                ? anchor
-                                : BlockPos.ZERO
-                );
 
         Map<Integer, Integer> tankCountsByY =
                 new LinkedHashMap<>();
@@ -269,14 +302,12 @@ final class FoundryTankLiquidSmoother {
                         tankCountsByY
                 );
 
-        return new LiquidColumnSnapshot(
+        return new LiquidColumnFrameSnapshot(
                 key,
                 yLevels,
                 Map.copyOf(
                         tankCountsByY
                 ),
-                tank.getBlockPos()
-                        .getY(),
                 Map.copyOf(
                         targetBoundaries
                 )
@@ -457,13 +488,14 @@ final class FoundryTankLiquidSmoother {
     }
 
     private static Map<ResourceLocation, Float> sliceDisplayedBoundariesForLayer(
-            LiquidColumnSnapshot snapshot,
+            LiquidColumnFrameSnapshot snapshot,
+            int currentY,
             Map<ResourceLocation, Float> displayedBoundaries
     ) {
         int layerIndex =
                 snapshot.yLevels()
                         .indexOf(
-                                snapshot.currentY()
+                                currentY
                         );
 
         if (layerIndex < 0) {
@@ -558,11 +590,10 @@ final class FoundryTankLiquidSmoother {
         return total;
     }
 
-    private record LiquidColumnSnapshot(
+    private record LiquidColumnFrameSnapshot(
             LiquidColumnKey key,
             List<Integer> yLevels,
             Map<Integer, Integer> tankCountsByY,
-            int currentY,
             Map<ResourceLocation, Float> targetBoundaries
     ) {
     }
