@@ -194,11 +194,6 @@ final class FoundryTankMoltenRenderer {
                 );
             }
 
-            /*
-             * renderTop() can also be true for internal metal boundaries inside
-             * one tank section. Surface effects should only belong to the actual
-             * exposed top liquid surface.
-             */
             boolean exposedTopSurfaceLayer =
                     index == renderedLayers.size() - 1
                             && renderedLayer.renderTop();

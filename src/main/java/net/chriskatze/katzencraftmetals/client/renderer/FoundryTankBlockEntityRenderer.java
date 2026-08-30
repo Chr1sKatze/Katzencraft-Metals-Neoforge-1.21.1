@@ -2,10 +2,12 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.Direction;
+import net.minecraft.world.entity.Entity;
 
 /**
  * Dynamically renders the complete visual Foundry Tank multiblock.
@@ -27,6 +29,9 @@ public class FoundryTankBlockEntityRenderer
 
     private static final int VIEW_DISTANCE =
             MAX_VIEW_DISTANCE_CHUNKS * BLOCKS_PER_CHUNK;
+
+    private static final double FAUCET_OVERLAY_DISTANCE_SQ =
+            50.0D * 50.0D;
 
     private final FoundryTankLiquidSmoother liquidSmoother =
             new FoundryTankLiquidSmoother();
@@ -104,11 +109,20 @@ public class FoundryTankBlockEntityRenderer
                 packedOverlay
         );
 
-        if (!completelyHiddenInsideSameComponent) {
+        if (
+                !completelyHiddenInsideSameComponent
+                        && shouldRenderFaucetOverlay(
+                        tank
+                )
+        ) {
             /*
              * Render translucent entrance shadows after the molten metal so the
              * shadow blends over the visible liquid instead of hiding it through
              * the depth buffer.
+             *
+             * Past about 50 blocks this tiny entrance shadow is not readable,
+             * but it still performs per-side checks and translucent buffer
+             * work, so it is the only detail skipped in this LOD step.
              */
             FoundryTankFaucetOverlayRenderer.render(
                     tank,
@@ -143,6 +157,49 @@ public class FoundryTankBlockEntityRenderer
         }
 
         return true;
+    }
+
+    private static boolean shouldRenderFaucetOverlay(
+            FoundryTankBlockEntity tank
+    ) {
+        Entity camera =
+                Minecraft.getInstance()
+                        .cameraEntity;
+
+        if (camera == null) {
+            return true;
+        }
+
+        double centerX =
+                tank.getBlockPos()
+                        .getX()
+                        + 0.5D;
+
+        double centerY =
+                tank.getBlockPos()
+                        .getY()
+                        + 0.5D;
+
+        double centerZ =
+                tank.getBlockPos()
+                        .getZ()
+                        + 0.5D;
+
+        double deltaX =
+                camera.getX() - centerX;
+
+        double deltaY =
+                camera.getY() - centerY;
+
+        double deltaZ =
+                camera.getZ() - centerZ;
+
+        double distanceSquared =
+                deltaX * deltaX
+                        + deltaY * deltaY
+                        + deltaZ * deltaZ;
+
+        return distanceSquared <= FAUCET_OVERLAY_DISTANCE_SQ;
     }
 
     @Override
