@@ -7,6 +7,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -327,7 +328,8 @@ final class FoundryTankPlacement {
         }
 
         Set<BlockPos> column = new LinkedHashSet<>();
-        boolean foundGap = false;
+        boolean foundTank = false;
+        boolean foundGapAfterTank = false;
 
         for (int height = 0; height < FoundryTankNetwork.MAX_HEIGHT; height++) {
             BlockPos checkPos = new BlockPos(x, baseY + height, z);
@@ -338,12 +340,15 @@ final class FoundryTankPlacement {
                             && tank.getNetworkId() == null;
 
             if (isUnassignedTank) {
-                if (foundGap) {
+                if (foundGapAfterTank) {
                     return Set.of();
                 }
+
+                foundTank = true;
+
                 column.add(checkPos.immutable());
-            } else {
-                foundGap = true;
+            } else if (foundTank) {
+                foundGapAfterTank = true;
             }
         }
 
@@ -428,9 +433,6 @@ final class FoundryTankPlacement {
             return false;
         }
 
-        List<Set<BlockPos>> adjacentOrphanComponents =
-                collectAdjacentOrphanComponents(level, placedPos);
-
         Map<UUID, PlacementOption> validOptions = new HashMap<>();
 
         for (FoundryControllerBlockEntity controller : candidateControllers.values()) {
@@ -443,15 +445,24 @@ final class FoundryTankPlacement {
 
             mandatoryPositions.add(placedPos.immutable());
 
-            FoundryTankStructureValidation.ValidationResult validation =
-                    FoundryTankStructure.validateStructure(mandatoryPositions);
-
-            if (
-                    !validation.valid()
-                            || !controller.canOwnTankLayout(mandatoryPositions)
-            ) {
+            if (!controller.canOwnTankLayout(mandatoryPositions)) {
                 continue;
             }
+
+            /*
+             * Important robustness rule:
+             *
+             * Do not reject the active network + newly placed Tank before
+             * considering nearby orphan pieces. A previously failed/invalid
+             * placement can leave unowned Tank pieces beside the network. The
+             * newly placed Tank may be the missing block that makes the full
+             * combined shape valid again.
+             */
+            List<Set<BlockPos>> adjacentOrphanComponents =
+                    collectAdjacentOrphanComponents(
+                            level,
+                            mandatoryPositions
+                    );
 
             MergeCandidate mergeCandidate = findBestMergeCandidate(
                     level,
@@ -604,42 +615,243 @@ final class FoundryTankPlacement {
 
     private static List<Set<BlockPos>> collectAdjacentOrphanComponents(
             Level level,
-            BlockPos placedPos
+            Set<BlockPos> anchorPositions
     ) {
-        List<Set<BlockPos>> components = new ArrayList<>();
-        Set<BlockPos> alreadyCollected = new HashSet<>();
-        Set<BlockPos> excluded = Set.of(placedPos.immutable());
+        List<Set<BlockPos>> components =
+                new ArrayList<>();
 
-        for (Direction direction : Direction.values()) {
-            BlockPos neighbor = placedPos.relative(direction);
+        if (
+                anchorPositions == null
+                        || anchorPositions.isEmpty()
+        ) {
+            return components;
+        }
 
-            if (alreadyCollected.contains(neighbor)) {
-                continue;
-            }
+        Set<BlockPos> excludedPositions =
+                new HashSet<>();
 
-            BlockEntity blockEntity = level.getBlockEntity(neighbor);
-
-            if (
-                    !(blockEntity instanceof FoundryTankBlockEntity tank)
-                            || tank.getNetworkId() != null
-            ) {
-                continue;
-            }
-
-            Set<BlockPos> component = FoundryTankStructure.collectConnectedTanks(
-                    level,
-                    neighbor,
-                    null,
-                    excluded
+        for (BlockPos anchorPosition : anchorPositions) {
+            excludedPositions.add(
+                    anchorPosition.immutable()
             );
+        }
 
-            if (!component.isEmpty()) {
-                components.add(component);
-                alreadyCollected.addAll(component);
+        Set<BlockPos> alreadyCollected =
+                new HashSet<>();
+
+        Set<UUID> alreadyCollectedLayoutIds =
+                new HashSet<>();
+
+        for (BlockPos anchorPosition : anchorPositions) {
+            for (Direction direction : Direction.values()) {
+                BlockPos neighbor =
+                        anchorPosition.relative(
+                                direction
+                        );
+
+                if (
+                        excludedPositions.contains(neighbor)
+                                || alreadyCollected.contains(neighbor)
+                ) {
+                    continue;
+                }
+
+                BlockEntity blockEntity =
+                        level.getBlockEntity(
+                                neighbor
+                        );
+
+                if (
+                        !(blockEntity instanceof FoundryTankBlockEntity tank)
+                                || tank.getNetworkId() != null
+                ) {
+                    continue;
+                }
+
+                UUID orphanLayoutId =
+                        tank.getOrphanLayoutId();
+
+                if (
+                        orphanLayoutId != null
+                                && !alreadyCollectedLayoutIds.add(orphanLayoutId)
+                ) {
+                    continue;
+                }
+
+                Set<BlockPos> component =
+                        orphanLayoutId != null
+                                ? collectMatchingOrphanLayout(
+                                level,
+                                neighbor,
+                                orphanLayoutId,
+                                excludedPositions
+                        )
+                                : collectLegacyNullOrphanLayout(
+                                level,
+                                neighbor,
+                                excludedPositions
+                        );
+
+                if (!component.isEmpty()) {
+                    components.add(
+                            component
+                    );
+
+                    alreadyCollected.addAll(
+                            component
+                    );
+                }
             }
         }
 
         return components;
+    }
+
+    private static Set<BlockPos> collectMatchingOrphanLayout(
+            Level level,
+            BlockPos startPos,
+            UUID requiredLayoutId,
+            Set<BlockPos> excludedPositions
+    ) {
+        Set<BlockPos> connected =
+                new HashSet<>();
+
+        if (excludedPositions.contains(startPos)) {
+            return connected;
+        }
+
+        ArrayDeque<BlockPos> queue =
+                new ArrayDeque<>();
+
+        BlockPos immutableStart =
+                startPos.immutable();
+
+        connected.add(
+                immutableStart
+        );
+
+        queue.addLast(
+                immutableStart
+        );
+
+        while (!queue.isEmpty()) {
+            BlockPos current =
+                    queue.removeFirst();
+
+            for (Direction direction : Direction.values()) {
+                BlockPos next =
+                        current.relative(
+                                direction
+                        );
+
+                if (
+                        excludedPositions.contains(next)
+                                || connected.contains(next)
+                ) {
+                    continue;
+                }
+
+                BlockEntity blockEntity =
+                        level.getBlockEntity(
+                                next
+                        );
+
+                if (
+                        !(blockEntity instanceof FoundryTankBlockEntity tank)
+                                || tank.getNetworkId() != null
+                                || !requiredLayoutId.equals(
+                                tank.getOrphanLayoutId()
+                        )
+                ) {
+                    continue;
+                }
+
+                BlockPos immutableNext =
+                        next.immutable();
+
+                connected.add(
+                        immutableNext
+                );
+
+                queue.addLast(
+                        immutableNext
+                );
+            }
+        }
+
+        return connected;
+    }
+
+    private static Set<BlockPos> collectLegacyNullOrphanLayout(
+            Level level,
+            BlockPos startPos,
+            Set<BlockPos> excludedPositions
+    ) {
+        Set<BlockPos> connected =
+                new HashSet<>();
+
+        if (excludedPositions.contains(startPos)) {
+            return connected;
+        }
+
+        ArrayDeque<BlockPos> queue =
+                new ArrayDeque<>();
+
+        BlockPos immutableStart =
+                startPos.immutable();
+
+        connected.add(
+                immutableStart
+        );
+
+        queue.addLast(
+                immutableStart
+        );
+
+        while (!queue.isEmpty()) {
+            BlockPos current =
+                    queue.removeFirst();
+
+            for (Direction direction : Direction.values()) {
+                BlockPos next =
+                        current.relative(
+                                direction
+                        );
+
+                if (
+                        excludedPositions.contains(next)
+                                || connected.contains(next)
+                ) {
+                    continue;
+                }
+
+                BlockEntity blockEntity =
+                        level.getBlockEntity(
+                                next
+                        );
+
+                if (
+                        !(blockEntity instanceof FoundryTankBlockEntity tank)
+                                || tank.getNetworkId() != null
+                                || tank.getOrphanLayoutId() != null
+                ) {
+                    continue;
+                }
+
+                BlockPos immutableNext =
+                        next.immutable();
+
+                connected.add(
+                        immutableNext
+                );
+
+                queue.addLast(
+                        immutableNext
+                );
+            }
+        }
+
+        return connected;
     }
 
     @Nullable

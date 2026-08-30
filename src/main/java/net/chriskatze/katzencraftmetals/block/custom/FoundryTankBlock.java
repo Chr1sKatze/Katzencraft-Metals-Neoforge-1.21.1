@@ -27,7 +27,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -755,52 +754,120 @@ public class FoundryTankBlock extends BaseEntityBlock {
             BlockPos startPos,
             FoundryTankBlockEntity startTank
     ) {
+        Set<BlockPos> layoutPositions;
+
         if (startTank.getNetworkId() != null) {
-            return FoundryTankNetwork.findUpwardColumn(
-                    level,
-                    startPos
+            FoundryTankNetwork network =
+                    startTank.getNetwork();
+
+            layoutPositions =
+                    network != null
+                            ? network.getTankPositions()
+                            : Set.of(
+                            startPos.immutable()
+                    );
+        } else {
+            UUID requiredLayoutId =
+                    startTank.getOrphanLayoutId();
+
+            layoutPositions =
+                    requiredLayoutId != null
+                            ? collectMatchingOrphanLayout(
+                            level,
+                            startPos,
+                            requiredLayoutId
+                    )
+                            : Set.of(
+                            startPos.immutable()
+                    );
+        }
+
+        return chooseTankRemovalForLayout(
+                layoutPositions,
+                startPos
+        );
+    }
+
+    private static Set<BlockPos> chooseTankRemovalForLayout(
+            Set<BlockPos> layoutPositions,
+            BlockPos startPos
+    ) {
+        if (layoutPositions == null || layoutPositions.isEmpty()) {
+            return Set.of(
+                    startPos.immutable()
             );
         }
 
-        UUID requiredLayoutId =
-                startTank.getOrphanLayoutId();
+        Set<BlockPos> selectedOnly =
+                Set.of(
+                        startPos.immutable()
+                );
 
+        if (isValidAfterRemoving(layoutPositions, selectedOnly)) {
+            return selectedOnly;
+        }
+
+        Set<BlockPos> upwardColumn =
+                collectUpwardColumnFromLayout(
+                        layoutPositions,
+                        startPos
+                );
+
+        if (upwardColumn.isEmpty()) {
+            return selectedOnly;
+        }
+
+        /*
+         * If removing only the clicked Tank would leave an invalid tank shape,
+         * fall back to the old column behavior. This keeps unsupported/problem
+         * removals safe while allowing harmless single-block edits.
+         */
+        if (isValidAfterRemoving(layoutPositions, upwardColumn)) {
+            return upwardColumn;
+        }
+
+        return upwardColumn;
+    }
+
+    private static boolean isValidAfterRemoving(
+            Set<BlockPos> layoutPositions,
+            Set<BlockPos> removedPositions
+    ) {
+        Set<BlockPos> remaining =
+                new HashSet<>(
+                        layoutPositions
+                );
+
+        remaining.removeAll(
+                removedPositions
+        );
+
+        return remaining.isEmpty()
+                || FoundryTankNetwork.isValidStructure(
+                remaining
+        );
+    }
+
+    private static Set<BlockPos> collectUpwardColumnFromLayout(
+            Set<BlockPos> layoutPositions,
+            BlockPos startPos
+    ) {
         Set<BlockPos> removed =
                 new HashSet<>();
 
-        removed.add(
-                startPos.immutable()
-        );
-
-        for (
-                int offset = 1;
-                offset < FoundryTankNetwork.MAX_HEIGHT;
-                offset++
-        ) {
-            BlockPos checkPos =
-                    startPos.above(
-                            offset
-                    );
-
-            BlockEntity blockEntity =
-                    level.getBlockEntity(
-                            checkPos
-                    );
-
+        for (BlockPos tankPos : layoutPositions) {
             if (
-                    !(blockEntity instanceof FoundryTankBlockEntity tank)
-                            || tank.getNetworkId() != null
-                            || !Objects.equals(
-                            requiredLayoutId,
-                            tank.getOrphanLayoutId()
-                    )
+                    tankPos.getX() == startPos.getX()
+                            && tankPos.getZ() == startPos.getZ()
+                            && tankPos.getY() >= startPos.getY()
+                            && tankPos.getY()
+                            < startPos.getY()
+                            + FoundryTankNetwork.MAX_HEIGHT
             ) {
-                break;
+                removed.add(
+                        tankPos.immutable()
+                );
             }
-
-            removed.add(
-                    checkPos.immutable()
-            );
         }
 
         return removed;
@@ -879,7 +946,7 @@ public class FoundryTankBlock extends BaseEntityBlock {
 
                     /*
                      * Vanilla removes the selected Tank after this method
-                     * returns. We only destroy the Tanks above it here.
+                     * returns. We only destroy the extra Tanks here.
                      */
                     for (BlockPos tankPos : removedPositions) {
                         if (tankPos.equals(pos)) {

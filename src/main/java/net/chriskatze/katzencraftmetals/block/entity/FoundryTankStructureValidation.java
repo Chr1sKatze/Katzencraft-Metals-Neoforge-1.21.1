@@ -43,6 +43,10 @@ final class FoundryTankStructureValidation {
                 .mapToInt(BlockPos::getY)
                 .min()
                 .orElse(0);
+        int maxY = positions.stream()
+                .mapToInt(BlockPos::getY)
+                .max()
+                .orElse(0);
         int minZ = positions.stream()
                 .mapToInt(BlockPos::getZ)
                 .min()
@@ -53,36 +57,64 @@ final class FoundryTankStructureValidation {
                 .orElse(0);
 
         int sizeX = maxX - minX + 1;
+        int sizeY = maxY - minY + 1;
         int sizeZ = maxZ - minZ + 1;
 
-        if (!isHorizontalSizeValid(sizeX, sizeZ)) {
+        if (
+                sizeY < 1
+                        || sizeY > FoundryTankNetwork.MAX_HEIGHT
+                        || !isHorizontalSizeValid(sizeX, sizeZ)
+        ) {
             return ValidationResult.invalid();
         }
 
-        Map<ColumnKey, Set<Integer>> columnHeights = new HashMap<>();
+        Map<ColumnKey, Set<Integer>> columnHeights =
+                new HashMap<>();
 
         for (BlockPos tankPos : positions) {
-            ColumnKey key = new ColumnKey(
-                    tankPos.getX(),
-                    tankPos.getZ()
-            );
+            ColumnKey key =
+                    new ColumnKey(
+                            tankPos.getX(),
+                            tankPos.getZ()
+                    );
 
             columnHeights
-                    .computeIfAbsent(key, ignored -> new HashSet<>())
-                    .add(tankPos.getY());
+                    .computeIfAbsent(
+                            key,
+                            ignored -> new HashSet<>()
+                    )
+                    .add(
+                            tankPos.getY()
+                    );
         }
 
         if (columnHeights.size() > FoundryTankNetwork.MAX_COLUMN_COUNT) {
             return ValidationResult.invalid();
         }
 
+        /*
+         * Every occupied vertical column must still be solid inside itself.
+         *
+         * A column no longer has to start at the global minY. This allows
+         * simple overhangs and normal U-shapes.
+         *
+         * But a column may not contain an internal gap.
+         */
         for (Set<Integer> yValues : columnHeights.values()) {
+            int columnMinY = yValues.stream()
+                    .mapToInt(Integer::intValue)
+                    .min()
+                    .orElse(minY);
+
             int columnMaxY = yValues.stream()
                     .mapToInt(Integer::intValue)
                     .max()
                     .orElse(minY);
 
-            int columnHeight = columnMaxY - minY + 1;
+            int columnHeight =
+                    columnMaxY
+                            - columnMinY
+                            + 1;
 
             if (
                     columnHeight < 1
@@ -92,23 +124,76 @@ final class FoundryTankStructureValidation {
                 return ValidationResult.invalid();
             }
 
-            for (int y = minY; y <= columnMaxY; y++) {
+            for (int y = columnMinY; y <= columnMaxY; y++) {
                 if (!yValues.contains(y)) {
                     return ValidationResult.invalid();
                 }
             }
         }
 
-        Set<ColumnKey> connectedColumns = collectConnectedColumns(
-                columnHeights.keySet(),
-                columnHeights.keySet().iterator().next()
-        );
+        /*
+         * The complete structure must be face-connected in 3D.
+         */
+        Set<BlockPos> connectedTankBlocks =
+                collectConnectedTankBlocks(
+                        positions,
+                        positions.iterator()
+                                .next()
+                );
 
-        if (connectedColumns.size() != columnHeights.size()) {
+        if (connectedTankBlocks.size() != positions.size()) {
             return ValidationResult.invalid();
         }
 
-        return new ValidationResult(true, minY);
+        /*
+         * Simple-fluid rule:
+         *
+         * For every height, the filled volume from the bottom up to that height
+         * must be connected.
+         *
+         * This allows a normal U:
+         *
+         * Layer 2: [T][ ][ ][T]
+         * Layer 1: [T][T][T][T]
+         *
+         * At layer 1 the bottom is connected. At layer 2 the full bottom plus
+         * both raised sides are still one connected volume.
+         *
+         * But it rejects an upside-down U:
+         *
+         * Layer 2: [T][T][T][T]
+         * Layer 1: [T][ ][ ][T]
+         *
+         * At layer 1 the lower liquid pockets are already split, so they would
+         * only equalize later by spilling over the upper bridge.
+         */
+        for (int y = minY; y <= maxY; y++) {
+            Set<BlockPos> bottomAccessiblePrefix =
+                    collectPositionsAtOrBelowY(
+                            positions,
+                            y
+                    );
+
+            if (bottomAccessiblePrefix.isEmpty()) {
+                continue;
+            }
+
+            Set<BlockPos> connectedPrefix =
+                    collectConnectedTankBlocks(
+                            bottomAccessiblePrefix,
+                            bottomAccessiblePrefix.iterator()
+                                    .next()
+                    );
+
+            if (connectedPrefix.size() != bottomAccessiblePrefix.size()) {
+                return ValidationResult.invalid();
+            }
+        }
+
+        return new ValidationResult(
+                true,
+                minY
+        );
     }
 
     static boolean isHorizontalSizeValid(
@@ -128,34 +213,63 @@ final class FoundryTankStructureValidation {
         );
     }
 
-    private static Set<ColumnKey> collectConnectedColumns(
-            Set<ColumnKey> availableColumns,
-            ColumnKey startColumn
+    private static Set<BlockPos> collectPositionsAtOrBelowY(
+            Set<BlockPos> positions,
+            int y
     ) {
-        Set<ColumnKey> connected = new HashSet<>();
+        Set<BlockPos> collected =
+                new HashSet<>();
 
-        if (!availableColumns.contains(startColumn)) {
+        for (BlockPos position : positions) {
+            if (position.getY() <= y) {
+                collected.add(
+                        position
+                );
+            }
+        }
+
+        return collected;
+    }
+
+    private static Set<BlockPos> collectConnectedTankBlocks(
+            Set<BlockPos> availablePositions,
+            BlockPos startPos
+    ) {
+        Set<BlockPos> connected =
+                new HashSet<>();
+
+        if (!availablePositions.contains(startPos)) {
             return connected;
         }
 
-        ArrayDeque<ColumnKey> queue = new ArrayDeque<>();
-        connected.add(startColumn);
-        queue.addLast(startColumn);
+        ArrayDeque<BlockPos> queue =
+                new ArrayDeque<>();
+
+        connected.add(
+                startPos
+        );
+
+        queue.addLast(
+                startPos
+        );
 
         while (!queue.isEmpty()) {
-            ColumnKey current = queue.removeFirst();
+            BlockPos current =
+                    queue.removeFirst();
 
-            for (Direction direction : Direction.Plane.HORIZONTAL) {
-                ColumnKey next = new ColumnKey(
-                        current.x() + direction.getStepX(),
-                        current.z() + direction.getStepZ()
-                );
+            for (Direction direction : Direction.values()) {
+                BlockPos next =
+                        current.relative(
+                                direction
+                        );
 
                 if (
-                        availableColumns.contains(next)
+                        availablePositions.contains(next)
                                 && connected.add(next)
                 ) {
-                    queue.addLast(next);
+                    queue.addLast(
+                            next
+                    );
                 }
             }
         }
