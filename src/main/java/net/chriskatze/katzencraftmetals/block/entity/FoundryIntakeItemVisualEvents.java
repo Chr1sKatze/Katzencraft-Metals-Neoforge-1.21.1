@@ -62,6 +62,9 @@ public final class FoundryIntakeItemVisualEvents {
     private static final double SURFACE_HIT_PADDING =
             0.045D;
 
+    private static final double IMPACT_PARTICLE_Y_OFFSET =
+            0.08D;
+
     private static final int MAX_LIFETIME_TICKS =
             100;
 
@@ -461,11 +464,15 @@ public final class FoundryIntakeItemVisualEvents {
         double x =
                 entity.getX();
 
+        /*
+         * Always spawn the impact burst slightly above the calculated molten
+         * surface. The falling display can overshoot the surface by FALL_SPEED;
+         * using the entity Y would place particles down inside a tank block,
+         * making the burst look trapped by that block.
+         */
         double y =
-                Math.min(
-                        entity.getY(),
-                        surfaceY + 0.05D
-                );
+                surfaceY
+                        + IMPACT_PARTICLE_Y_OFFSET;
 
         double z =
                 entity.getZ();
@@ -475,23 +482,29 @@ public final class FoundryIntakeItemVisualEvents {
                 x,
                 y,
                 z,
-                5,
-                0.06D,
+                4,
+                0.14D,
                 0.035D,
-                0.06D,
-                0.01D
+                0.14D,
+                0.006D
         );
 
+        /*
+         * Use flame instead of lava droplets here. Lava particles have their
+         * own heavy droplet-style movement and tend to look collision-bound
+         * inside the tank. Flame/smoke gives the same quick burn-up read while
+         * behaving much more like the old non-colliding tank fire effect.
+         */
         serverLevel.sendParticles(
-                ParticleTypes.LAVA,
+                ParticleTypes.FLAME,
                 x,
-                y,
+                y + 0.02D,
                 z,
-                2,
-                0.08D,
-                0.02D,
-                0.08D,
-                0.02D
+                7,
+                0.20D,
+                0.05D,
+                0.20D,
+                0.015D
         );
 
         serverLevel.playSound(
