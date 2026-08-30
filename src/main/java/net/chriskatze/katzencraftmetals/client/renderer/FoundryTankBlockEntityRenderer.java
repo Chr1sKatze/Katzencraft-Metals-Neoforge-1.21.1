@@ -19,6 +19,15 @@ import net.minecraft.core.Direction;
 public class FoundryTankBlockEntityRenderer
         implements BlockEntityRenderer<FoundryTankBlockEntity> {
 
+    private static final int MAX_VIEW_DISTANCE_CHUNKS =
+            20;
+
+    private static final int BLOCKS_PER_CHUNK =
+            16;
+
+    private static final int VIEW_DISTANCE =
+            MAX_VIEW_DISTANCE_CHUNKS * BLOCKS_PER_CHUNK;
+
     private final FoundryTankLiquidSmoother liquidSmoother =
             new FoundryTankLiquidSmoother();
 
@@ -150,5 +159,24 @@ public class FoundryTankBlockEntityRenderer
          * foundries in one area.
          */
         return false;
+    }
+
+    @Override
+    public int getViewDistance() {
+        /*
+         * Block-entity renderers have their own distance cap in addition to the
+         * user's actual chunk render distance.
+         *
+         * This cap supports up to 20 chunks:
+         *
+         * 20 chunks * 16 blocks = 320 blocks.
+         *
+         * If the player's normal render distance is lower than 20 chunks, the
+         * foundry still disappears earlier because those chunks are not rendered
+         * / available to the client. This value only prevents the block-entity
+         * renderer from cutting the foundry off early when the player has a high
+         * render distance.
+         */
+        return VIEW_DISTANCE;
     }
 }
