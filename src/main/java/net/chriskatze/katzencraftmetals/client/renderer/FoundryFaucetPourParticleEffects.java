@@ -22,13 +22,42 @@ final class FoundryFaucetPourParticleEffects {
             5L;
 
     private static final long BASIN_INTERVAL_TICKS =
-            7L;
+            6L;
+
+    private static final long LONG_DROP_BASIN_INTERVAL_TICKS =
+            4L;
 
     private static final float OUTLET_START_PROGRESS =
             0.18f;
 
     private static final float BASIN_START_PROGRESS =
-            0.88f;
+            0.84f;
+
+    private static final float LONG_DROP_BASIN_START_PROGRESS =
+            0.78f;
+
+    /*
+     * In faucet-local coordinates, a 3-block target basin surface lives roughly
+     * between -2.75 and -2.11. A 4-block target basin surface lives roughly
+     * between -3.75 and -3.11, so -3.0 cleanly identifies the new long-drop case.
+     */
+    private static final float LONG_DROP_SURFACE_Y_THRESHOLD =
+            -3.0f;
+
+    private static final float BASIN_LAVA_CHANCE =
+            0.52f;
+
+    private static final float BASIN_SMOKE_CHANCE =
+            0.34f;
+
+    private static final float LONG_DROP_BASIN_LAVA_CHANCE =
+            0.72f;
+
+    private static final float LONG_DROP_BASIN_EXTRA_LAVA_CHANCE =
+            0.55f;
+
+    private static final float LONG_DROP_BASIN_SMOKE_CHANCE =
+            0.42f;
 
     private static final float STREAM_CENTER_X =
             (
@@ -88,12 +117,23 @@ final class FoundryFaucetPourParticleEffects {
             );
         }
 
-        if (animationProgress >= BASIN_START_PROGRESS) {
+        boolean longDrop =
+                isLongBasinDrop(
+                        context
+                );
+
+        float basinStartProgress =
+                longDrop
+                        ? LONG_DROP_BASIN_START_PROGRESS
+                        : BASIN_START_PROGRESS;
+
+        if (animationProgress >= basinStartProgress) {
             maybeSpawnBasinParticles(
                     faucet,
                     facing,
                     context,
-                    gameTime
+                    gameTime,
+                    longDrop
             );
         }
     }
@@ -153,7 +193,8 @@ final class FoundryFaucetPourParticleEffects {
             FoundryFaucetBlockEntity faucet,
             Direction facing,
             FoundryFaucetRenderContext context,
-            long gameTime
+            long gameTime,
+            boolean longDrop
     ) {
         Long lastTick =
                 lastBasinTick.get(
@@ -172,7 +213,12 @@ final class FoundryFaucetPourParticleEffects {
                 gameTime
         );
 
-        if (gameTime % BASIN_INTERVAL_TICKS != 0L) {
+        long interval =
+                longDrop
+                        ? LONG_DROP_BASIN_INTERVAL_TICKS
+                        : BASIN_INTERVAL_TICKS;
+
+        if (gameTime % interval != 0L) {
             return;
         }
 
@@ -184,21 +230,51 @@ final class FoundryFaucetPourParticleEffects {
                                 ^ 0xCA1170L
                 );
 
-        if (unitFloat(seed ^ 0x2001L) < 0.42f) {
+        float lavaChance =
+                longDrop
+                        ? LONG_DROP_BASIN_LAVA_CHANCE
+                        : BASIN_LAVA_CHANCE;
+
+        float smokeChance =
+                longDrop
+                        ? LONG_DROP_BASIN_SMOKE_CHANCE
+                        : BASIN_SMOKE_CHANCE;
+
+        if (unitFloat(seed ^ 0x2001L) < lavaChance) {
             spawnBasinLava(
                     faucet,
                     facing,
                     context,
-                    seed
+                    seed,
+                    longDrop
             );
         }
 
-        if (unitFloat(seed ^ 0x2002L) < 0.28f) {
+        /*
+         * 4-block drops are visually farther away, so give them a restrained
+         * second possible lava pop. Short pours stay only slightly boosted.
+         */
+        if (
+                longDrop
+                        && unitFloat(seed ^ 0x2003L)
+                        < LONG_DROP_BASIN_EXTRA_LAVA_CHANCE
+        ) {
+            spawnBasinLava(
+                    faucet,
+                    facing,
+                    context,
+                    seed ^ 0x51A7BEEFL,
+                    true
+            );
+        }
+
+        if (unitFloat(seed ^ 0x2002L) < smokeChance) {
             spawnBasinSmoke(
                     faucet,
                     facing,
                     context,
-                    seed
+                    seed,
+                    longDrop
             );
         }
     }
@@ -263,18 +339,29 @@ final class FoundryFaucetPourParticleEffects {
             FoundryFaucetBlockEntity faucet,
             Direction facing,
             FoundryFaucetRenderContext context,
-            long seed
+            long seed,
+            boolean longDrop
     ) {
+        float spread =
+                longDrop
+                        ? 0.16f
+                        : 0.13f;
+
+        double speed =
+                longDrop
+                        ? 0.014d
+                        : 0.011d;
+
         ParticlePoint point =
                 localToWorld(
                         faucet.getBlockPos(),
                         facing,
                         STREAM_CENTER_X
-                                + centeredNoise(seed ^ 0x5001L) * 0.12f,
+                                + centeredNoise(seed ^ 0x5001L) * spread,
                         context.cauldronSurfaceY()
                                 + 0.035f,
                         STREAM_CENTER_Z
-                                + centeredNoise(seed ^ 0x5002L) * 0.12f
+                                + centeredNoise(seed ^ 0x5002L) * spread
                 );
 
         faucet.getLevel().addParticle(
@@ -282,9 +369,9 @@ final class FoundryFaucetPourParticleEffects {
                 point.x(),
                 point.y(),
                 point.z(),
-                centeredNoise(seed ^ 0x5003L) * 0.010d,
+                centeredNoise(seed ^ 0x5003L) * speed,
                 0.010d,
-                centeredNoise(seed ^ 0x5004L) * 0.010d
+                centeredNoise(seed ^ 0x5004L) * speed
         );
     }
 
@@ -292,18 +379,29 @@ final class FoundryFaucetPourParticleEffects {
             FoundryFaucetBlockEntity faucet,
             Direction facing,
             FoundryFaucetRenderContext context,
-            long seed
+            long seed,
+            boolean longDrop
     ) {
+        float spread =
+                longDrop
+                        ? 0.18f
+                        : 0.15f;
+
+        double speed =
+                longDrop
+                        ? 0.010d
+                        : 0.009d;
+
         ParticlePoint point =
                 localToWorld(
                         faucet.getBlockPos(),
                         facing,
                         STREAM_CENTER_X
-                                + centeredNoise(seed ^ 0x6001L) * 0.14f,
+                                + centeredNoise(seed ^ 0x6001L) * spread,
                         context.cauldronSurfaceY()
                                 + 0.055f,
                         STREAM_CENTER_Z
-                                + centeredNoise(seed ^ 0x6002L) * 0.14f
+                                + centeredNoise(seed ^ 0x6002L) * spread
                 );
 
         faucet.getLevel().addParticle(
@@ -311,10 +409,17 @@ final class FoundryFaucetPourParticleEffects {
                 point.x(),
                 point.y(),
                 point.z(),
-                centeredNoise(seed ^ 0x6003L) * 0.008d,
+                centeredNoise(seed ^ 0x6003L) * speed,
                 0.014d,
-                centeredNoise(seed ^ 0x6004L) * 0.008d
+                centeredNoise(seed ^ 0x6004L) * speed
         );
+    }
+
+    private static boolean isLongBasinDrop(
+            FoundryFaucetRenderContext context
+    ) {
+        return context.cauldronSurfaceY()
+                <= LONG_DROP_SURFACE_Y_THRESHOLD;
     }
 
     private static ParticlePoint localToWorld(
