@@ -178,6 +178,7 @@ final class FoundryTankLiquidSmoother {
 
         if (liquidColumnSnapshotCacheLevel != level) {
             liquidColumnFrameSnapshotCache.clear();
+            liquidColumnRenderStates.clear();
 
             liquidColumnSnapshotCacheLevel =
                     level;
@@ -525,10 +526,38 @@ final class FoundryTankLiquidSmoother {
                 tank.getNetwork();
 
         if (network != null) {
+            UUID ownerId =
+                    network.getOwnerId();
+
+            if (ownerId != null) {
+                return new LiquidColumnKey(
+                        level,
+                        ownerId,
+                        BlockPos.ZERO
+                );
+            }
+
+            /*
+             * Orphan networks do not have a Controller UUID.
+             *
+             * The old fallback used BlockPos.ZERO for every ownerless network,
+             * so destroying a Controller made every orphan Tank structure in
+             * the level share one client-side liquid-column cache. That caused
+             * exactly the observed camera-dependent bug where empty,
+             * disconnected Tank systems could briefly render the liquid from a
+             * different orphan structure.
+             *
+             * Use a stable canonical position from this orphan structure
+             * instead. That gives every disconnected ownerless structure its own
+             * visual liquid cache until it gets claimed by a Controller again.
+             */
             return new LiquidColumnKey(
                     level,
-                    network.getOwnerId(),
-                    BlockPos.ZERO
+                    null,
+                    canonicalNetworkAnchor(
+                            network.getTankPositions(),
+                            tank.getBlockPos()
+                    )
             );
         }
 
@@ -537,6 +566,68 @@ final class FoundryTankLiquidSmoother {
                 null,
                 tank.getBlockPos()
                         .immutable()
+        );
+    }
+
+    private static BlockPos canonicalNetworkAnchor(
+            Set<BlockPos> positions,
+            BlockPos fallback
+    ) {
+        if (
+                positions == null
+                        || positions.isEmpty()
+        ) {
+            return fallback.immutable();
+        }
+
+        BlockPos best =
+                null;
+
+        for (BlockPos position : positions) {
+            if (
+                    best == null
+                            || compareBlockPositions(
+                            position,
+                            best
+                    ) < 0
+            ) {
+                best =
+                        position;
+            }
+        }
+
+        return best == null
+                ? fallback.immutable()
+                : best.immutable();
+    }
+
+    private static int compareBlockPositions(
+            BlockPos first,
+            BlockPos second
+    ) {
+        int byY =
+                Integer.compare(
+                        first.getY(),
+                        second.getY()
+                );
+
+        if (byY != 0) {
+            return byY;
+        }
+
+        int byX =
+                Integer.compare(
+                        first.getX(),
+                        second.getX()
+                );
+
+        if (byX != 0) {
+            return byX;
+        }
+
+        return Integer.compare(
+                first.getZ(),
+                second.getZ()
         );
     }
 
