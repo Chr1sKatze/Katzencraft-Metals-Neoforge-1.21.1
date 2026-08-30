@@ -23,6 +23,8 @@ import java.util.List;
  * - meltable items landing on top are pulled into the Controller input slots
  * - a downward-facing Hopper above the hatch feeds one meltable item at normal
  *   Hopper speed
+ * - loose dropped meltable items on the hatch are also pulled one item at a
+ *   time at normal Hopper speed
  * - every successful pull spawns a short-lived fake visual item falling into
  *   the Tank interior
  * - fuel and random junk are ignored
@@ -30,10 +32,7 @@ import java.util.List;
  */
 final class FoundryTankIntakeHatch {
 
-    private static final int SUCTION_INTERVAL_TICKS =
-            5;
-
-    private static final int HOPPER_TRANSFER_INTERVAL_TICKS =
+    private static final int INTAKE_TRANSFER_INTERVAL_TICKS =
             8;
 
     private static final Comparator<BlockPos> POSITION_ORDER =
@@ -121,32 +120,37 @@ final class FoundryTankIntakeHatch {
     ) {
         if (
                 gameTime
-                        % HOPPER_TRANSFER_INTERVAL_TICKS
-                        == 0L
-        ) {
-            pullConnectedHopperIntoController(
-                    level,
-                    hatchPos,
-                    controller
-            );
-        }
-
-        if (
-                gameTime
-                        % SUCTION_INTERVAL_TICKS
+                        % INTAKE_TRANSFER_INTERVAL_TICKS
                         != 0L
         ) {
             return;
         }
 
-        pullLooseItemsIntoController(
+        /*
+         * One item per open hatch per transfer cycle.
+         *
+         * Hopper input is checked first because a hopper directly above the
+         * hatch is an intentional automation setup. If it has nothing valid to
+         * move, loose dropped items on the hatch get the same one-item transfer.
+         */
+        if (
+                pullConnectedHopperIntoController(
+                        level,
+                        hatchPos,
+                        controller
+                )
+        ) {
+            return;
+        }
+
+        pullLooseItemIntoController(
                 level,
                 hatchPos,
                 controller
         );
     }
 
-    private static void pullLooseItemsIntoController(
+    private static boolean pullLooseItemIntoController(
             Level level,
             BlockPos hatchPos,
             FoundryControllerBlockEntity controller
@@ -178,7 +182,7 @@ final class FoundryTankIntakeHatch {
                     itemStack.copy();
 
             int inserted =
-                    insertIntoControllerInputs(
+                    insertOneItemIntoControllerInputs(
                             controller,
                             itemStack
                     );
@@ -206,10 +210,14 @@ final class FoundryTankIntakeHatch {
                         itemStack
                 );
             }
+
+            return true;
         }
+
+        return false;
     }
 
-    private static void pullConnectedHopperIntoController(
+    private static boolean pullConnectedHopperIntoController(
             Level level,
             BlockPos hatchPos,
             FoundryControllerBlockEntity controller
@@ -223,7 +231,7 @@ final class FoundryTankIntakeHatch {
                 );
 
         if (!isDownwardEnabledHopper(hopperState)) {
-            return;
+            return false;
         }
 
         BlockEntity blockEntity =
@@ -232,7 +240,7 @@ final class FoundryTankIntakeHatch {
                 );
 
         if (!(blockEntity instanceof Container hopperInventory)) {
-            return;
+            return false;
         }
 
         for (
@@ -284,8 +292,10 @@ final class FoundryTankIntakeHatch {
             /*
              * Match normal Hopper behavior: one item per transfer cycle.
              */
-            return;
+            return true;
         }
+
+        return false;
     }
 
     private static boolean isDownwardEnabledHopper(
