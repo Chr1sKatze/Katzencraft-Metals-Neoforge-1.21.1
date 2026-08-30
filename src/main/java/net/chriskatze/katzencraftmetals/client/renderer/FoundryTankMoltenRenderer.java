@@ -124,7 +124,7 @@ final class FoundryTankMoltenRenderer {
 
             VertexConsumer consumer =
                     bufferSource.getBuffer(
-                            RenderType.entityTranslucent(
+                            RenderType.entityTranslucentCull(
                                     definition.animatedTexture()
                             )
                     );
