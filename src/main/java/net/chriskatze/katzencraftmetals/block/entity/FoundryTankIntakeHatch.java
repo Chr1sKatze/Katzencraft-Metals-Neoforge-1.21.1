@@ -22,6 +22,8 @@ import java.util.List;
  * The hatch is process-item-only:
  * - meltable items landing on top are pulled into the Controller input slots
  * - a downward-facing Hopper above the hatch can feed meltable items into it
+ * - every successful pull spawns a short-lived fake visual item falling into
+ *   the Tank interior
  * - fuel and random junk are ignored
  * - no items are ever extracted through the hatch
  */
@@ -138,6 +140,9 @@ final class FoundryTankIntakeHatch {
             ItemStack itemStack =
                     itemEntity.getItem();
 
+            ItemStack visualStack =
+                    itemStack.copy();
+
             int inserted =
                     insertIntoControllerInputs(
                             controller,
@@ -147,6 +152,14 @@ final class FoundryTankIntakeHatch {
             if (inserted <= 0) {
                 continue;
             }
+
+            FoundryIntakeItemVisualEvents.spawnVisuals(
+                    level,
+                    hatchPos,
+                    controller,
+                    visualStack,
+                    inserted
+            );
 
             itemStack.shrink(
                     inserted
@@ -202,6 +215,9 @@ final class FoundryTankIntakeHatch {
                 continue;
             }
 
+            ItemStack visualStack =
+                    hopperStack.copy();
+
             int inserted =
                     insertIntoControllerInputs(
                             controller,
@@ -211,6 +227,14 @@ final class FoundryTankIntakeHatch {
             if (inserted <= 0) {
                 continue;
             }
+
+            FoundryIntakeItemVisualEvents.spawnVisuals(
+                    level,
+                    hatchPos,
+                    controller,
+                    visualStack,
+                    inserted
+            );
 
             hopperStack.shrink(
                     inserted
