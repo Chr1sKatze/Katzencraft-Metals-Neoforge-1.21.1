@@ -99,6 +99,15 @@ public class FoundryTankBlockEntityRenderer
     public boolean shouldRenderOffScreen(
             FoundryTankBlockEntity tank
     ) {
-        return true;
+        /*
+         * This renderer only draws the current Tank block and small local
+         * overlays. It does not need to stay active when the block entity is
+         * outside the camera frustum.
+         *
+         * Keeping this false lets Minecraft skip offscreen Tank block entities
+         * normally, which matters a lot for large 4x4x4 foundries and multiple
+         * foundries in one area.
+         */
+        return false;
     }
 }
