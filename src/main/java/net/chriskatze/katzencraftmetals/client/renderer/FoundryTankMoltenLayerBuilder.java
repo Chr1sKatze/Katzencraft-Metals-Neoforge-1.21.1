@@ -246,38 +246,26 @@ final class FoundryTankMoltenLayerBuilder {
                             LIQUID_MAX_INSET
                     );
 
-            ResourceLocation nextMetal =
-                    getNextDisplayedMetal(
+            /*
+             * Only render the real exposed top of the complete molten column.
+             * Internal metal-boundary planes do not need horizontal faces.
+             */
+            boolean renderTop =
+                    !continuesAbove
+                            && getNextDisplayedMetal(
                             displayedAmounts,
                             index + 1
-                    );
+                    ) == null;
 
-            boolean renderTop;
-
-            if (nextMetal != null) {
-                renderTop =
-                        !nextMetal.equals(
-                                definition.id()
-                        );
-            } else if (continuesAbove) {
-                ResourceLocation metalAbove =
-                        getBottomDisplayedMetal(
-                                aboveAmounts
-                        );
-
-                renderTop =
-                        metalAbove == null
-                                || !metalAbove.equals(
-                                definition.id()
-                        );
-            } else {
-                renderTop =
-                        true;
-            }
-
+            /*
+             * Only render the real exposed bottom of the complete molten
+             * column. If there is another same-component Tank below this one,
+             * that bottom face is internal to the multiblock and can be skipped.
+             */
             boolean renderBottom =
                     result.isEmpty()
-                            && !anyLiquidBelow;
+                            && !anyLiquidBelow
+                            && tankBelow == null;
 
             if (maxY - minY > LIQUID_EPSILON) {
                 result.add(
@@ -310,26 +298,6 @@ final class FoundryTankMoltenLayerBuilder {
             MoltenMetalDefinition definition =
                     orderedDefinitions.get(index);
 
-            if (
-                    displayedAmounts.getOrDefault(
-                            definition.id(),
-                            0.0f
-                    ) > LIQUID_EPSILON
-            ) {
-                return definition.id();
-            }
-        }
-
-        return null;
-    }
-
-    private static ResourceLocation getBottomDisplayedMetal(
-            Map<ResourceLocation, Float> displayedAmounts
-    ) {
-        for (
-                MoltenMetalDefinition definition :
-                ModMoltenMetals.heaviestFirst()
-        ) {
             if (
                     displayedAmounts.getOrDefault(
                             definition.id(),

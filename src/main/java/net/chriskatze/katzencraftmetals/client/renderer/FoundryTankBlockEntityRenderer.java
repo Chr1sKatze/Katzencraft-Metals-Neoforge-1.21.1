@@ -5,6 +5,7 @@ import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.core.Direction;
 
 /**
  * Dynamically renders the complete visual Foundry Tank multiblock.
@@ -49,27 +50,43 @@ public class FoundryTankBlockEntityRenderer
             return;
         }
 
+        boolean completelyHiddenInsideSameComponent =
+                isCompletelyHiddenInsideSameComponent(
+                        tank
+                );
+
         poseStack.pushPose();
 
         PoseStack.Pose pose =
                 poseStack.last();
 
-        FoundryTankCasingRenderer.render(
-                tank,
-                pose,
-                bufferSource,
-                packedLight,
-                packedOverlay
-        );
+        if (!completelyHiddenInsideSameComponent) {
+            FoundryTankCasingRenderer.render(
+                    tank,
+                    pose,
+                    bufferSource,
+                    packedLight,
+                    packedOverlay
+            );
 
-        FoundryTankIntakeHatchRenderer.render(
-                tank,
-                pose,
-                bufferSource,
-                packedLight,
-                packedOverlay
-        );
+            FoundryTankIntakeHatchRenderer.render(
+                    tank,
+                    pose,
+                    bufferSource,
+                    packedLight,
+                    packedOverlay
+            );
+        }
 
+        /*
+         * Even a Tank surrounded by same-component Tank blocks can still need
+         * to render molten metal.
+         *
+         * Example: if the Tank above is empty, a liquid surface inside this
+         * otherwise internal Tank is visible through the transparent upper Tank
+         * volume. Skipping molten rendering here caused the 2x2 center hole in
+         * full 4x4x4 foundries with multiple metals.
+         */
         moltenRenderer.render(
                 tank,
                 partialTick,
@@ -78,21 +95,45 @@ public class FoundryTankBlockEntityRenderer
                 packedOverlay
         );
 
-        /*
-         * Render translucent entrance shadows after the molten metal so the
-         * shadow blends over the visible liquid instead of hiding it through
-         * the depth buffer.
-         */
-        FoundryTankFaucetOverlayRenderer.render(
-                tank,
-                partialTick,
-                pose,
-                bufferSource,
-                packedLight,
-                packedOverlay
-        );
+        if (!completelyHiddenInsideSameComponent) {
+            /*
+             * Render translucent entrance shadows after the molten metal so the
+             * shadow blends over the visible liquid instead of hiding it through
+             * the depth buffer.
+             */
+            FoundryTankFaucetOverlayRenderer.render(
+                    tank,
+                    partialTick,
+                    pose,
+                    bufferSource,
+                    packedLight,
+                    packedOverlay
+            );
+        }
 
         poseStack.popPose();
+    }
+
+    private static boolean isCompletelyHiddenInsideSameComponent(
+            FoundryTankBlockEntity tank
+    ) {
+        /*
+         * A Tank that has same-component neighbors on all six sides cannot
+         * expose casing, faucet overlays, or a top intake hatch.
+         *
+         * It may still need molten rendering if an empty Tank above makes the
+         * liquid surface visible through the multiblock interior.
+         */
+        for (Direction direction : Direction.values()) {
+            if (!FoundryTankVisualConnections.isSameComponent(
+                    tank,
+                    direction
+            )) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     @Override

@@ -34,7 +34,7 @@ public final class FoundryTankVisualConnections {
 
     public static boolean isSameComponent(
             FoundryTankBlockEntity tank,
-            Direction direction
+            @Nullable Direction direction
     ) {
         return getSameComponentNeighbor(
                 tank,
@@ -45,8 +45,12 @@ public final class FoundryTankVisualConnections {
     @Nullable
     public static FoundryTankBlockEntity getSameComponentNeighbor(
             FoundryTankBlockEntity tank,
-            Direction direction
+            @Nullable Direction direction
     ) {
+        if (direction == null) {
+            return null;
+        }
+
         Level level =
                 tank.getLevel();
 
@@ -75,9 +79,16 @@ public final class FoundryTankVisualConnections {
      */
     public static boolean hasAdjacentExposedFace(
             FoundryTankBlockEntity tank,
-            Direction faceDirection,
-            Direction edgeDirection
+            @Nullable Direction faceDirection,
+            @Nullable Direction edgeDirection
     ) {
+        if (
+                faceDirection == null
+                        || edgeDirection == null
+        ) {
+            return false;
+        }
+
         Level level =
                 tank.getLevel();
 
@@ -140,9 +151,13 @@ public final class FoundryTankVisualConnections {
      */
     public static boolean hasAttachedFaucet(
             FoundryTankBlockEntity tank,
-            Direction faceDirection
+            @Nullable Direction faceDirection
     ) {
-        if (!faceDirection.getAxis().isHorizontal()) {
+        if (
+                faceDirection == null
+                        || !faceDirection.getAxis()
+                        .isHorizontal()
+        ) {
             return false;
         }
 
