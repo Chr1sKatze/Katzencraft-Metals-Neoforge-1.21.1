@@ -24,6 +24,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -65,6 +66,12 @@ public final class FoundryIntakeItemVisualEvents {
     private static final double IMPACT_PARTICLE_Y_OFFSET =
             0.08D;
 
+    private static final double TANK_INTERIOR_MIN_Y_OFFSET =
+            0.075D;
+
+    private static final double TANK_INTERIOR_MAX_Y_OFFSET =
+            0.925D;
+
     private static final int MAX_LIFETIME_TICKS =
             100;
 
@@ -102,7 +109,7 @@ public final class FoundryIntakeItemVisualEvents {
                 );
 
         double targetY =
-                calculateCurrentMoltenSurfaceY(
+                calculateColumnAwareImpactY(
                         hatchPos,
                         controller
                 );
@@ -343,7 +350,7 @@ public final class FoundryIntakeItemVisualEvents {
         }
     }
 
-    private static double calculateCurrentMoltenSurfaceY(
+    private static double calculateColumnAwareImpactY(
             BlockPos hatchPos,
             FoundryControllerBlockEntity controller
     ) {
@@ -355,13 +362,118 @@ public final class FoundryIntakeItemVisualEvents {
                     + 0.12D;
         }
 
+        Set<BlockPos> tankPositions =
+                network.getTankPositions();
+
+        if (tankPositions.isEmpty()) {
+            return hatchPos.getY()
+                    + 0.12D;
+        }
+
+        ColumnBounds hatchColumn =
+                findHatchColumnBounds(
+                        hatchPos,
+                        tankPositions
+                );
+
+        double columnBottomY =
+                hatchColumn.minY()
+                        + TANK_INTERIOR_MIN_Y_OFFSET;
+
+        double columnTopY =
+                hatchColumn.maxY()
+                        + TANK_INTERIOR_MAX_Y_OFFSET;
+
+        double moltenSurfaceY =
+                calculateNetworkMoltenSurfaceY(
+                        network,
+                        hatchPos
+                );
+
+        /*
+         * With overhangs, the global molten surface can be below this intake
+         * hatch's physical vertical column.
+         *
+         * Example:
+         *
+         * Layer 2: [H][T][T]
+         * Layer 1:    [T]
+         *
+         * If the liquid is still only in the bottom center Tank, an item dropped
+         * into the outer overhang must not visually fall down to that distant
+         * liquid surface. It hits the bottom of the overhang Tank instead.
+         *
+         * If this hatch has a real vertical stack below it, columnBottomY is the
+         * bottom of that stack, so the item can still fall through the stack
+         * until it hits either molten metal or the physical bottom.
+         */
+        return Mth.clamp(
+                Math.max(
+                        moltenSurfaceY,
+                        columnBottomY
+                ),
+                columnBottomY,
+                columnTopY
+        );
+    }
+
+    private static ColumnBounds findHatchColumnBounds(
+            BlockPos hatchPos,
+            Set<BlockPos> tankPositions
+    ) {
+        int minY =
+                hatchPos.getY();
+
+        int maxY =
+                hatchPos.getY();
+
+        int x =
+                hatchPos.getX();
+
+        int z =
+                hatchPos.getZ();
+
+        while (
+                tankPositions.contains(
+                        new BlockPos(
+                                x,
+                                minY - 1,
+                                z
+                        )
+                )
+        ) {
+            minY--;
+        }
+
+        while (
+                tankPositions.contains(
+                        new BlockPos(
+                                x,
+                                maxY + 1,
+                                z
+                        )
+                )
+        ) {
+            maxY++;
+        }
+
+        return new ColumnBounds(
+                minY,
+                maxY
+        );
+    }
+
+    private static double calculateNetworkMoltenSurfaceY(
+            FoundryTankNetwork network,
+            BlockPos fallbackPos
+    ) {
         List<BlockPos> tankPositions =
                 new ArrayList<>(
                         network.getTankPositions()
                 );
 
         if (tankPositions.isEmpty()) {
-            return hatchPos.getY()
+            return fallbackPos.getY()
                     + 0.12D;
         }
 
@@ -432,12 +544,15 @@ public final class FoundryIntakeItemVisualEvents {
                                 / (double) levelCapacity;
 
                 return y
-                        + 0.075D
+                        + TANK_INTERIOR_MIN_Y_OFFSET
                         + Mth.clamp(
                         fill,
                         0.0D,
                         1.0D
-                ) * 0.85D;
+                ) * (
+                        TANK_INTERIOR_MAX_Y_OFFSET
+                                - TANK_INTERIOR_MIN_Y_OFFSET
+                );
             }
 
             remainingAmount -=
@@ -448,8 +563,8 @@ public final class FoundryIntakeItemVisualEvents {
                 yLevels.getLast();
 
         return Math.max(
-                lowestY + 0.075D,
-                highestY + 0.925D
+                lowestY + TANK_INTERIOR_MIN_Y_OFFSET,
+                highestY + TANK_INTERIOR_MAX_Y_OFFSET
         );
     }
 
@@ -465,8 +580,8 @@ public final class FoundryIntakeItemVisualEvents {
                 entity.getX();
 
         /*
-         * Always spawn the impact burst slightly above the calculated molten
-         * surface. The falling display can overshoot the surface by FALL_SPEED;
+         * Always spawn the impact burst slightly above the calculated impact
+         * surface. The falling display can overshoot the target by FALL_SPEED;
          * using the entity Y would place particles down inside a tank block,
          * making the burst look trapped by that block.
          */
@@ -521,6 +636,12 @@ public final class FoundryIntakeItemVisualEvents {
                         + serverLevel.random.nextFloat()
                         * 0.25F
         );
+    }
+
+    private record ColumnBounds(
+            int minY,
+            int maxY
+    ) {
     }
 
     private static final class VisualState {
