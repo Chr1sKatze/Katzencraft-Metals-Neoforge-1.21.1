@@ -11,12 +11,8 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.Direction;
 import net.minecraft.world.entity.Entity;
 
-import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Map;
 
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_EPSILON;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_INSET;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_MAX_INSET;
 
@@ -112,11 +108,6 @@ final class FoundryTankMoltenRenderer {
                         ? 1.0f
                         : LIQUID_MAX_INSET;
 
-        Map<Direction, List<FoundryTankRenderedMetalLayer>> neighborLayerCache =
-                new EnumMap<>(
-                        Direction.class
-                );
-
         for (int index = 0; index < renderedLayers.size(); index++) {
             FoundryTankRenderedMetalLayer renderedLayer =
                     renderedLayers.get(index);
@@ -195,13 +186,11 @@ final class FoundryTankMoltenRenderer {
                         side,
                         renderedLayer,
                         geometry,
-                        partialTick,
                         consumer,
                         pose,
                         packedOverlay,
                         frameMinV,
-                        frameMaxV,
-                        neighborLayerCache
+                        frameMaxV
                 );
             }
 
@@ -235,13 +224,11 @@ final class FoundryTankMoltenRenderer {
             Direction side,
             FoundryTankRenderedMetalLayer renderedLayer,
             FoundryTankLiquidGeometry geometry,
-            float partialTick,
             VertexConsumer consumer,
             PoseStack.Pose pose,
             int packedOverlay,
             float frameMinV,
-            float frameMaxV,
-            Map<Direction, List<FoundryTankRenderedMetalLayer>> neighborLayerCache
+            float frameMaxV
     ) {
         FoundryTankBlockEntity neighbor =
                 FoundryTankVisualConnections.getSameComponentNeighbor(
@@ -249,76 +236,35 @@ final class FoundryTankMoltenRenderer {
                         side
                 );
 
-        if (neighbor == null) {
-            FoundryTankLiquidQuads.renderLiquidSideSegment(
-                    side,
-                    consumer,
-                    pose,
-                    geometry,
-                    renderedLayer.minY(),
-                    renderedLayer.maxY(),
-                    false,
-                    packedOverlay,
-                    frameMinV,
-                    frameMaxV
-            );
-
+        /*
+         * Horizontal same-component sides are internal liquid faces.
+         *
+         * The visual liquid levels are already averaged across the connected
+         * horizontal tank level, so neighboring tanks on the same Y level share
+         * the same rendered liquid boundaries. That means the internal side
+         * cannot be visible from outside the foundry.
+         *
+         * Previously we still fetched the neighbor's rendered layers and
+         * subtracted intervals just to prove that nothing was visible. In large
+         * 4x4x4 foundries, most horizontal side checks are internal, so this
+         * shortcut avoids a lot of repeated hidden-side work.
+         */
+        if (neighbor != null) {
             return;
         }
 
-        List<FoundryTankVerticalInterval> visibleIntervals =
-                new ArrayList<>();
-
-        visibleIntervals.add(
-                new FoundryTankVerticalInterval(
-                        renderedLayer.minY(),
-                        renderedLayer.maxY()
-                )
+        FoundryTankLiquidQuads.renderLiquidSideSegment(
+                side,
+                consumer,
+                pose,
+                geometry,
+                renderedLayer.minY(),
+                renderedLayer.maxY(),
+                false,
+                packedOverlay,
+                frameMinV,
+                frameMaxV
         );
-
-        List<FoundryTankRenderedMetalLayer> neighborLayers =
-                neighborLayerCache.computeIfAbsent(
-                        side,
-                        ignored -> layerBuilder.createRenderedLayers(
-                                neighbor,
-                                partialTick
-                        )
-                );
-
-        for (FoundryTankRenderedMetalLayer neighborLayer : neighborLayers) {
-            /*
-             * All Tanks in one horizontal level now use the same averaged
-             * visual layer boundaries. Internal faces therefore disappear
-             * cleanly without one Tank appearing one integer unit higher.
-             */
-            visibleIntervals =
-                    subtractInterval(
-                            visibleIntervals,
-                            new FoundryTankVerticalInterval(
-                                    neighborLayer.minY(),
-                                    neighborLayer.maxY()
-                            )
-                    );
-
-            if (visibleIntervals.isEmpty()) {
-                return;
-            }
-        }
-
-        for (FoundryTankVerticalInterval visible : visibleIntervals) {
-            FoundryTankLiquidQuads.renderLiquidSideSegment(
-                    side,
-                    consumer,
-                    pose,
-                    geometry,
-                    visible.minY(),
-                    visible.maxY(),
-                    true,
-                    packedOverlay,
-                    frameMinV,
-                    frameMaxV
-            );
-        }
     }
 
     private static boolean shouldRenderLiquidSideForCamera(
@@ -366,50 +312,4 @@ final class FoundryTankMoltenRenderer {
         };
     }
 
-    private static List<FoundryTankVerticalInterval> subtractInterval(
-            List<FoundryTankVerticalInterval> source,
-            FoundryTankVerticalInterval removed
-    ) {
-        List<FoundryTankVerticalInterval> result =
-                new ArrayList<>();
-
-        for (FoundryTankVerticalInterval interval : source) {
-            float overlapMin =
-                    Math.max(
-                            interval.minY(),
-                            removed.minY()
-                    );
-
-            float overlapMax =
-                    Math.min(
-                            interval.maxY(),
-                            removed.maxY()
-                    );
-
-            if (overlapMax - overlapMin <= LIQUID_EPSILON) {
-                result.add(interval);
-                continue;
-            }
-
-            if (overlapMin - interval.minY() > LIQUID_EPSILON) {
-                result.add(
-                        new FoundryTankVerticalInterval(
-                                interval.minY(),
-                                overlapMin
-                        )
-                );
-            }
-
-            if (interval.maxY() - overlapMax > LIQUID_EPSILON) {
-                result.add(
-                        new FoundryTankVerticalInterval(
-                                overlapMax,
-                                interval.maxY()
-                        )
-                );
-            }
-        }
-
-        return result;
-    }
 }

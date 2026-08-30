@@ -57,6 +57,39 @@ final class FoundryTankLiquidSmoother {
     private static final int FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS =
             6;
 
+    private static final int MEDIUM_SNAPSHOT_NETWORK_TANK_COUNT =
+            16;
+
+    private static final int LARGE_SNAPSHOT_NETWORK_TANK_COUNT =
+            32;
+
+    private static final int HUGE_SNAPSHOT_NETWORK_TANK_COUNT =
+            48;
+
+    private static final int LARGE_NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            2;
+
+    private static final int HUGE_NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            3;
+
+    private static final int MEDIUM_NETWORK_MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            4;
+
+    private static final int LARGE_NETWORK_MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            6;
+
+    private static final int HUGE_NETWORK_MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            8;
+
+    private static final int MEDIUM_NETWORK_FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            8;
+
+    private static final int LARGE_NETWORK_FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            12;
+
+    private static final int HUGE_NETWORK_FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS =
+            16;
+
     private static final long STALE_SNAPSHOT_PRUNE_TICKS =
             200L;
 
@@ -92,9 +125,10 @@ final class FoundryTankLiquidSmoother {
      * depend on partialTick, because the expensive raw aggregate data is the
      * same for every rendered frame inside that tick.
      *
-     * Close networks still refresh every client tick. More distant networks
-     * refresh every 2 or 4 ticks, with a stable offset so multiple foundries do
-     * not all run their expensive 4x4x4 scan on the same client tick.
+     * Close small networks still refresh every client tick. More distant and
+     * larger networks refresh less often, with a stable offset so multiple
+     * foundries do not all run their expensive 4x4x4 scan on the same client
+     * tick.
      *
      * Every Tank in that network then only slices the already-prepared
      * displayed boundaries for its own Y level.
@@ -318,7 +352,10 @@ final class FoundryTankLiquidSmoother {
                         .cameraEntity;
 
         if (camera == null) {
-            return NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+            return networkAdjustedLiquidColumnSnapshotRefreshInterval(
+                    tank,
+                    NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS
+            );
         }
 
         double tankCenterX =
@@ -351,14 +388,92 @@ final class FoundryTankLiquidSmoother {
                         + deltaZ * deltaZ;
 
         if (distanceSquared <= NEAR_SNAPSHOT_REFRESH_DISTANCE_SQ) {
-            return NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+            return networkAdjustedLiquidColumnSnapshotRefreshInterval(
+                    tank,
+                    NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS
+            );
         }
 
         if (distanceSquared <= MEDIUM_SNAPSHOT_REFRESH_DISTANCE_SQ) {
+            return networkAdjustedLiquidColumnSnapshotRefreshInterval(
+                    tank,
+                    MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS
+            );
+        }
+
+        return networkAdjustedLiquidColumnSnapshotRefreshInterval(
+                tank,
+                FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS
+        );
+    }
+
+    private static int networkAdjustedLiquidColumnSnapshotRefreshInterval(
+            FoundryTankBlockEntity tank,
+            int baseRefreshInterval
+    ) {
+        int networkTankCount =
+                liquidColumnSnapshotNetworkTankCount(
+                        tank
+                );
+
+        if (baseRefreshInterval <= NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS) {
+            if (networkTankCount >= HUGE_SNAPSHOT_NETWORK_TANK_COUNT) {
+                return HUGE_NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+            }
+
+            if (networkTankCount >= LARGE_SNAPSHOT_NETWORK_TANK_COUNT) {
+                return LARGE_NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+            }
+
+            return NEAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+        }
+
+        if (baseRefreshInterval <= MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS) {
+            if (networkTankCount >= HUGE_SNAPSHOT_NETWORK_TANK_COUNT) {
+                return HUGE_NETWORK_MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+            }
+
+            if (networkTankCount >= LARGE_SNAPSHOT_NETWORK_TANK_COUNT) {
+                return LARGE_NETWORK_MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+            }
+
+            if (networkTankCount >= MEDIUM_SNAPSHOT_NETWORK_TANK_COUNT) {
+                return MEDIUM_NETWORK_MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+            }
+
             return MEDIUM_SNAPSHOT_REFRESH_INTERVAL_TICKS;
         }
 
+        if (networkTankCount >= HUGE_SNAPSHOT_NETWORK_TANK_COUNT) {
+            return HUGE_NETWORK_FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+        }
+
+        if (networkTankCount >= LARGE_SNAPSHOT_NETWORK_TANK_COUNT) {
+            return LARGE_NETWORK_FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+        }
+
+        if (networkTankCount >= MEDIUM_SNAPSHOT_NETWORK_TANK_COUNT) {
+            return MEDIUM_NETWORK_FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+        }
+
         return FAR_SNAPSHOT_REFRESH_INTERVAL_TICKS;
+    }
+
+    private static int liquidColumnSnapshotNetworkTankCount(
+            FoundryTankBlockEntity tank
+    ) {
+        FoundryTankNetwork network =
+                tank.getNetwork();
+
+        if (network == null) {
+            return 1;
+        }
+
+        return Math.max(
+                1,
+                network.getTankPositions()
+                        .size()
+        );
     }
 
     private static int liquidColumnSnapshotStaggerOffset(
