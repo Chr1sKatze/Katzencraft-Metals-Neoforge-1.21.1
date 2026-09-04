@@ -1,0 +1,8 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "katzencraftmetals:end_platinum_ore"
+  },
+  "molten_amount": 6,
+  "molten_metal": "katzencraftmetals:platinum"
+}

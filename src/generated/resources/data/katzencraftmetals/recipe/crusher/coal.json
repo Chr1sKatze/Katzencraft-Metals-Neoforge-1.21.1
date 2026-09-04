@@ -1,0 +1,11 @@
+{
+  "type": "katzencraftmetals:crusher",
+  "ingredient": {
+    "item": "minecraft:coal"
+  },
+  "main_output": {
+    "count": 3,
+    "id": "katzencraftmetals:crushed_coal"
+  },
+  "processing_time": 300
+}

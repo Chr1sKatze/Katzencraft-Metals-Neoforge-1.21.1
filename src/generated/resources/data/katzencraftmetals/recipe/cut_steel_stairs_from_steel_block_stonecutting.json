@@ -1,0 +1,10 @@
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": {
+    "item": "katzencraftmetals:steel_block"
+  },
+  "result": {
+    "count": 4,
+    "id": "katzencraftmetals:cut_steel_stairs"
+  }
+}

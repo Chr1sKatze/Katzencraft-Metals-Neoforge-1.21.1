@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "katzencraftmetals:mythril_block"
+    }
+  ],
+  "result": {
+    "count": 9,
+    "id": "katzencraftmetals:mythril_ingot"
+  }
+}

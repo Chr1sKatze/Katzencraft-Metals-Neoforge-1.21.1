@@ -1,0 +1,16 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "katzencraftmetals:crushed_iron_ore"
+    },
+    {
+      "item": "katzencraftmetals:crushed_coal"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "katzencraftmetals:steel_charge"
+  }
+}

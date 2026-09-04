@@ -1,0 +1,11 @@
+{
+  "type": "katzencraftmetals:crusher",
+  "ingredient": {
+    "item": "katzencraftmetals:raw_mythril"
+  },
+  "main_output": {
+    "count": 1,
+    "id": "katzencraftmetals:crushed_mythril_ore"
+  },
+  "processing_time": 300
+}

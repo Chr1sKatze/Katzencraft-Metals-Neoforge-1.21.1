@@ -1,0 +1,9 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "minecraft:gold_block"
+  },
+  "molten_amount": 54,
+  "molten_metal": "minecraft:gold",
+  "processing_time": 900
+}

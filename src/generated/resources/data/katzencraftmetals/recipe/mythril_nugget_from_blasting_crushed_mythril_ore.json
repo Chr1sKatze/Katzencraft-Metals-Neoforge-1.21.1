@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:blasting",
+  "category": "misc",
+  "cookingtime": 100,
+  "experience": 0.0,
+  "group": "mythril",
+  "ingredient": {
+    "item": "katzencraftmetals:crushed_mythril_ore"
+  },
+  "result": {
+    "count": 1,
+    "id": "katzencraftmetals:mythril_nugget"
+  }
+}

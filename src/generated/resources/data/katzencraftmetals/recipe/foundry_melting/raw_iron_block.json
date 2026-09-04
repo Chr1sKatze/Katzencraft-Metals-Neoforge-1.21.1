@@ -1,0 +1,9 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "minecraft:raw_iron_block"
+  },
+  "molten_amount": 54,
+  "molten_metal": "minecraft:iron",
+  "processing_time": 900
+}

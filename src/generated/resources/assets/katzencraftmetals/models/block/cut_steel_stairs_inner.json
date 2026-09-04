@@ -1,0 +1,8 @@
+{
+  "parent": "minecraft:block/inner_stairs",
+  "textures": {
+    "bottom": "katzencraftmetals:block/cut_steel_block",
+    "side": "katzencraftmetals:block/cut_steel_block",
+    "top": "katzencraftmetals:block/cut_steel_block"
+  }
+}

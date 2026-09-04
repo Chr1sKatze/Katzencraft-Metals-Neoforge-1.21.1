@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "katzencraftmetals:platinum_ingot"
+    }
+  ],
+  "result": {
+    "count": 6,
+    "id": "katzencraftmetals:platinum_nugget"
+  }
+}

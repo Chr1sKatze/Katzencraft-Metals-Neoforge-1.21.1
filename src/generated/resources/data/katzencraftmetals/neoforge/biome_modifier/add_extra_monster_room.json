@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#c:is_overworld",
+  "features": "katzencraftmetals:extra_monster_room_placed",
+  "step": "underground_structures"
+}

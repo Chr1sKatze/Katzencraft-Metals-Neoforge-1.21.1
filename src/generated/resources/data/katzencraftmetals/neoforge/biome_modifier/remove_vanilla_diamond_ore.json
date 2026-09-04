@@ -1,0 +1,10 @@
+{
+  "type": "neoforge:remove_features",
+  "biomes": "#c:is_overworld",
+  "features": [
+    "minecraft:ore_diamond",
+    "minecraft:ore_diamond_buried",
+    "minecraft:ore_diamond_large",
+    "minecraft:ore_diamond_medium"
+  ]
+}

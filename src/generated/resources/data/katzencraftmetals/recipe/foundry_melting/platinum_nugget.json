@@ -1,0 +1,9 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "katzencraftmetals:platinum_nugget"
+  },
+  "molten_amount": 1,
+  "molten_metal": "katzencraftmetals:platinum",
+  "processing_time": 12
+}

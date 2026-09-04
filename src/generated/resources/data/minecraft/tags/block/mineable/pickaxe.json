@@ -1,0 +1,30 @@
+{
+  "values": [
+    "katzencraftmetals:platinum_block",
+    "katzencraftmetals:platinum_ore",
+    "katzencraftmetals:deepslate_platinum_ore",
+    "katzencraftmetals:nether_platinum_ore",
+    "katzencraftmetals:end_platinum_ore",
+    "katzencraftmetals:mythril_block",
+    "katzencraftmetals:mythril_ore",
+    "katzencraftmetals:deepslate_mythril_ore",
+    "katzencraftmetals:nether_mythril_ore",
+    "katzencraftmetals:end_mythril_ore",
+    "katzencraftmetals:steel_block",
+    "katzencraftmetals:cut_steel_block",
+    "katzencraftmetals:cut_steel_slab",
+    "katzencraftmetals:cut_steel_stairs",
+    "katzencraftmetals:steel_bars",
+    "katzencraftmetals:steel_chain",
+    "katzencraftmetals:steel_pressure_plate",
+    "katzencraftmetals:steel_button",
+    "katzencraftmetals:steel_lever",
+    "katzencraftmetals:steel_door",
+    "katzencraftmetals:steel_trapdoor",
+    "katzencraftmetals:fuel_chamber",
+    "katzencraftmetals:foundry_controller",
+    "katzencraftmetals:foundry_tank",
+    "katzencraftmetals:casting_cauldron",
+    "katzencraftmetals:foundry_faucet"
+  ]
+}

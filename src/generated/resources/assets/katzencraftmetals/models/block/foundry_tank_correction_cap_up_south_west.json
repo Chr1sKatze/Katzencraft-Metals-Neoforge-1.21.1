@@ -1,0 +1,39 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "elements": [
+    {
+      "faces": {
+        "down": {
+          "texture": "#frame"
+        },
+        "up": {
+          "texture": "#frame",
+          "uv": [
+            0.0,
+            0.0,
+            1.0,
+            1.0
+          ]
+        }
+      },
+      "from": [
+        0,
+        15.92,
+        15
+      ],
+      "to": [
+        1,
+        16.02,
+        16
+      ]
+    }
+  ],
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "frame": "katzencraftmetals:block/foundry_tank_frame",
+    "particle": "katzencraftmetals:block/foundry_tank_side",
+    "side": "katzencraftmetals:block/foundry_tank_side",
+    "top": "katzencraftmetals:block/foundry_tank_top"
+  }
+}

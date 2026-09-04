@@ -1,0 +1,18 @@
+{
+  "type": "katzencraftmetals:foundry_alloy",
+  "experience": 3,
+  "ingredients": [
+    {
+      "amount": 3,
+      "metal": "katzencraftmetals:steel"
+    },
+    {
+      "amount": 3,
+      "metal": "katzencraftmetals:platinum"
+    }
+  ],
+  "output_amount": 6,
+  "output_metal": "katzencraftmetals:mythril",
+  "processing_time": 140,
+  "required_tier": 2
+}

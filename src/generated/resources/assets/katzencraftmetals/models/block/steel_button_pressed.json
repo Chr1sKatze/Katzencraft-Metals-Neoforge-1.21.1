@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/button_pressed",
+  "textures": {
+    "texture": "katzencraftmetals:block/steel_block"
+  }
+}

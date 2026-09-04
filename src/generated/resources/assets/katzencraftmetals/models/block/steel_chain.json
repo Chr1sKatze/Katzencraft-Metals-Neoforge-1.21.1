@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/chain",
+  "textures": {
+    "all": "katzencraftmetals:block/steel_chain"
+  }
+}

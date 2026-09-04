@@ -1,0 +1,11 @@
+{
+  "type": "katzencraftmetals:crusher",
+  "ingredient": {
+    "item": "minecraft:raw_iron"
+  },
+  "main_output": {
+    "count": 1,
+    "id": "katzencraftmetals:crushed_iron_ore"
+  },
+  "processing_time": 300
+}

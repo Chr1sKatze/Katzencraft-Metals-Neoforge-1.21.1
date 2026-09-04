@@ -1,0 +1,9 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "minecraft:iron_nugget"
+  },
+  "molten_amount": 1,
+  "molten_metal": "minecraft:iron",
+  "processing_time": 12
+}

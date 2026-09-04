@@ -1,0 +1,9 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "minecraft:copper_block"
+  },
+  "molten_amount": 54,
+  "molten_metal": "minecraft:copper",
+  "processing_time": 900
+}

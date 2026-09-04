@@ -1,0 +1,193 @@
+{
+  "parent": "minecraft:block/block",
+  "ambientocclusion": false,
+  "elements": [
+    {
+      "faces": {
+        "east": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame",
+          "uv": [
+            1.0,
+            0.0,
+            0.0,
+            16.0
+          ]
+        }
+      },
+      "from": [
+        -0.02,
+        0,
+        15
+      ],
+      "to": [
+        0.08,
+        16,
+        16
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame",
+          "uv": [
+            3.0,
+            3.0,
+            1.0,
+            4.0
+          ]
+        }
+      },
+      "from": [
+        -0.02,
+        12,
+        13
+      ],
+      "to": [
+        0.08,
+        13,
+        15
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame",
+          "uv": [
+            2.0,
+            4.0,
+            1.0,
+            5.0
+          ]
+        }
+      },
+      "from": [
+        -0.02,
+        11,
+        14
+      ],
+      "to": [
+        0.08,
+        12,
+        15
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame",
+          "uv": [
+            3.0,
+            7.0,
+            1.0,
+            8.0
+          ]
+        }
+      },
+      "from": [
+        -0.02,
+        8,
+        13
+      ],
+      "to": [
+        0.08,
+        9,
+        15
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame",
+          "uv": [
+            2.0,
+            8.0,
+            1.0,
+            9.0
+          ]
+        }
+      },
+      "from": [
+        -0.02,
+        7,
+        14
+      ],
+      "to": [
+        0.08,
+        8,
+        15
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame",
+          "uv": [
+            3.0,
+            11.0,
+            1.0,
+            12.0
+          ]
+        }
+      },
+      "from": [
+        -0.02,
+        4,
+        13
+      ],
+      "to": [
+        0.08,
+        5,
+        15
+      ]
+    },
+    {
+      "faces": {
+        "east": {
+          "texture": "#frame"
+        },
+        "west": {
+          "texture": "#frame",
+          "uv": [
+            2.0,
+            12.0,
+            1.0,
+            13.0
+          ]
+        }
+      },
+      "from": [
+        -0.02,
+        3,
+        14
+      ],
+      "to": [
+        0.08,
+        4,
+        15
+      ]
+    }
+  ],
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "frame": "katzencraftmetals:block/foundry_tank_frame",
+    "particle": "katzencraftmetals:block/foundry_tank_frame"
+  }
+}

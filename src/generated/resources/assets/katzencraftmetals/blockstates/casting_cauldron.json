@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "cast_state=cooled": {
+      "model": "katzencraftmetals:block/casting_cauldron"
+    },
+    "cast_state=empty": {
+      "model": "katzencraftmetals:block/casting_cauldron"
+    },
+    "cast_state=molten": {
+      "model": "katzencraftmetals:block/casting_cauldron"
+    }
+  }
+}

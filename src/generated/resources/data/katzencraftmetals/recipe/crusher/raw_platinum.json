@@ -1,0 +1,21 @@
+{
+  "type": "katzencraftmetals:crusher",
+  "ingredient": {
+    "item": "katzencraftmetals:raw_platinum"
+  },
+  "main_output": {
+    "count": 1,
+    "id": "katzencraftmetals:crushed_platinum_ore"
+  },
+  "processing_time": 300,
+  "second_chance": 0.25,
+  "second_output": {
+    "count": 1,
+    "id": "minecraft:gold_nugget"
+  },
+  "third_chance": 0.1,
+  "third_output": {
+    "count": 1,
+    "id": "minecraft:diamond"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "type": "katzencraftmetals:foundry_alloy",
+  "ingredients": [
+    {
+      "amount": 6,
+      "metal": "minecraft:iron"
+    }
+  ],
+  "output_amount": 6,
+  "output_metal": "katzencraftmetals:steel"
+}

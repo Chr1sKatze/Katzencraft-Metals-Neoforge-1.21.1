@@ -1,0 +1,19 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    {
+      "item": "katzencraftmetals:crushed_coal"
+    },
+    {
+      "item": "katzencraftmetals:crushed_coal"
+    },
+    {
+      "item": "katzencraftmetals:crushed_coal"
+    }
+  ],
+  "result": {
+    "count": 1,
+    "id": "minecraft:coal"
+  }
+}

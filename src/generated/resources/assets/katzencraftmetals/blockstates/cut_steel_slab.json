@@ -1,0 +1,13 @@
+{
+  "variants": {
+    "type=bottom": {
+      "model": "katzencraftmetals:block/cut_steel_slab"
+    },
+    "type=double": {
+      "model": "katzencraftmetals:block/cut_steel_block"
+    },
+    "type=top": {
+      "model": "katzencraftmetals:block/cut_steel_slab_top"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "type": "katzencraftmetals:foundry_alloy",
+  "experience": 2,
+  "ingredients": [
+    {
+      "amount": 3,
+      "metal": "minecraft:iron"
+    },
+    {
+      "amount": 3,
+      "metal": "minecraft:gold"
+    }
+  ],
+  "output_amount": 6,
+  "output_metal": "katzencraftmetals:platinum"
+}

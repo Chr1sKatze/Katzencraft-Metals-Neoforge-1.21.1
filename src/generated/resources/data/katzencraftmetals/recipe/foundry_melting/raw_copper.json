@@ -1,0 +1,8 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "minecraft:raw_copper"
+  },
+  "molten_amount": 6,
+  "molten_metal": "minecraft:copper"
+}

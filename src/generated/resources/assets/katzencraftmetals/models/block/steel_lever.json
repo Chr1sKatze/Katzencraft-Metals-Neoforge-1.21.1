@@ -1,0 +1,6 @@
+{
+  "parent": "katzencraftmetals:block/custom_lever",
+  "textures": {
+    "lever": "katzencraftmetals:block/steel_lever"
+  }
+}

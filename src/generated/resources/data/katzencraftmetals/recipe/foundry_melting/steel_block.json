@@ -1,0 +1,9 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "katzencraftmetals:steel_block"
+  },
+  "molten_amount": 54,
+  "molten_metal": "katzencraftmetals:steel",
+  "processing_time": 900
+}

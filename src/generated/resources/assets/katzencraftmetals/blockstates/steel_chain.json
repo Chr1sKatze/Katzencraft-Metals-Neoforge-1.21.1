@@ -1,0 +1,16 @@
+{
+  "variants": {
+    "axis=x": {
+      "model": "katzencraftmetals:block/steel_chain",
+      "x": 90,
+      "y": 90
+    },
+    "axis=y": {
+      "model": "katzencraftmetals:block/steel_chain"
+    },
+    "axis=z": {
+      "model": "katzencraftmetals:block/steel_chain",
+      "x": 90
+    }
+  }
+}

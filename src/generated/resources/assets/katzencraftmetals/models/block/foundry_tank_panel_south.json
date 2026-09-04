@@ -1,0 +1,34 @@
+{
+  "parent": "minecraft:block/block",
+  "elements": [
+    {
+      "faces": {
+        "south": {
+          "texture": "#side",
+          "uv": [
+            3.0,
+            1.0,
+            13.0,
+            15.0
+          ]
+        }
+      },
+      "from": [
+        0,
+        0,
+        15.88
+      ],
+      "to": [
+        16,
+        16,
+        15.89
+      ]
+    }
+  ],
+  "render_type": "minecraft:cutout",
+  "textures": {
+    "particle": "katzencraftmetals:block/foundry_tank_side",
+    "side": "katzencraftmetals:block/foundry_tank_side",
+    "top": "katzencraftmetals:block/foundry_tank_top"
+  }
+}
