@@ -492,19 +492,75 @@ public final class FoundryTankConnectedFrameModel
          * Each missing quadrant is owned exactly once by the block diagonally
          * opposite it.
          */
-        if (needsSideConcaveCap(level, pos, Direction.UP, left)) {
+        if (
+                needsSideConcaveCap(
+                        level,
+                        pos,
+                        Direction.UP,
+                        left
+                )
+                        || needsSideProtrusionBaseCap(
+                        level,
+                        pos,
+                        face,
+                        Direction.UP,
+                        left
+                )
+        ) {
             mask |= topLeftCap.bit();
         }
 
-        if (needsSideConcaveCap(level, pos, Direction.UP, right)) {
+        if (
+                needsSideConcaveCap(
+                        level,
+                        pos,
+                        Direction.UP,
+                        right
+                )
+                        || needsSideProtrusionBaseCap(
+                        level,
+                        pos,
+                        face,
+                        Direction.UP,
+                        right
+                )
+        ) {
             mask |= topRightCap.bit();
         }
 
-        if (needsSideConcaveCap(level, pos, Direction.DOWN, left)) {
+        if (
+                needsSideConcaveCap(
+                        level,
+                        pos,
+                        Direction.DOWN,
+                        left
+                )
+                        || needsSideProtrusionBaseCap(
+                        level,
+                        pos,
+                        face,
+                        Direction.DOWN,
+                        left
+                )
+        ) {
             mask |= bottomLeftCap.bit();
         }
 
-        if (needsSideConcaveCap(level, pos, Direction.DOWN, right)) {
+        if (
+                needsSideConcaveCap(
+                        level,
+                        pos,
+                        Direction.DOWN,
+                        right
+                )
+                        || needsSideProtrusionBaseCap(
+                        level,
+                        pos,
+                        face,
+                        Direction.DOWN,
+                        right
+                )
+        ) {
             mask |= bottomRightCap.bit();
         }
 
@@ -693,6 +749,85 @@ public final class FoundryTankConnectedFrameModel
                 pos.relative(vertical)
                         .relative(horizontal)
         );
+    }
+
+    /**
+     * Side-facing equivalent of the old raised-footprint corner-cap rule.
+     *
+     * Side projection:
+     *
+     *   [A][current]
+     *   [D][C]
+     *
+     * and one additional Tank P protrudes one block outward from D:
+     *
+     *   P = D.relative(face)
+     *
+     * The current Tank owns the 1x1 cap at the corner facing D.
+     *
+     * Requirements:
+     * - both orthogonal backing-wall neighbors A/C exist;
+     * - diagonal backing Tank D exists;
+     * - D has a Tank protruding outward in the rendered face direction;
+     * - the protruding Tank has no continuation toward A or C.
+     *
+     * This is a strict single-owner rule. It reuses the already-correct
+     * same-face CAP_* model, so no new geometry can overlap or z-fight.
+     */
+    private static boolean needsSideProtrusionBaseCap(
+            BlockAndTintGetter level,
+            BlockPos pos,
+            Direction face,
+            Direction vertical,
+            Direction horizontal
+    ) {
+        BlockPos verticalNeighbor =
+                pos.relative(vertical);
+
+        BlockPos horizontalNeighbor =
+                pos.relative(horizontal);
+
+        if (
+                !isTank(level, verticalNeighbor)
+                        || !isTank(level, horizontalNeighbor)
+        ) {
+            return false;
+        }
+
+        BlockPos diagonalBackingTank =
+                verticalNeighbor.relative(horizontal);
+
+        if (!isTank(level, diagonalBackingTank)) {
+            return false;
+        }
+
+        BlockPos protrudingTank =
+                diagonalBackingTank.relative(face);
+
+        if (!isTank(level, protrudingTank)) {
+            return false;
+        }
+
+        /*
+         * The protruding Tank's corner must actually be exposed.
+         *
+         * These two positions are exactly the protruding Tank's neighbors
+         * toward the current Tank along the two side-face axes.
+         */
+        if (
+                isTank(
+                        level,
+                        verticalNeighbor.relative(face)
+                )
+                        || isTank(
+                        level,
+                        horizontalNeighbor.relative(face)
+                )
+        ) {
+            return false;
+        }
+
+        return true;
     }
 
     private static boolean isTank(

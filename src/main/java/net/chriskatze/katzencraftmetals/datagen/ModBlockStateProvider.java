@@ -949,60 +949,76 @@ public class ModBlockStateProvider extends BlockStateProvider {
          */
 
         // NORTH: local left = WEST, local right = EAST.
-        correctionSideModel("foundry_tank_correction_cap_north_top_west",
-                Direction.NORTH, 0.0f, 15.0f, -O, 1.0f, 16.0f, 0.08f,
-                0.0f, 0.0f, 1.0f, 1.0f);
-        correctionSideModel("foundry_tank_correction_cap_north_top_east",
-                Direction.NORTH, 15.0f, 15.0f, -O, 16.0f, 16.0f, 0.08f,
-                15.0f, 0.0f, 16.0f, 1.0f);
-        correctionSideModel("foundry_tank_correction_cap_north_bottom_west",
-                Direction.NORTH, 0.0f, 0.0f, -O, 1.0f, 1.0f, 0.08f,
-                0.0f, 15.0f, 1.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_cap_north_bottom_east",
-                Direction.NORTH, 15.0f, 0.0f, -O, 16.0f, 1.0f, 0.08f,
-                15.0f, 15.0f, 16.0f, 16.0f);
+        correctionSolidCapModel("foundry_tank_correction_cap_north_top_west",
+                0.0f, 15.0f, -O,
+                1.0f, 16.0f, 0.08f
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_north_top_east",
+                15.0f, 15.0f, -O,
+                16.0f, 16.0f, 0.08f
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_north_bottom_west",
+                0.0f, 0.0f, -O,
+                1.0f, 1.0f, 0.08f
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_north_bottom_east",
+                15.0f, 0.0f, -O,
+                16.0f, 1.0f, 0.08f
+        );
 
         // SOUTH: local left = EAST, local right = WEST.
-        correctionSideModel("foundry_tank_correction_cap_south_top_east",
-                Direction.SOUTH, 15.0f, 15.0f, 15.92f, 16.0f, 16.0f, 16.0f + O,
-                0.0f, 0.0f, 1.0f, 1.0f);
-        correctionSideModel("foundry_tank_correction_cap_south_top_west",
-                Direction.SOUTH, 0.0f, 15.0f, 15.92f, 1.0f, 16.0f, 16.0f + O,
-                15.0f, 0.0f, 16.0f, 1.0f);
-        correctionSideModel("foundry_tank_correction_cap_south_bottom_east",
-                Direction.SOUTH, 15.0f, 0.0f, 15.92f, 16.0f, 1.0f, 16.0f + O,
-                0.0f, 15.0f, 1.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_cap_south_bottom_west",
-                Direction.SOUTH, 0.0f, 0.0f, 15.92f, 1.0f, 1.0f, 16.0f + O,
-                15.0f, 15.0f, 16.0f, 16.0f);
+        correctionSolidCapModel("foundry_tank_correction_cap_south_top_east",
+                15.0f, 15.0f, 15.92f,
+                16.0f, 16.0f, 16.0f + O
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_south_top_west",
+                0.0f, 15.0f, 15.92f,
+                1.0f, 16.0f, 16.0f + O
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_south_bottom_east",
+                15.0f, 0.0f, 15.92f,
+                16.0f, 1.0f, 16.0f + O
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_south_bottom_west",
+                0.0f, 0.0f, 15.92f,
+                1.0f, 1.0f, 16.0f + O
+        );
 
         // WEST: local left = SOUTH, local right = NORTH.
-        correctionSideModel("foundry_tank_correction_cap_west_top_south",
-                Direction.WEST, -O, 15.0f, 15.0f, 0.08f, 16.0f, 16.0f,
-                0.0f, 0.0f, 1.0f, 1.0f);
-        correctionSideModel("foundry_tank_correction_cap_west_top_north",
-                Direction.WEST, -O, 15.0f, 0.0f, 0.08f, 16.0f, 1.0f,
-                15.0f, 0.0f, 16.0f, 1.0f);
-        correctionSideModel("foundry_tank_correction_cap_west_bottom_south",
-                Direction.WEST, -O, 0.0f, 15.0f, 0.08f, 1.0f, 16.0f,
-                0.0f, 15.0f, 1.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_cap_west_bottom_north",
-                Direction.WEST, -O, 0.0f, 0.0f, 0.08f, 1.0f, 1.0f,
-                15.0f, 15.0f, 16.0f, 16.0f);
+        correctionSolidCapModel("foundry_tank_correction_cap_west_top_south",
+                -O, 15.0f, 15.0f,
+                0.08f, 16.0f, 16.0f
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_west_top_north",
+                -O, 15.0f, 0.0f,
+                0.08f, 16.0f, 1.0f
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_west_bottom_south",
+                -O, 0.0f, 15.0f,
+                0.08f, 1.0f, 16.0f
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_west_bottom_north",
+                -O, 0.0f, 0.0f,
+                0.08f, 1.0f, 1.0f
+        );
 
         // EAST: local left = NORTH, local right = SOUTH.
-        correctionSideModel("foundry_tank_correction_cap_east_top_north",
-                Direction.EAST, 15.92f, 15.0f, 0.0f, 16.0f + O, 16.0f, 1.0f,
-                0.0f, 0.0f, 1.0f, 1.0f);
-        correctionSideModel("foundry_tank_correction_cap_east_top_south",
-                Direction.EAST, 15.92f, 15.0f, 15.0f, 16.0f + O, 16.0f, 16.0f,
-                15.0f, 0.0f, 16.0f, 1.0f);
-        correctionSideModel("foundry_tank_correction_cap_east_bottom_north",
-                Direction.EAST, 15.92f, 0.0f, 0.0f, 16.0f + O, 1.0f, 1.0f,
-                0.0f, 15.0f, 1.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_cap_east_bottom_south",
-                Direction.EAST, 15.92f, 0.0f, 15.0f, 16.0f + O, 1.0f, 16.0f,
-                15.0f, 15.0f, 16.0f, 16.0f);
+        correctionSolidCapModel("foundry_tank_correction_cap_east_top_north",
+                15.92f, 15.0f, 0.0f,
+                16.0f + O, 16.0f, 1.0f
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_east_top_south",
+                15.92f, 15.0f, 15.0f,
+                16.0f + O, 16.0f, 16.0f
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_east_bottom_north",
+                15.92f, 0.0f, 0.0f,
+                16.0f + O, 1.0f, 1.0f
+        );
+        correctionSolidCapModel("foundry_tank_correction_cap_east_bottom_south",
+                15.92f, 0.0f, 15.0f,
+                16.0f + O, 1.0f, 16.0f
+        );
 
         // -------------------------
         // 1x1 UP / DOWN concave caps
@@ -1275,6 +1291,79 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 )
                 .end()
                 .end();
+    }
+
+    /**
+     * Closed 1x1 concave side-corner cap.
+     *
+     * The flat v16 cap fixed a pure standing L:
+     *
+     *   XX
+     *   X.
+     *
+     * but it only emitted the two faces parallel to the Tank face. If another
+     * Tank exists one block in front of the missing quadrant, that corner is a
+     * true 3-D turn and the tiny orthogonal/end face of the cap becomes visible.
+     *
+     * Build the exact same confirmed-good 1x1 cap volume as a CLOSED miniature
+     * box. The front/back pixel therefore remains in the same position, while
+     * the four edge faces close the 3-D corner. No second cap is added, so this
+     * does not reintroduce the TURN_* z-fighting problem.
+     */
+    private BlockModelBuilder correctionSolidCapModel(
+            String name,
+            float fromX,
+            float fromY,
+            float fromZ,
+            float toX,
+            float toY,
+            float toZ
+    ) {
+        BlockModelBuilder.ElementBuilder element =
+                models().withExistingParent(
+                                name,
+                                mcLoc("block/block")
+                        )
+                        .renderType("cutout")
+                        .texture(
+                                "particle",
+                                modLoc("block/foundry_tank_frame")
+                        )
+                        .texture(
+                                "frame",
+                                modLoc("block/foundry_tank_frame")
+                        )
+                        .ao(false)
+                        .element()
+                        .from(
+                                fromX,
+                                fromY,
+                                fromZ
+                        )
+                        .to(
+                                toX,
+                                toY,
+                                toZ
+                        );
+
+        /*
+         * One opaque metallic source pixel is enough for the tiny cap.
+         * Every geometric side gets its own face so the cap is watertight when
+         * viewed from any of the three axes.
+         */
+        for (Direction direction : Direction.values()) {
+            element.face(direction)
+                    .texture("#frame")
+                    .uvs(
+                            0.0f,
+                            0.0f,
+                            1.0f,
+                            1.0f
+                    )
+                    .end();
+        }
+
+        return element.end();
     }
 
     private void correctionSideModel(
