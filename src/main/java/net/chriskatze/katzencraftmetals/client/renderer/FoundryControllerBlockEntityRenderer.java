@@ -2,13 +2,16 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
+import net.chriskatze.katzencraftmetals.block.custom.FoundryTankBlock;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 import java.util.HashSet;
@@ -19,9 +22,10 @@ import java.util.Set;
  *
  * Tank casing and diagonal/concave frame corrections are normal chunk
  * rendering through FoundryTankConnectedFrameModel. This Controller BER owns
- * dynamic liquid only. Liquid is additionally clipped against the client's real
- * physical Tank blocks, so a stale Controller snapshot can never draw liquid in
- * a Tank position that the client has already received as air after a break.
+ * dynamic liquid and the player-toggled intake hatch visual. Liquid and hatch
+ * rendering are additionally clipped against the client's real physical Tank
+ * blocks, so a stale Controller snapshot can never draw dynamic geometry in a
+ * Tank position that the client has already received as air after a break.
  */
 public final class FoundryControllerBlockEntityRenderer
         implements BlockEntityRenderer<FoundryControllerBlockEntity> {
@@ -61,6 +65,22 @@ public final class FoundryControllerBlockEntityRenderer
             return;
         }
 
+        /*
+         * The old per-Tank BER used to draw the intake hatch. Tanks no longer
+         * have a BER in the controller-owned rewrite, so the Controller BER
+         * must coordinate that dynamic visual too.
+         *
+         * This stays purely client-side/render-only. HATCH_OPEN is still the
+         * ordinary Tank BlockState toggled by explicit player interaction.
+         */
+        renderOpenIntakeHatches(
+                controller,
+                physicalStructure,
+                poseStack,
+                bufferSource,
+                packedOverlay
+        );
+
         liquidRenderer.render(
                 controller,
                 network,
@@ -70,6 +90,77 @@ public final class FoundryControllerBlockEntityRenderer
                 bufferSource,
                 packedOverlay
         );
+    }
+
+    /**
+     * Draws only actually-open top hatches.
+     *
+     * We first use the already-filtered physical structure to identify top
+     * Tanks, so at most one Tank per x/z column needs another BlockState read.
+     * A 4x4x4 vessel therefore checks at most 16 candidates here rather than
+     * all 64 Tanks every frame.
+     */
+    private static void renderOpenIntakeHatches(
+            FoundryControllerBlockEntity controller,
+            Set<BlockPos> physicalStructure,
+            PoseStack poseStack,
+            MultiBufferSource bufferSource,
+            int packedOverlay
+    ) {
+        Level level = controller.getLevel();
+
+        if (level == null) {
+            return;
+        }
+
+        BlockPos controllerPos = controller.getBlockPos();
+
+        for (BlockPos tankPos : physicalStructure) {
+            /*
+             * Only a top Tank can own a visible intake hatch. Using the
+             * physical set avoids an extra world lookup for the block above.
+             */
+            if (physicalStructure.contains(tankPos.above())) {
+                continue;
+            }
+
+            BlockState tankState = level.getBlockState(tankPos);
+
+            if (
+                    !(tankState.getBlock() instanceof FoundryTankBlock)
+                            || !tankState.hasProperty(
+                            FoundryTankBlock.HATCH_OPEN
+                    )
+                            || !tankState.getValue(
+                            FoundryTankBlock.HATCH_OPEN
+                    )
+            ) {
+                continue;
+            }
+
+            poseStack.pushPose();
+
+            poseStack.translate(
+                    tankPos.getX() - controllerPos.getX(),
+                    tankPos.getY() - controllerPos.getY(),
+                    tankPos.getZ() - controllerPos.getZ()
+            );
+
+            FoundryTankIntakeHatchRenderer.render(
+                    level,
+                    tankPos,
+                    tankState,
+                    poseStack.last(),
+                    bufferSource,
+                    LevelRenderer.getLightColor(
+                            level,
+                            tankPos
+                    ),
+                    packedOverlay
+            );
+
+            poseStack.popPose();
+        }
     }
 
     private static Set<BlockPos> getPhysicalClientStructure(
