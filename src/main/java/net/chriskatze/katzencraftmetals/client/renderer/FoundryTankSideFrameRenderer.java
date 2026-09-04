@@ -3,7 +3,11 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+
+import java.util.Set;
 
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.MARKER_ROWS;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.PIXEL;
@@ -18,8 +22,47 @@ final class FoundryTankSideFrameRenderer {
     private FoundryTankSideFrameRenderer() {
     }
 
+    /** Legacy bridge so the unregistered old Tank BER source still compiles. */
     static void render(
             FoundryTankBlockEntity tank,
+            Direction face,
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            int packedLight,
+            int packedOverlay
+    ) {
+        if (tank == null) {
+            return;
+        }
+
+        Set<BlockPos> structure = Set.of(tank.getBlockPos().immutable());
+
+        if (tank.getLevel() != null) {
+            FoundryTankNetwork network =
+                    FoundryTankNetwork.find(
+                            tank.getLevel(),
+                            tank.getBlockPos()
+                    );
+
+            if (network != null) {
+                structure = network.getTankPositions();
+            }
+        }
+
+        render(
+                tank.getBlockPos(),
+                structure,
+                face,
+                consumer,
+                pose,
+                packedLight,
+                packedOverlay
+        );
+    }
+
+    static void render(
+            BlockPos tankPos,
+            Set<BlockPos> structure,
             Direction face,
             VertexConsumer consumer,
             PoseStack.Pose pose,
@@ -33,29 +76,33 @@ final class FoundryTankSideFrameRenderer {
                 leftDirection.getOpposite();
 
         boolean topBoundary =
-                !FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                !hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         Direction.UP
                 );
 
         boolean bottomBoundary =
-                !FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                !hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         Direction.DOWN
                 );
 
         boolean leftBoundary =
-                !FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                !hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         leftDirection
                 );
 
         boolean rightBoundary =
-                !FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                !hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         rightDirection
                 );
@@ -133,7 +180,8 @@ final class FoundryTankSideFrameRenderer {
             );
 
             renderLeftMarkers(
-                    tank,
+                    tankPos,
+                    structure,
                     face,
                     consumer,
                     pose,
@@ -161,7 +209,8 @@ final class FoundryTankSideFrameRenderer {
             );
 
             renderRightMarkers(
-                    tank,
+                    tankPos,
+                    structure,
                     face,
                     consumer,
                     pose,
@@ -172,7 +221,8 @@ final class FoundryTankSideFrameRenderer {
     }
 
     private static void renderLeftMarkers(
-            FoundryTankBlockEntity tank,
+            BlockPos tankPos,
+            Set<BlockPos> structure,
             Direction face,
             VertexConsumer consumer,
             PoseStack.Pose pose,
@@ -234,7 +284,8 @@ final class FoundryTankSideFrameRenderer {
         }
 
         renderMarkerJoin(
-                tank,
+                tankPos,
+                structure,
                 face,
                 true,
                 consumer,
@@ -245,7 +296,8 @@ final class FoundryTankSideFrameRenderer {
     }
 
     private static void renderRightMarkers(
-            FoundryTankBlockEntity tank,
+            BlockPos tankPos,
+            Set<BlockPos> structure,
             Direction face,
             VertexConsumer consumer,
             PoseStack.Pose pose,
@@ -301,7 +353,8 @@ final class FoundryTankSideFrameRenderer {
         }
 
         renderMarkerJoin(
-                tank,
+                tankPos,
+                structure,
                 face,
                 false,
                 consumer,
@@ -318,7 +371,8 @@ final class FoundryTankSideFrameRenderer {
      * The Tank above contributes the two-pixel extension at its bottom edge.
      */
     private static void renderMarkerJoin(
-            FoundryTankBlockEntity tank,
+            BlockPos tankPos,
+            Set<BlockPos> structure,
             Direction face,
             boolean leftSide,
             VertexConsumer consumer,
@@ -327,15 +381,17 @@ final class FoundryTankSideFrameRenderer {
             int packedOverlay
     ) {
         boolean continuesAbove =
-                FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         Direction.UP
                 );
 
         boolean continuesBelow =
-                FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         Direction.DOWN
                 );
@@ -417,6 +473,21 @@ final class FoundryTankSideFrameRenderer {
                     0.0f
             );
         }
+    }
+
+    private static boolean hasAdjacentExposedFace(
+            Set<BlockPos> structure,
+            BlockPos tankPos,
+            Direction faceDirection,
+            Direction edgeDirection
+    ) {
+        BlockPos adjacentPos =
+                tankPos.relative(edgeDirection);
+
+        return structure.contains(adjacentPos)
+                && !structure.contains(
+                adjacentPos.relative(faceDirection)
+        );
     }
 
     private static Direction getFaceLeftDirection(

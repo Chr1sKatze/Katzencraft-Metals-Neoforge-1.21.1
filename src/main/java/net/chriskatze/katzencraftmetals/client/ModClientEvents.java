@@ -4,8 +4,8 @@ import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
 import net.chriskatze.katzencraftmetals.client.renderer.CastingCauldronBlockEntityRenderer;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryControllerBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryFaucetBlockEntityRenderer;
-import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
 import net.chriskatze.katzencraftmetals.screen.*;
 import net.minecraft.client.Minecraft;
@@ -103,9 +103,13 @@ public class ModClientEvents {
                 FoundryFaucetBlockEntityRenderer::new
         );
 
+        /*
+         * One Controller BER owns the complete active Tank vessel. There is no
+         * Tank BER registration anymore.
+         */
         event.registerBlockEntityRenderer(
-                ModBlockEntities.FOUNDRY_TANK.get(),
-                FoundryTankBlockEntityRenderer::new
+                ModBlockEntities.FOUNDRY_CONTROLLER.get(),
+                FoundryControllerBlockEntityRenderer::new
         );
     }
 }

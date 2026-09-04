@@ -15,6 +15,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * Network-level scheduler for lever-controlled automatic pouring.
@@ -24,6 +25,10 @@ import java.util.Set;
  * pour at the faucet's tank level.
  */
 final class FoundryTankAutoPourScheduler {
+
+    /* One reservation plan per unchanged Controller state/tick. */
+    private static final Map<FoundryControllerBlockEntity, CachedPlan>
+            PLAN_CACHE = new WeakHashMap<>();
 
     private static final Comparator<BlockPos> POSITION_ORDER =
             Comparator
@@ -50,7 +55,7 @@ final class FoundryTankAutoPourScheduler {
 
         FoundryTankNetwork network =
                 findNetworkForFaucet(
-                        level,
+                        faucet,
                         faucetPos,
                         faucetState
                 );
@@ -67,7 +72,7 @@ final class FoundryTankAutoPourScheduler {
         }
 
         Set<BlockPos> allowedStarts =
-                planAllowedStarts(
+                getAllowedStartsCached(
                         level,
                         network
                 );
@@ -79,7 +84,7 @@ final class FoundryTankAutoPourScheduler {
 
     @Nullable
     private static FoundryTankNetwork findNetworkForFaucet(
-            Level level,
+            FoundryFaucetBlockEntity faucet,
             BlockPos faucetPos,
             BlockState faucetState
     ) {
@@ -102,16 +107,55 @@ final class FoundryTankAutoPourScheduler {
                         facing.getOpposite()
                 );
 
-        BlockEntity blockEntity =
-                level.getBlockEntity(
-                        tankPos
-                );
+        return faucet.resolveOwnedNetworkForTank(
+                tankPos
+        );
+    }
 
-        if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
-            return null;
+    private static Set<BlockPos> getAllowedStartsCached(
+            Level level,
+            FoundryTankNetwork network
+    ) {
+        FoundryControllerBlockEntity controller =
+                network.getAttachedController();
+
+        if (controller == null) {
+            return planAllowedStarts(level, network);
         }
 
-        return tank.getNetwork();
+        long gameTime = level.getGameTime();
+        long structureRevision = network.getStructureRevision();
+        long storageRevision = network.getStorageRevision();
+        CachedPlan cached = PLAN_CACHE.get(controller);
+
+        if (
+                cached != null
+                        && cached.gameTime() == gameTime
+                        && cached.structureRevision() == structureRevision
+                        && cached.storageRevision() == storageRevision
+        ) {
+            return cached.allowedStarts();
+        }
+
+        Set<BlockPos> allowedStarts =
+                Set.copyOf(
+                        planAllowedStarts(
+                                level,
+                                network
+                        )
+                );
+
+        PLAN_CACHE.put(
+                controller,
+                new CachedPlan(
+                        gameTime,
+                        structureRevision,
+                        storageRevision,
+                        allowedStarts
+                )
+        );
+
+        return allowedStarts;
     }
 
     private static Set<BlockPos> planAllowedStarts(
@@ -277,7 +321,7 @@ final class FoundryTankAutoPourScheduler {
 
                 capacityBelowY +=
                         entry.getValue()
-                                * FoundryTankBlockEntity.CAPACITY;
+                                * FoundryTankNetwork.TANK_CAPACITY;
             }
 
             result.put(
@@ -323,15 +367,6 @@ final class FoundryTankAutoPourScheduler {
             return null;
         }
 
-        BlockEntity tankBlockEntity =
-                level.getBlockEntity(
-                        tankPos
-                );
-
-        if (!(tankBlockEntity instanceof FoundryTankBlockEntity tank)) {
-            return null;
-        }
-
         FoundryFaucetBlockEntity.CauldronTarget target =
                 FoundryFaucetBlockEntity.findCauldronTarget(
                         level,
@@ -361,7 +396,7 @@ final class FoundryTankAutoPourScheduler {
                 activePour && faucet.getPouringMetal() != null
                         ? faucet.getPouringMetal()
                         : faucet.resolveOutputMetal(
-                        tank
+                        tankPos
                 ).orElse(null);
 
         if (metal == null) {
@@ -489,4 +524,13 @@ final class FoundryTankAutoPourScheduler {
             int requiredAmount
     ) {
     }
+
+    private record CachedPlan(
+            long gameTime,
+            long structureRevision,
+            long storageRevision,
+            Set<BlockPos> allowedStarts
+    ) {
+    }
+
 }

@@ -1,22 +1,26 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
+import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Public facade for one valid, face-connected Foundry Tank network.
+ * Stable public facade for one Controller-owned Foundry vessel.
  *
- * Structure discovery/ownership is implemented by FoundryTankStructure and
- * FoundryTankPlacement. Molten contents are implemented by
- * FoundryTankStorage. Keeping this facade small gives the rest of the mod one
- * stable API while the internal systems can grow independently.
+ * The facade remains so processing/alloying/faucet/menu code does not need to
+ * know how the Controller stores its cached structure. No Tank block owns a
+ * network anymore.
  */
 public final class FoundryTankNetwork {
 
@@ -28,38 +32,73 @@ public final class FoundryTankNetwork {
     public static final int MAX_TANK_COUNT =
             MAX_COLUMN_COUNT * MAX_HEIGHT;
 
-    private final Level level;
+    public static final int TANK_CAPACITY = 108;
 
     @Nullable
-    private final UUID ownerId;
-
+    private final FoundryControllerBlockEntity controller;
+    @Nullable
+    private final Level legacyLevel;
+    @Nullable
+    private final UUID legacyOwnerId;
+    @Nullable
+    private final FoundryTankStorage legacyStorage;
     private final Set<BlockPos> tankPositions;
     private final int minY;
-    private final FoundryTankStorage storage;
+    private final long structureRevision;
 
+    FoundryTankNetwork(
+            FoundryControllerBlockEntity controller,
+            Set<BlockPos> tankPositions,
+            int minY,
+            long structureRevision
+    ) {
+        this.controller = controller;
+        this.legacyLevel = null;
+        this.legacyOwnerId = null;
+        this.legacyStorage = null;
+        this.tankPositions = Set.copyOf(tankPositions);
+        this.minY = minY;
+        this.structureRevision = structureRevision;
+    }
+
+    /**
+     * Source-compatibility constructor for the old Tank-BE structure classes.
+     * New gameplay never creates this form; it exists so legacy save migration
+     * helpers can remain compiled for one transition release.
+     */
     FoundryTankNetwork(
             Level level,
             @Nullable UUID ownerId,
             Set<BlockPos> tankPositions,
             int minY
     ) {
-        this.level = level;
-        this.ownerId = ownerId;
+        this.controller = null;
+        this.legacyLevel = level;
+        this.legacyOwnerId = ownerId;
         this.tankPositions = Set.copyOf(tankPositions);
         this.minY = minY;
-        this.storage = new FoundryTankStorage(this);
+        this.structureRevision = 0L;
+        this.legacyStorage = new FoundryTankStorage(this);
     }
 
     // =========================
-    // DISCOVERY / PLACEMENT
+    // DISCOVERY / COMPATIBILITY
     // =========================
 
     @Nullable
     public static FoundryTankNetwork find(
             Level level,
-            BlockPos startPos
+            BlockPos tankPos
     ) {
-        return FoundryTankStructure.find(level, startPos);
+        FoundryControllerBlockEntity controller =
+                FoundryControllerTankStructure.findControllerForTank(
+                        level,
+                        tankPos
+                );
+
+        return controller != null
+                ? controller.getOwnedTankNetwork()
+                : null;
     }
 
     @Nullable
@@ -67,24 +106,38 @@ public final class FoundryTankNetwork {
             Level level,
             FoundryControllerBlockEntity controller
     ) {
-        return FoundryTankPlacement.claimLargestUnassignedLayoutForController(
-                level,
-                controller
-        );
+        if (controller == null) {
+            return null;
+        }
+
+        controller.markTankStructureDirty();
+        return controller.getOwnedTankNetwork();
     }
 
-    /** Retained for compatibility with older callers. */
     @Nullable
     public static FoundryTankNetwork claimLargestUnassignedLayout(
             Level level,
             BlockPos startPos,
             UUID controllerId
     ) {
-        return FoundryTankPlacement.claimLargestUnassignedLayout(
-                level,
-                startPos,
-                controllerId
-        );
+        FoundryControllerBlockEntity controller =
+                FoundryControllerTankStructure.findControllerByIdNear(
+                        level,
+                        startPos,
+                        controllerId
+                );
+
+        if (controller == null) {
+            return null;
+        }
+
+        controller.markTankStructureDirty();
+        FoundryTankNetwork network = controller.getOwnedTankNetwork();
+
+        return network != null
+                && network.getTankPositions().contains(startPos)
+                ? network
+                : null;
     }
 
     @Nullable
@@ -93,11 +146,33 @@ public final class FoundryTankNetwork {
             Set<BlockPos> selected,
             UUID controllerId
     ) {
-        return FoundryTankPlacement.claimExactLayout(
-                level,
-                selected,
-                controllerId
-        );
+        if (
+                level == null
+                        || selected == null
+                        || selected.isEmpty()
+        ) {
+            return null;
+        }
+
+        BlockPos anchor = selected.iterator().next();
+        FoundryControllerBlockEntity controller =
+                FoundryControllerTankStructure.findControllerByIdNear(
+                        level,
+                        anchor,
+                        controllerId
+                );
+
+        if (controller == null) {
+            return null;
+        }
+
+        controller.markTankStructureDirty();
+        FoundryTankNetwork network = controller.getOwnedTankNetwork();
+
+        return network != null
+                && network.getTankPositions().equals(selected)
+                ? network
+                : null;
     }
 
     public static boolean handleTankPlaced(
@@ -105,21 +180,52 @@ public final class FoundryTankNetwork {
             BlockPos placedPos,
             BlockPos clickedAgainstPos
     ) {
-        return FoundryTankPlacement.handleTankPlaced(
+        if (level == null || placedPos == null || level.isClientSide()) {
+            return false;
+        }
+
+        /*
+         * Structure edits only invalidate nearby Controller caches. Do NOT
+         * immediately call find()/ensureResolved() from Block.onPlace/onRemove.
+         * During onRemove Minecraft may still be inside the block-state change,
+         * so resolving here can cache the pre-removal layout and clear the dirty
+         * flag before the world mutation is complete. The Controller's next
+         * server tick resolves the final physical world state exactly once.
+         */
+        FoundryControllerTankStructure.markNearbyControllersDirty(
                 level,
-                placedPos,
-                clickedAgainstPos
+                placedPos
         );
+
+        return true;
     }
 
     public static boolean hasNearbyFoundryCandidate(
             Level level,
             BlockPos placedPos
     ) {
-        return FoundryTankPlacement.hasNearbyFoundryCandidate(
-                level,
-                placedPos
-        );
+        if (level == null || placedPos == null) {
+            return false;
+        }
+
+        if (find(level, placedPos) != null) {
+            return true;
+        }
+
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            if (
+                    level.getBlockEntity(
+                            placedPos.relative(direction)
+                    ) instanceof FoundryControllerBlockEntity controller
+                            && controller.isValidTankAttachmentPosition(
+                            placedPos
+                    )
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // =========================
@@ -127,102 +233,211 @@ public final class FoundryTankNetwork {
     // =========================
 
     public boolean isActive() {
-        return ownerId != null
+        if (controller != null) {
+            return controller.getLevel() != null
+                    && !tankPositions.isEmpty();
+        }
+
+        return legacyOwnerId != null
                 && getAttachedController() != null;
     }
 
     @Nullable
     public FoundryControllerBlockEntity getAttachedController() {
-        return ownerId == null
+        if (controller != null) {
+            return controller;
+        }
+
+        return legacyLevel == null
+                || legacyOwnerId == null
                 ? null
                 : FoundryTankStructure.findAttachedController(
-                level,
+                legacyLevel,
                 tankPositions,
-                ownerId
+                legacyOwnerId
         );
     }
 
-    /** Turns this complete section into an orphan while preserving contents. */
+    /**
+     * Controller-owned networks clear storage with their Controller. Legacy
+     * migration facades retain the old orphan-release behavior only for source
+     * compatibility with pre-rewrite helpers.
+     */
     public void releaseOwnership() {
-        FoundryTankStructure.releaseOwnership(this);
+        if (controller != null) {
+            controller.releaseFoundry();
+        } else {
+            FoundryTankStructure.releaseOwnership(this);
+        }
     }
 
     public static boolean isValidStructure(
             Set<BlockPos> positions
     ) {
-        return FoundryTankStructure.validateStructure(positions).valid();
+        return FoundryTankStructureValidation.validate(positions).valid();
     }
 
+    /**
+     * Retained for older callers. The final Tank block uses cached structure
+     * positions directly and no longer performs ownership discovery here.
+     */
     public static Set<BlockPos> findUpwardColumn(
             Level level,
             BlockPos startPos
     ) {
-        return FoundryTankStructure.findUpwardColumn(level, startPos);
+        FoundryTankNetwork network = find(level, startPos);
+
+        if (network == null) {
+            return Set.of(startPos.immutable());
+        }
+
+        Set<BlockPos> removed = new HashSet<>();
+
+        for (BlockPos tankPos : network.getTankPositions()) {
+            if (
+                    tankPos.getX() == startPos.getX()
+                            && tankPos.getZ() == startPos.getZ()
+                            && tankPos.getY() >= startPos.getY()
+            ) {
+                removed.add(tankPos.immutable());
+            }
+        }
+
+        return removed;
     }
 
+    /**
+     * Storage no longer needs pre-removal redistribution. The Controller keeps
+     * its pooled contents and trims only after its event-driven structure cache
+     * resolves the new capacity.
+     */
     public void prepareUpwardRemoval(
             Set<BlockPos> removedPositions
     ) {
-        FoundryTankStructure.prepareUpwardRemoval(
-                this,
-                removedPositions
-        );
+        if (controller != null) {
+            controller.markTankStructureDirty();
+        } else {
+            FoundryTankStructure.prepareUpwardRemoval(
+                    this,
+                    removedPositions
+            );
+        }
     }
 
     public static List<BlockPos> findAttachedFaucets(
             Level level,
             Set<BlockPos> tankSubset
     ) {
-        return FoundryTankStructure.findAttachedFaucets(
-                level,
-                tankSubset
-        );
+        if (
+                level == null
+                        || tankSubset == null
+                        || tankSubset.isEmpty()
+        ) {
+            return new ArrayList<>();
+        }
+
+        Set<BlockPos> faucets = new HashSet<>();
+
+        for (BlockPos tankPos : tankSubset) {
+            for (Direction direction : Direction.Plane.HORIZONTAL) {
+                BlockPos faucetPos = tankPos.relative(direction);
+                BlockState faucetState = level.getBlockState(faucetPos);
+
+                if (
+                        faucetState.getBlock()
+                                instanceof FoundryFaucetBlock
+                                && faucetState.hasProperty(
+                                FoundryFaucetBlock.FACING
+                        )
+                                && faucetState.getValue(
+                                FoundryFaucetBlock.FACING
+                        ) == direction
+                ) {
+                    faucets.add(faucetPos.immutable());
+                }
+            }
+        }
+
+        return new ArrayList<>(faucets);
     }
 
     // =========================
-    // STORAGE
+    // CONTROLLER-OWNED STORAGE
     // =========================
 
     public void ensureMoltenContentsMigrated() {
-        storage.ensureMigrated();
+        if (controller != null) {
+            controller.getTankStorage()
+                    .ensureBound(this);
+        } else if (legacyStorage != null) {
+            legacyStorage.ensureMigrated();
+        }
     }
 
     public Map<ResourceLocation, Integer> getMoltenContents() {
-        return storage.getContents();
+        return controller != null
+                ? controller.getTankStorage()
+                .getContents(this)
+                : legacyStorage != null
+                ? legacyStorage.getContents()
+                : Map.of();
     }
 
     public int getMoltenAmount(
             ResourceLocation metal
     ) {
-        return storage.getAmount(metal);
+        return controller != null
+                ? controller.getTankStorage()
+                .getAmount(this, metal)
+                : legacyStorage != null
+                ? legacyStorage.getAmount(metal)
+                : 0;
     }
 
     public int getTotalMoltenAmount() {
-        return storage.getTotalAmount();
+        return controller != null
+                ? controller.getTankStorage()
+                .getTotalAmount(this)
+                : legacyStorage != null
+                ? legacyStorage.getTotalAmount()
+                : 0;
     }
 
     public boolean canAccept(
             ResourceLocation metal,
             int amount
     ) {
-        return storage.canAccept(metal, amount);
+        return controller != null
+                ? controller.getTankStorage()
+                .canAccept(this, metal, amount)
+                : legacyStorage != null
+                && legacyStorage.canAccept(metal, amount);
     }
 
     public int insert(
             ResourceLocation metal,
             int amount
     ) {
-        return storage.insert(metal, amount);
+        return controller != null
+                ? controller.getTankStorage()
+                .insert(this, metal, amount)
+                : legacyStorage != null
+                ? legacyStorage.insert(metal, amount)
+                : 0;
     }
 
     public int extract(
             ResourceLocation metal,
             int requestedAmount
     ) {
-        return storage.extract(metal, requestedAmount);
+        return controller != null
+                ? controller.getTankStorage()
+                .extract(this, metal, requestedAmount)
+                : legacyStorage != null
+                ? legacyStorage.extract(metal, requestedAmount)
+                : 0;
     }
 
-    /** Compatibility overload for older callers. */
     public int extract(
             int requestedAmount
     ) {
@@ -236,25 +451,25 @@ public final class FoundryTankNetwork {
             int tankY,
             ResourceLocation metal
     ) {
-        return storage.hasMetalAtHeight(tankY, metal);
+        return controller != null
+                ? controller.getTankStorage()
+                .hasMetalAtHeight(this, tankY, metal)
+                : legacyStorage != null
+                && legacyStorage.hasMetalAtHeight(tankY, metal);
     }
 
-    /** Compatibility name: this is the total of every stored metal. */
     public int getMoltenAmount() {
         return getTotalMoltenAmount();
     }
 
-    /**
-     * Active Foundries report their selected output. An orphan reports a metal
-     * only when exactly one distinct metal is stored.
-     */
     @Nullable
     public ResourceLocation getStoredMetal() {
-        FoundryControllerBlockEntity controller = getAttachedController();
+        FoundryControllerBlockEntity attachedController =
+                getAttachedController();
 
-        if (controller != null) {
+        if (attachedController != null) {
             ResourceLocation selected =
-                    controller.getSelectedOutputMetalOrDefault(this);
+                    attachedController.getSelectedOutputMetalOrDefault(this);
 
             if (selected != null) {
                 return selected;
@@ -279,16 +494,21 @@ public final class FoundryTankNetwork {
     public float getLocalVisualMoltenAmount(
             BlockPos tankPos
     ) {
-        return storage.getLocalVisualMoltenAmount(tankPos);
+        return controller != null
+                ? controller.getTankStorage()
+                .getLocalVisualMoltenAmount(this, tankPos)
+                : legacyStorage != null
+                ? legacyStorage.getLocalVisualMoltenAmount(tankPos)
+                : 0.0f;
     }
 
     // =========================
-    // GETTERS / INTERNAL ACCESS
+    // GETTERS
     // =========================
 
     public int getCapacity() {
         return tankPositions.size()
-                * FoundryTankBlockEntity.CAPACITY;
+                * TANK_CAPACITY;
     }
 
     public int getTankCount() {
@@ -297,7 +517,9 @@ public final class FoundryTankNetwork {
 
     @Nullable
     public UUID getOwnerId() {
-        return ownerId;
+        return controller != null
+                ? controller.getControllerId()
+                : legacyOwnerId;
     }
 
     public Set<BlockPos> getTankPositions() {
@@ -308,7 +530,19 @@ public final class FoundryTankNetwork {
         return minY;
     }
 
+    public long getStructureRevision() {
+        return structureRevision;
+    }
+
+    public long getStorageRevision() {
+        return controller != null
+                ? controller.getTankStorage().getRevision()
+                : 0L;
+    }
+
     Level level() {
-        return level;
+        return controller != null
+                ? controller.getLevel()
+                : legacyLevel;
     }
 }

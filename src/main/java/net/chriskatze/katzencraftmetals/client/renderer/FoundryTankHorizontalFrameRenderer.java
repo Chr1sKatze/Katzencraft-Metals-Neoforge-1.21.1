@@ -3,7 +3,11 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+
+import java.util.Set;
 
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CORNER_CAP_U0;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CORNER_CAP_U1;
@@ -20,6 +24,7 @@ final class FoundryTankHorizontalFrameRenderer {
     private FoundryTankHorizontalFrameRenderer() {
     }
 
+    /** Legacy bridge so the unregistered old Tank BER source still compiles. */
     static void render(
             FoundryTankBlockEntity tank,
             Direction face,
@@ -28,9 +33,35 @@ final class FoundryTankHorizontalFrameRenderer {
             int packedLight,
             int packedOverlay
     ) {
+        if (tank == null) {
+            return;
+        }
+
+        Set<BlockPos> structure = resolveLegacyStructure(tank);
+        render(
+                tank.getBlockPos(),
+                structure,
+                face,
+                consumer,
+                pose,
+                packedLight,
+                packedOverlay
+        );
+    }
+
+    static void render(
+            BlockPos tankPos,
+            Set<BlockPos> structure,
+            Direction face,
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            int packedLight,
+            int packedOverlay
+    ) {
         boolean isolatedHorizontalTank =
-                !FoundryTankVisualConnections.hasAnyHorizontalNeighbor(
-                        tank
+                !hasAnyHorizontalNeighbor(
+                        structure,
+                        tankPos
                 );
 
         if (isolatedHorizontalTank) {
@@ -54,29 +85,33 @@ final class FoundryTankHorizontalFrameRenderer {
         }
 
         boolean northBoundary =
-                !FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                !hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         Direction.NORTH
                 );
 
         boolean southBoundary =
-                !FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                !hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         Direction.SOUTH
                 );
 
         boolean westBoundary =
-                !FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                !hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         Direction.WEST
                 );
 
         boolean eastBoundary =
-                !FoundryTankVisualConnections.hasAdjacentExposedFace(
-                        tank,
+                !hasAdjacentExposedFace(
+                        structure,
+                        tankPos,
                         face,
                         Direction.EAST
                 );
@@ -176,7 +211,8 @@ final class FoundryTankHorizontalFrameRenderer {
          * exact hole visible in the screenshot.
          */
         renderHorizontalCornerCap(
-                tank,
+                tankPos,
+                structure,
                 face,
                 Direction.NORTH,
                 Direction.WEST,
@@ -191,7 +227,8 @@ final class FoundryTankHorizontalFrameRenderer {
         );
 
         renderHorizontalCornerCap(
-                tank,
+                tankPos,
+                structure,
                 face,
                 Direction.NORTH,
                 Direction.EAST,
@@ -206,7 +243,8 @@ final class FoundryTankHorizontalFrameRenderer {
         );
 
         renderHorizontalCornerCap(
-                tank,
+                tankPos,
+                structure,
                 face,
                 Direction.SOUTH,
                 Direction.WEST,
@@ -221,7 +259,8 @@ final class FoundryTankHorizontalFrameRenderer {
         );
 
         renderHorizontalCornerCap(
-                tank,
+                tankPos,
+                structure,
                 face,
                 Direction.SOUTH,
                 Direction.EAST,
@@ -245,6 +284,7 @@ final class FoundryTankHorizontalFrameRenderer {
      * The missing square is not inside the raised Tank's footprint. It is in
      * the diagonal lower Tank immediately outside each raised corner.
      */
+    /** Legacy bridge so FoundryTankCasingRenderer remains source-compatible. */
     static void renderRaisedFootprintCornerCaps(
             FoundryTankBlockEntity tank,
             VertexConsumer consumer,
@@ -252,9 +292,52 @@ final class FoundryTankHorizontalFrameRenderer {
             int packedLight,
             int packedOverlay
     ) {
-        FoundryTankBlockEntity tankBelow =
-                FoundryTankVisualConnections.getSameComponentNeighbor(
-                        tank,
+        if (tank == null) {
+            return;
+        }
+
+        renderRaisedFootprintCornerCaps(
+                tank.getBlockPos(),
+                resolveLegacyStructure(tank),
+                consumer,
+                pose,
+                packedLight,
+                packedOverlay
+        );
+    }
+
+    private static Set<BlockPos> resolveLegacyStructure(
+            FoundryTankBlockEntity tank
+    ) {
+        Set<BlockPos> structure = Set.of(tank.getBlockPos().immutable());
+
+        if (tank.getLevel() != null) {
+            FoundryTankNetwork network =
+                    FoundryTankNetwork.find(
+                            tank.getLevel(),
+                            tank.getBlockPos()
+                    );
+
+            if (network != null) {
+                structure = network.getTankPositions();
+            }
+        }
+
+        return structure;
+    }
+
+    static void renderRaisedFootprintCornerCaps(
+            BlockPos tankPos,
+            Set<BlockPos> structure,
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            int packedLight,
+            int packedOverlay
+    ) {
+        BlockPos tankBelow =
+                sameComponentNeighbor(
+                        structure,
+                        tankPos,
                         Direction.DOWN
                 );
 
@@ -263,8 +346,9 @@ final class FoundryTankHorizontalFrameRenderer {
         }
 
         renderRaisedFootprintCornerCap(
-                tank,
+                tankPos,
                 tankBelow,
+                structure,
                 Direction.NORTH,
                 Direction.WEST,
                 -PIXEL,
@@ -278,8 +362,9 @@ final class FoundryTankHorizontalFrameRenderer {
         );
 
         renderRaisedFootprintCornerCap(
-                tank,
+                tankPos,
                 tankBelow,
+                structure,
                 Direction.NORTH,
                 Direction.EAST,
                 1.0f,
@@ -293,8 +378,9 @@ final class FoundryTankHorizontalFrameRenderer {
         );
 
         renderRaisedFootprintCornerCap(
-                tank,
+                tankPos,
                 tankBelow,
+                structure,
                 Direction.SOUTH,
                 Direction.WEST,
                 -PIXEL,
@@ -308,8 +394,9 @@ final class FoundryTankHorizontalFrameRenderer {
         );
 
         renderRaisedFootprintCornerCap(
-                tank,
+                tankPos,
                 tankBelow,
+                structure,
                 Direction.SOUTH,
                 Direction.EAST,
                 1.0f,
@@ -331,7 +418,8 @@ final class FoundryTankHorizontalFrameRenderer {
      * the same component and the diagonal Tank does not.
      */
     private static void renderHorizontalCornerCap(
-            FoundryTankBlockEntity tank,
+            BlockPos tankPos,
+            Set<BlockPos> structure,
             Direction face,
             Direction firstDirection,
             Direction secondDirection,
@@ -344,15 +432,17 @@ final class FoundryTankHorizontalFrameRenderer {
             int packedLight,
             int packedOverlay
     ) {
-        FoundryTankBlockEntity firstNeighbor =
-                FoundryTankVisualConnections.getSameComponentNeighbor(
-                        tank,
+        BlockPos firstNeighbor =
+                sameComponentNeighbor(
+                        structure,
+                        tankPos,
                         firstDirection
                 );
 
-        FoundryTankBlockEntity secondNeighbor =
-                FoundryTankVisualConnections.getSameComponentNeighbor(
-                        tank,
+        BlockPos secondNeighbor =
+                sameComponentNeighbor(
+                        structure,
+                        tankPos,
                         secondDirection
                 );
 
@@ -363,8 +453,9 @@ final class FoundryTankHorizontalFrameRenderer {
             return;
         }
 
-        FoundryTankBlockEntity diagonalNeighbor =
-                FoundryTankVisualConnections.getSameComponentNeighbor(
+        BlockPos diagonalNeighbor =
+                sameComponentNeighbor(
+                        structure,
                         firstNeighbor,
                         secondDirection
                 );
@@ -391,8 +482,9 @@ final class FoundryTankHorizontalFrameRenderer {
     }
 
     private static void renderRaisedFootprintCornerCap(
-            FoundryTankBlockEntity raisedTank,
-            FoundryTankBlockEntity tankBelow,
+            BlockPos raisedTank,
+            BlockPos tankBelow,
+            Set<BlockPos> structure,
             Direction firstDirection,
             Direction secondDirection,
             float minX,
@@ -408,26 +500,30 @@ final class FoundryTankHorizontalFrameRenderer {
          * The raised Tank corner must actually be exposed at this level.
          */
         if (
-                FoundryTankVisualConnections.isSameComponent(
+                sameComponentNeighbor(
+                        structure,
                         raisedTank,
                         firstDirection
-                )
-                        || FoundryTankVisualConnections.isSameComponent(
+                ) != null
+                        || sameComponentNeighbor(
+                        structure,
                         raisedTank,
                         secondDirection
-                )
+                ) != null
         ) {
             return;
         }
 
-        FoundryTankBlockEntity firstLowerNeighbor =
-                FoundryTankVisualConnections.getSameComponentNeighbor(
+        BlockPos firstLowerNeighbor =
+                sameComponentNeighbor(
+                        structure,
                         tankBelow,
                         firstDirection
                 );
 
-        FoundryTankBlockEntity secondLowerNeighbor =
-                FoundryTankVisualConnections.getSameComponentNeighbor(
+        BlockPos secondLowerNeighbor =
+                sameComponentNeighbor(
+                        structure,
                         tankBelow,
                         secondDirection
                 );
@@ -443,8 +539,9 @@ final class FoundryTankHorizontalFrameRenderer {
          * Require the diagonal lower Tank as well. The cap is physically
          * located on top of this diagonal Tank.
          */
-        FoundryTankBlockEntity diagonalLowerTank =
-                FoundryTankVisualConnections.getSameComponentNeighbor(
+        BlockPos diagonalLowerTank =
+                sameComponentNeighbor(
+                        structure,
                         firstLowerNeighbor,
                         secondDirection
                 );
@@ -463,6 +560,49 @@ final class FoundryTankHorizontalFrameRenderer {
                 packedLight,
                 packedOverlay
         );
+    }
+
+    private static boolean hasAnyHorizontalNeighbor(
+            Set<BlockPos> structure,
+            BlockPos tankPos
+    ) {
+        return structure.contains(tankPos.north())
+                || structure.contains(tankPos.south())
+                || structure.contains(tankPos.east())
+                || structure.contains(tankPos.west());
+    }
+
+    private static boolean hasAdjacentExposedFace(
+            Set<BlockPos> structure,
+            BlockPos tankPos,
+            Direction faceDirection,
+            Direction edgeDirection
+    ) {
+        BlockPos adjacent = tankPos.relative(edgeDirection);
+
+        return structure.contains(adjacent)
+                && !structure.contains(
+                adjacent.relative(faceDirection)
+        );
+    }
+
+    private static BlockPos sameComponentNeighbor(
+            Set<BlockPos> structure,
+            BlockPos origin,
+            Direction direction
+    ) {
+        if (
+                structure == null
+                        || origin == null
+                        || direction == null
+        ) {
+            return null;
+        }
+
+        BlockPos neighbor = origin.relative(direction);
+        return structure.contains(neighbor)
+                ? neighbor.immutable()
+                : null;
     }
 
     /**

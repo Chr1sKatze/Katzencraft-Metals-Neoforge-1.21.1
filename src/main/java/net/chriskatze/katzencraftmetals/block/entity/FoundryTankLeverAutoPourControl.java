@@ -5,7 +5,6 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.AttachFace;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
@@ -14,7 +13,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * Detects global auto-pour levers for one connected Foundry Tank network.
@@ -30,10 +31,14 @@ import java.util.Set;
  * - or a block directly adjacent to one of the attached faucet blocks
  * - or a solid support block directly connected to one of those adjacent blocks
  *
- * This allows a small attached control rim/platform around the foundry, without
- * flood-filling through an entire building.
+ * This preserves the original bounded control-rim behavior without restoring
+ * Tank BlockEntities. Faucet ticks reuse their cached Controller lookup.
  */
 final class FoundryTankLeverAutoPourControl {
+
+    /* One bounded lever scan per Controller/tick, not once per Faucet/tick. */
+    private static final Map<FoundryControllerBlockEntity, CachedLeverState>
+            LEVER_STATE_CACHE = new WeakHashMap<>();
 
     private FoundryTankLeverAutoPourControl() {
     }
@@ -41,10 +46,12 @@ final class FoundryTankLeverAutoPourControl {
     static boolean isAutoPourEnabledForFaucet(
             Level level,
             BlockPos faucetPos,
-            BlockState faucetState
+            BlockState faucetState,
+            FoundryFaucetBlockEntity faucet
     ) {
         if (
                 level == null
+                        || faucet == null
                         || faucetState == null
                         || !faucetState.hasProperty(
                         FoundryFaucetBlock.FACING
@@ -63,17 +70,10 @@ final class FoundryTankLeverAutoPourControl {
                         facing.getOpposite()
                 );
 
-        BlockEntity blockEntity =
-                level.getBlockEntity(
+        FoundryTankNetwork network =
+                faucet.resolveOwnedNetworkForTank(
                         tankPos
                 );
-
-        if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
-            return false;
-        }
-
-        FoundryTankNetwork network =
-                tank.getNetwork();
 
         return isAutoPourEnabled(
                 level,
@@ -93,6 +93,42 @@ final class FoundryTankLeverAutoPourControl {
             return false;
         }
 
+        FoundryControllerBlockEntity controller =
+                network.getAttachedController();
+
+        if (controller != null) {
+            long gameTime = level.getGameTime();
+            long structureRevision = network.getStructureRevision();
+            CachedLeverState cached = LEVER_STATE_CACHE.get(controller);
+
+            if (
+                    cached != null
+                            && cached.gameTime() == gameTime
+                            && cached.structureRevision() == structureRevision
+            ) {
+                return cached.enabled();
+            }
+
+            boolean enabled = scanAutoPourEnabled(level, network);
+            LEVER_STATE_CACHE.put(
+                    controller,
+                    new CachedLeverState(
+                            gameTime,
+                            structureRevision,
+                            enabled
+                    )
+            );
+            return enabled;
+        }
+
+        return scanAutoPourEnabled(level, network);
+    }
+
+
+    private static boolean scanAutoPourEnabled(
+            Level level,
+            FoundryTankNetwork network
+    ) {
         Set<BlockPos> candidateAnchors =
                 collectLeverAnchorCandidates(
                         level,
@@ -127,10 +163,8 @@ final class FoundryTankLeverAutoPourControl {
         }
 
         /*
-         * Free tank-side Faucets are treated as foundry attachments instead of
-         * crafted standalone gameplay blocks. For lever auto-pour, that means
-         * levers around the attached Faucet should count as part of the same
-         * foundry control area.
+         * Faucets are foundry attachments, so a lever around an attached
+         * Faucet remains part of the same bounded control area.
          */
         for (
                 BlockPos faucetPos : FoundryTankNetwork.findAttachedFaucets(
@@ -166,10 +200,6 @@ final class FoundryTankLeverAutoPourControl {
                             direction
                     ).immutable();
 
-            /*
-             * Existing behavior: levers attached directly to a neighboring block
-             * around the tank/faucet count.
-             */
             anchors.add(
                     directNeighbor
             );
@@ -180,14 +210,9 @@ final class FoundryTankLeverAutoPourControl {
         }
 
         /*
-         * New behavior: one extra bounded step through solid blocks directly
-         * touching the foundry edge. This supports a small rim/platform like:
-         *
-         * [P][P][P][P]
-         * [T][T][T][P]
-         * [T][T][T][P]
-         *
-         * without searching through the rest of the building.
+         * One additional bounded step through a solid support block preserves
+         * the small control rim/platform behavior without flood-filling through
+         * an entire building.
          */
         for (BlockPos supportPos : directSupportCandidates) {
             if (!canExtendLeverAnchorsThroughSupportBlock(
@@ -224,11 +249,6 @@ final class FoundryTankLeverAutoPourControl {
             return false;
         }
 
-        /*
-         * Do not extend through random non-solid things. If a block has at least
-         * one sturdy face, it is a reasonable lever support / control-platform
-         * block.
-         */
         for (Direction direction : Direction.values()) {
             if (state.isFaceSturdy(
                     level,
@@ -328,4 +348,12 @@ final class FoundryTankLeverAutoPourControl {
                 attachedBlockDirection
         );
     }
+
+    private record CachedLeverState(
+            long gameTime,
+            long structureRevision,
+            boolean enabled
+    ) {
+    }
+
 }

@@ -8,6 +8,9 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.MenuProvider;
 import net.minecraft.world.SimpleContainer;
@@ -17,6 +20,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import org.jetbrains.annotations.Nullable;
@@ -52,6 +56,24 @@ public class FoundryControllerBlockEntity
 
     private UUID controllerId =
             UUID.randomUUID();
+
+    /*
+     * True only while the Controller block is actually being removed.
+     * Once removal begins, no tick or BlockEntity sync may publish its old
+     * BlockState back to the client.
+     */
+    private boolean removing;
+
+    /**
+     * Authoritative molten-storage owner for the active physical Tank vessel.
+     * Tank blocks never own or migrate molten storage.
+     */
+    private final FoundryControllerTankStorage tankStorage =
+            new FoundryControllerTankStorage(this);
+
+    /** Event-driven physical Tank vessel cache. */
+    private final FoundryControllerTankStructure tankStructure =
+            new FoundryControllerTankStructure(this);
 
     private final FoundryControllerProcessing processing =
             new FoundryControllerProcessing(this);
@@ -171,6 +193,26 @@ public class FoundryControllerBlockEntity
                         : UUID.randomUUID();
     }
 
+    FoundryControllerTankStorage getTankStorage() {
+        return tankStorage;
+    }
+
+    FoundryControllerTankStorage getTankStorageForPersistence() {
+        return tankStorage;
+    }
+
+    FoundryControllerTankStructure getTankStructure() {
+        return tankStructure;
+    }
+
+    FoundryControllerTankStructure getTankStructureForPersistence() {
+        return tankStructure;
+    }
+
+    public void markTankStructureDirty() {
+        tankStructure.markDirty();
+    }
+
     FoundryControllerMetalDiscovery getMetalDiscoveryForPersistence() {
         return metalDiscovery;
     }
@@ -248,6 +290,17 @@ public class FoundryControllerBlockEntity
     }
 
     public void releaseFoundry() {
+        if (removing) {
+            return;
+        }
+
+        removing = true;
+
+        /*
+         * cancelAndRefund may mutate pooled storage. syncToClient() is guarded
+         * by removing, so nothing can resend this Controller's old state while
+         * vanilla is replacing the block with air.
+         */
         alloying.cancelAndRefund();
         FoundryControllerNetwork.releaseFoundry(this);
     }
@@ -287,7 +340,13 @@ public class FoundryControllerBlockEntity
             BlockState state,
             FoundryControllerBlockEntity controller
     ) {
+        if (controller.removing) {
+            return;
+        }
+
         if (!level.isClientSide()) {
+            /* O(1) while clean; discovery only runs after a structure edit. */
+            controller.ensureTankNetwork();
             controller.discoverCurrentTankMetals();
         }
 
@@ -515,6 +574,43 @@ public class FoundryControllerBlockEntity
 
     public int getActiveMoltenAmount() {
         return processing.getActiveMoltenAmount();
+    }
+
+    // =========================
+    // CLIENT SYNCHRONIZATION
+    // =========================
+
+    @Override
+    public CompoundTag getUpdateTag(
+            HolderLookup.Provider registries
+    ) {
+        CompoundTag tag = new CompoundTag();
+        saveAdditional(tag, registries);
+        return tag;
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    void syncToClient() {
+        if (
+                removing
+                        || level == null
+                        || level.isClientSide()
+        ) {
+            return;
+        }
+
+        BlockState state = getBlockState();
+
+        level.sendBlockUpdated(
+                worldPosition,
+                state,
+                state,
+                Block.UPDATE_CLIENTS
+        );
     }
 
     // =========================

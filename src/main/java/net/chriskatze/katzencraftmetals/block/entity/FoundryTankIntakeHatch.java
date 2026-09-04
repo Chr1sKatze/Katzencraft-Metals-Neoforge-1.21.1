@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
+import net.chriskatze.katzencraftmetals.block.custom.FoundryTankBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.Container;
@@ -16,30 +17,16 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Handles open top-tank intake hatches.
- *
- * The hatch is process-item-only:
- * - meltable items landing on top are pulled into the Controller input slots
- * - a downward-facing Hopper above the hatch feeds one meltable item at normal
- *   Hopper speed
- * - loose dropped meltable items on the hatch are also pulled one item at a
- *   time at normal Hopper speed
- * - every successful pull spawns a short-lived fake visual item falling into
- *   the Tank interior
- * - fuel and random junk are ignored
- * - no items are ever extracted through the hatch
- */
+/** Handles open intake hatches stored directly in Tank blockstate. */
 final class FoundryTankIntakeHatch {
 
-    private static final int INTAKE_TRANSFER_INTERVAL_TICKS =
-            8;
+    private static final int INTAKE_TRANSFER_INTERVAL_TICKS = 8;
 
     private static final Comparator<BlockPos> POSITION_ORDER =
             Comparator
                     .comparingInt((BlockPos pos) -> pos.getY())
-                    .thenComparingInt(pos -> pos.getX())
-                    .thenComparingInt(pos -> pos.getZ());
+                    .thenComparingInt(BlockPos::getX)
+                    .thenComparingInt(BlockPos::getZ);
 
     private FoundryTankIntakeHatch() {
     }
@@ -47,8 +34,7 @@ final class FoundryTankIntakeHatch {
     static void processOpenHatches(
             FoundryControllerBlockEntity controller
     ) {
-        Level level =
-                controller.getLevel();
+        Level level = controller.getLevel();
 
         if (
                 level == null
@@ -56,9 +42,6 @@ final class FoundryTankIntakeHatch {
         ) {
             return;
         }
-
-        long gameTime =
-                level.getGameTime();
 
         FoundryTankNetwork network =
                 controller.getOwnedTankNetwork();
@@ -70,44 +53,50 @@ final class FoundryTankIntakeHatch {
             return;
         }
 
-        List<BlockPos> tankPositions =
-                new ArrayList<>(
-                        network.getTankPositions()
-                );
+        long gameTime = level.getGameTime();
 
-        tankPositions.sort(
-                POSITION_ORDER
-        );
+        /* Avoid allocating/sorting the Tank list on the seven idle ticks. */
+        if (gameTime % INTAKE_TRANSFER_INTERVAL_TICKS != 0L) {
+            return;
+        }
 
-        for (BlockPos tankPos : tankPositions) {
-            BlockEntity blockEntity =
-                    level.getBlockEntity(
-                            tankPos
-                    );
+        List<BlockPos> positions =
+                new ArrayList<>(network.getTankPositions());
 
-            if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
+        positions.sort(POSITION_ORDER);
+
+        for (BlockPos tankPos : positions) {
+            BlockState tankState = level.getBlockState(tankPos);
+
+            if (
+                    !(tankState.getBlock() instanceof FoundryTankBlock)
+                            || !tankState.hasProperty(
+                            FoundryTankBlock.HATCH_OPEN
+                    )
+                            || !tankState.getValue(
+                            FoundryTankBlock.HATCH_OPEN
+                    )
+            ) {
                 continue;
             }
 
-            if (!tank.isIntakeHatchOpen()) {
-                continue;
-            }
-
-            /*
-             * If the player later places another Tank above this one, the hatch
-             * can no longer be a top intake. Close it automatically so the
-             * visual and behavior stay honest.
-             */
-            if (!tank.isTopTank()) {
-                tank.setIntakeHatchOpen(false);
+            if (
+                    level.getBlockState(tankPos.above())
+                            .getBlock()
+                            instanceof FoundryTankBlock
+            ) {
+                /*
+                 * FoundryTankBlock.updateShape already closes HATCH_OPEN when
+                 * a Tank is placed above. The Controller tick must never
+                 * rewrite Tank BlockStates as a second source of truth.
+                 */
                 continue;
             }
 
             pullItemsIntoController(
                     level,
                     tankPos,
-                    controller,
-                    gameTime
+                    controller
             );
         }
     }
@@ -115,24 +104,8 @@ final class FoundryTankIntakeHatch {
     private static void pullItemsIntoController(
             Level level,
             BlockPos hatchPos,
-            FoundryControllerBlockEntity controller,
-            long gameTime
+            FoundryControllerBlockEntity controller
     ) {
-        if (
-                gameTime
-                        % INTAKE_TRANSFER_INTERVAL_TICKS
-                        != 0L
-        ) {
-            return;
-        }
-
-        /*
-         * One item per open hatch per transfer cycle.
-         *
-         * Hopper input is checked first because a hopper directly above the
-         * hatch is an intentional automation setup. If it has nothing valid to
-         * move, loose dropped items on the hatch get the same one-item transfer.
-         */
         if (
                 pullConnectedHopperIntoController(
                         level,
@@ -175,16 +148,13 @@ final class FoundryTankIntakeHatch {
                 );
 
         for (ItemEntity itemEntity : itemEntities) {
-            ItemStack itemStack =
-                    itemEntity.getItem();
-
-            ItemStack visualStack =
-                    itemStack.copy();
+            ItemStack stack = itemEntity.getItem();
+            ItemStack visualStack = stack.copy();
 
             int inserted =
                     insertOneItemIntoControllerInputs(
                             controller,
-                            itemStack
+                            stack
                     );
 
             if (inserted <= 0) {
@@ -199,16 +169,12 @@ final class FoundryTankIntakeHatch {
                     inserted
             );
 
-            itemStack.shrink(
-                    inserted
-            );
+            stack.shrink(inserted);
 
-            if (itemStack.isEmpty()) {
+            if (stack.isEmpty()) {
                 itemEntity.discard();
             } else {
-                itemEntity.setItem(
-                        itemStack
-                );
+                itemEntity.setItem(stack);
             }
 
             return true;
@@ -222,22 +188,14 @@ final class FoundryTankIntakeHatch {
             BlockPos hatchPos,
             FoundryControllerBlockEntity controller
     ) {
-        BlockPos hopperPos =
-                hatchPos.above();
-
-        BlockState hopperState =
-                level.getBlockState(
-                        hopperPos
-                );
+        BlockPos hopperPos = hatchPos.above();
+        BlockState hopperState = level.getBlockState(hopperPos);
 
         if (!isDownwardEnabledHopper(hopperState)) {
             return false;
         }
 
-        BlockEntity blockEntity =
-                level.getBlockEntity(
-                        hopperPos
-                );
+        BlockEntity blockEntity = level.getBlockEntity(hopperPos);
 
         if (!(blockEntity instanceof Container hopperInventory)) {
             return false;
@@ -248,18 +206,13 @@ final class FoundryTankIntakeHatch {
                 slot < hopperInventory.getContainerSize();
                 slot++
         ) {
-            ItemStack hopperStack =
-                    hopperInventory.getItem(
-                            slot
-                    );
+            ItemStack hopperStack = hopperInventory.getItem(slot);
 
             if (hopperStack.isEmpty()) {
                 continue;
             }
 
-            ItemStack visualStack =
-                    hopperStack.copy();
-
+            ItemStack visualStack = hopperStack.copy();
             int inserted =
                     insertOneItemIntoControllerInputs(
                             controller,
@@ -278,20 +231,9 @@ final class FoundryTankIntakeHatch {
                     inserted
             );
 
-            hopperStack.shrink(
-                    inserted
-            );
-
-            hopperInventory.setItem(
-                    slot,
-                    hopperStack
-            );
-
+            hopperStack.shrink(inserted);
+            hopperInventory.setItem(slot, hopperStack);
             hopperInventory.setChanged();
-
-            /*
-             * Match normal Hopper behavior: one item per transfer cycle.
-             */
             return true;
         }
 
@@ -302,19 +244,11 @@ final class FoundryTankIntakeHatch {
             BlockState state
     ) {
         return state.getBlock() instanceof HopperBlock
-                && state.hasProperty(
-                HopperBlock.FACING
-        )
-                && state.getValue(
-                HopperBlock.FACING
-        ) == Direction.DOWN
+                && state.hasProperty(HopperBlock.FACING)
+                && state.getValue(HopperBlock.FACING) == Direction.DOWN
                 && (
-                !state.hasProperty(
-                        HopperBlock.ENABLED
-                )
-                        || state.getValue(
-                        HopperBlock.ENABLED
-                )
+                !state.hasProperty(HopperBlock.ENABLED)
+                        || state.getValue(HopperBlock.ENABLED)
         );
     }
 
@@ -326,17 +260,9 @@ final class FoundryTankIntakeHatch {
             return 0;
         }
 
-        ItemStack singleItem =
-                sourceStack.copy();
-
-        singleItem.setCount(
-                1
-        );
-
-        return insertIntoControllerInputs(
-                controller,
-                singleItem
-        );
+        ItemStack one = sourceStack.copy();
+        one.setCount(1);
+        return insertIntoControllerInputs(controller, one);
     }
 
     private static int insertIntoControllerInputs(
@@ -345,39 +271,26 @@ final class FoundryTankIntakeHatch {
     ) {
         if (
                 sourceStack.isEmpty()
-                        || !controller.canMelt(
-                        sourceStack
-                )
+                        || !controller.canMelt(sourceStack)
         ) {
             return 0;
         }
 
-        SimpleContainer inputInventory =
-                controller.getInputInventory();
-
-        ItemStack remaining =
-                sourceStack.copy();
-
-        int originalCount =
-                remaining.getCount();
+        SimpleContainer inventory = controller.getInputInventory();
+        ItemStack remaining = sourceStack.copy();
+        int originalCount = remaining.getCount();
 
         for (
                 int slot = 0;
-                slot < inputInventory.getContainerSize()
+                slot < inventory.getContainerSize()
                         && !remaining.isEmpty();
                 slot++
         ) {
-            if (!inputInventory.canPlaceItem(
-                    slot,
-                    remaining
-            )) {
+            if (!inventory.canPlaceItem(slot, remaining)) {
                 continue;
             }
 
-            ItemStack slotStack =
-                    inputInventory.getItem(
-                            slot
-                    );
+            ItemStack slotStack = inventory.getItem(slot);
 
             if (slotStack.isEmpty()) {
                 int moved =
@@ -386,29 +299,14 @@ final class FoundryTankIntakeHatch {
                                 remaining.getMaxStackSize()
                         );
 
-                ItemStack inserted =
-                        remaining.copy();
-
-                inserted.setCount(
-                        moved
-                );
-
-                inputInventory.setItem(
-                        slot,
-                        inserted
-                );
-
-                remaining.shrink(
-                        moved
-                );
-
+                ItemStack inserted = remaining.copy();
+                inserted.setCount(moved);
+                inventory.setItem(slot, inserted);
+                remaining.shrink(moved);
                 continue;
             }
 
-            if (!ItemStack.isSameItemSameComponents(
-                    slotStack,
-                    remaining
-            )) {
+            if (!ItemStack.isSameItemSameComponents(slotStack, remaining)) {
                 continue;
             }
 
@@ -420,24 +318,12 @@ final class FoundryTankIntakeHatch {
                 continue;
             }
 
-            int moved =
-                    Math.min(
-                            space,
-                            remaining.getCount()
-                    );
-
-            slotStack.grow(
-                    moved
-            );
-
-            remaining.shrink(
-                    moved
-            );
-
-            inputInventory.setChanged();
+            int moved = Math.min(space, remaining.getCount());
+            slotStack.grow(moved);
+            remaining.shrink(moved);
+            inventory.setChanged();
         }
 
-        return originalCount
-                - remaining.getCount();
+        return originalCount - remaining.getCount();
     }
 }

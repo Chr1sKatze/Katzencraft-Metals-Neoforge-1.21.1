@@ -3,16 +3,16 @@ package net.chriskatze.katzencraftmetals.block.entity;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryControllerBlock;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.world.level.block.entity.BlockEntity;
-import org.jetbrains.annotations.Nullable;
 
-import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 /**
- * Tank-layout and ownership operations for one Foundry Controller.
+ * Controller-facing Tank structure operations.
+ *
+ * Ownership no longer lives on individual Tank BlockEntities. The Controller's
+ * event-driven FoundryControllerTankStructure cache is authoritative.
  */
 final class FoundryControllerNetwork {
 
@@ -32,7 +32,8 @@ final class FoundryControllerNetwork {
             BlockPos tankPos
     ) {
         if (
-                tankPos.getY()
+                tankPos == null
+                        || tankPos.getY()
                         != controller.getBlockPos().getY()
         ) {
             return false;
@@ -50,8 +51,7 @@ final class FoundryControllerNetwork {
             return false;
         }
 
-        Direction facing =
-                getFacing(controller);
+        Direction facing = getFacing(controller);
 
         int forwardDistance =
                 deltaX * facing.getStepX()
@@ -64,42 +64,27 @@ final class FoundryControllerNetwork {
             FoundryControllerBlockEntity controller,
             Set<BlockPos> tankPositions
     ) {
-        if (tankPositions.isEmpty()) {
+        if (
+                tankPositions == null
+                        || tankPositions.isEmpty()
+        ) {
             return false;
         }
 
-        boolean touchesController =
-                false;
-
-        Direction facing =
-                getFacing(controller);
-
+        boolean touchesController = false;
+        Direction facing = getFacing(controller);
         BlockPos directlyInFront =
                 controller.getBlockPos()
-                        .relative(
-                                facing
-                        );
+                        .relative(facing);
 
         for (BlockPos tankPos : tankPositions) {
-            /*
-             * The controller front face itself must stay clear.
-             *
-             * Tanks farther in front are allowed so C-shaped or ring-like
-             * footprints can wrap around the controller, but the directly
-             * blocked front face still stays invalid.
-             */
+            /* Keep the Controller's direct front face clear. */
             if (tankPos.equals(directlyInFront)) {
                 return false;
             }
 
-            if (
-                    isValidTankAttachmentPosition(
-                            controller,
-                            tankPos
-                    )
-            ) {
-                touchesController =
-                        true;
+            if (isValidTankAttachmentPosition(controller, tankPos)) {
+                touchesController = true;
             }
         }
 
@@ -109,148 +94,70 @@ final class FoundryControllerNetwork {
     static List<BlockPos> getValidTankAttachmentPositions(
             FoundryControllerBlockEntity controller
     ) {
-        Direction facing =
-                getFacing(controller);
+        Direction facing = getFacing(controller);
 
         return List.of(
                 controller.getBlockPos()
-                        .relative(
-                                facing.getOpposite()
-                        ),
+                        .relative(facing.getOpposite()),
                 controller.getBlockPos()
-                        .relative(
-                                facing.getClockWise()
-                        ),
+                        .relative(facing.getClockWise()),
                 controller.getBlockPos()
-                        .relative(
-                                facing.getCounterClockWise()
-                        )
+                        .relative(facing.getCounterClockWise())
         );
     }
 
-    @Nullable
     static FoundryTankNetwork getOwnedTankNetwork(
             FoundryControllerBlockEntity controller
     ) {
-        if (controller.getLevel() == null) {
-            return null;
-        }
-
-        FoundryTankNetwork best =
-                null;
-
-        Set<BlockPos> alreadyChecked =
-                new HashSet<>();
-
-        for (
-                BlockPos attachmentPos :
-                getValidTankAttachmentPositions(
-                        controller
-                )
-        ) {
-            BlockEntity blockEntity =
-                    controller.getLevel()
-                            .getBlockEntity(
-                                    attachmentPos
-                            );
-
-            if (
-                    !(blockEntity
-                            instanceof FoundryTankBlockEntity tank)
-            ) {
-                continue;
-            }
-
-            FoundryTankNetwork network =
-                    tank.getNetwork();
-
-            if (
-                    network == null
-                            || !controller.getControllerId()
-                            .equals(
-                                    network.getOwnerId()
-                            )
-                            || !canOwnTankLayout(
-                            controller,
-                            network.getTankPositions()
-                    )
-            ) {
-                continue;
-            }
-
-            BlockPos networkKey =
-                    network.getTankPositions()
-                            .stream()
-                            .min(
-                                    Comparator
-                                            .comparingInt(
-                                                    (BlockPos pos) ->
-                                                            pos.getY()
-                                            )
-                                            .thenComparingInt(
-                                                    BlockPos::getX
-                                            )
-                                            .thenComparingInt(
-                                                    BlockPos::getZ
-                                            )
-                            )
-                            .orElse(
-                                    attachmentPos
-                            );
-
-            if (!alreadyChecked.add(networkKey)) {
-                continue;
-            }
-
-            if (
-                    best == null
-                            || network.getTankCount()
-                            > best.getTankCount()
-            ) {
-                best =
-                        network;
-            }
-        }
-
-        return best;
+        return controller.getTankStructure()
+                .getNetwork();
     }
 
     static boolean ensureTankNetwork(
             FoundryControllerBlockEntity controller
     ) {
-        if (
-                controller.getLevel() == null
-                        || controller.getLevel().isClientSide()
-        ) {
-            return false;
-        }
-
-        if (
-                getOwnedTankNetwork(
-                        controller
-                ) != null
-        ) {
-            return true;
-        }
-
-        return FoundryTankNetwork
-                .claimLargestUnassignedLayoutForController(
-                        controller.getLevel(),
-                        controller
-                )
-                != null;
+        return getOwnedTankNetwork(controller) != null;
     }
 
     static void releaseFoundry(
             FoundryControllerBlockEntity controller
     ) {
-        FoundryTankNetwork network =
-                getOwnedTankNetwork(
-                        controller
+        Set<BlockPos> releasedPositions =
+                new HashSet<>(
+                        controller.getTankStructure()
+                                .getTankPositions()
                 );
 
-        if (network != null) {
-            network.releaseOwnership();
+        /*
+         * Tanks are only physical vessels. Breaking the Controller removes the
+         * storage owner, so molten contents cannot remain hidden in the blocks.
+         */
+        controller.getTankStorage()
+                .clearForControllerRemoval();
+
+        controller.getTankStructure()
+                .clearForControllerRemoval();
+
+        /*
+         * A neighboring Controller may have been deliberately blocked from
+         * claiming these Tank positions while this Controller existed. Give it
+         * one event-driven rebuild now that the reservation is gone.
+         */
+        if (controller.getLevel() != null) {
+            for (BlockPos releasedPos : releasedPositions) {
+                FoundryControllerTankStructure.markNearbyControllersDirty(
+                        controller.getLevel(),
+                        releasedPos
+                );
+            }
         }
+
+        /*
+         * Do not send a BlockEntity update for a Controller that is in the
+         * middle of being removed. Its BlockEntity still carries the old
+         * Controller BlockState at this point; sending that state back to the
+         * client can create a ghost "respawned" Controller. Vanilla's block
+         * removal packet is the only state update needed here.
+         */
     }
 }

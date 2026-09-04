@@ -33,6 +33,13 @@ final class FoundryControllerPersistence {
                         .toString()
         );
 
+        controller.getTankStructureForPersistence()
+                .save(tag);
+
+        /* Controller-owned molten contents are saved independently of Tanks. */
+        controller.getTankStorageForPersistence()
+                .save(tag);
+
         controller.getMetalDiscoveryForPersistence()
                 .save(
                         tag
@@ -79,6 +86,13 @@ final class FoundryControllerPersistence {
                         tag
                 )
         );
+
+        controller.getTankStructureForPersistence()
+                .load(tag);
+
+        /* Controller storage is the only molten storage source. */
+        controller.getTankStorageForPersistence()
+                .load(tag);
 
         controller.getMetalDiscoveryForPersistence()
                 .load(

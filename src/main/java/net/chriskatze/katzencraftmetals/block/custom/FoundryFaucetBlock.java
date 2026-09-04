@@ -4,7 +4,7 @@ import com.mojang.serialization.MapCodec;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.CastingCauldronBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryFaucetBlockEntity;
-import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -21,11 +21,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelAccessor;
-import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
@@ -302,83 +299,13 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
         Direction clickedFace =
                 context.getClickedFace();
 
-        if (!clickedFace.getAxis().isHorizontal()) {
-            return null;
-        }
+        Direction facing =
+                clickedFace.getAxis().isHorizontal()
+                        ? clickedFace
+                        : context.getHorizontalDirection().getOpposite();
 
-        BlockState placementState =
-                defaultBlockState()
-                        .setValue(FACING, clickedFace);
-
-        return placementState.canSurvive(
-                context.getLevel(),
-                context.getClickedPos()
-        )
-                ? placementState
-                : null;
-    }
-
-    @Override
-    protected boolean canSurvive(
-            BlockState state,
-            LevelReader level,
-            BlockPos pos
-    ) {
-        return isAttachedToFoundryTank(
-                state,
-                level,
-                pos
-        );
-    }
-
-    @Override
-    protected BlockState updateShape(
-            BlockState state,
-            Direction direction,
-            BlockState neighborState,
-            LevelAccessor level,
-            BlockPos pos,
-            BlockPos neighborPos
-    ) {
-        if (
-                direction == state.getValue(FACING)
-                        .getOpposite()
-                        && !isFoundryTank(neighborState)
-        ) {
-            return Blocks.AIR.defaultBlockState();
-        }
-
-        return super.updateShape(
-                state,
-                direction,
-                neighborState,
-                level,
-                pos,
-                neighborPos
-        );
-    }
-
-    private static boolean isAttachedToFoundryTank(
-            BlockState state,
-            BlockGetter level,
-            BlockPos pos
-    ) {
-        return isFoundryTank(
-                level.getBlockState(
-                        pos.relative(
-                                state.getValue(FACING)
-                                        .getOpposite()
-                        )
-                )
-        );
-    }
-
-    private static boolean isFoundryTank(
-            BlockState state
-    ) {
-        return state.is(
-                ModBlocks.FOUNDRY_TANK.get()
-        );
+        return defaultBlockState()
+                .setValue(FACING, facing);
     }
 
     @Override
@@ -525,10 +452,8 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
         BlockPos tankPosition =
                 pos.relative(facing.getOpposite());
 
-        BlockEntity tankBlockEntity =
-                level.getBlockEntity(tankPosition);
-
-        if (!(tankBlockEntity instanceof FoundryTankBlockEntity tank)) {
+        if (!level.getBlockState(tankPosition)
+                .is(ModBlocks.FOUNDRY_TANK.get())) {
             player.displayClientMessage(
                     Component.literal(
                             "The faucet is not connected to a Foundry Tank."
@@ -539,7 +464,16 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
-        if (!tank.hasActiveController()) {
+        FoundryTankNetwork network =
+                FoundryTankNetwork.find(
+                        level,
+                        tankPosition
+                );
+
+        if (
+                network == null
+                        || !network.isActive()
+        ) {
             player.displayClientMessage(
                     Component.literal(
                             "This Tank section is not connected to a Foundry Controller."
@@ -552,7 +486,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
 
         ResourceLocation outputMetal =
                 faucet.resolveOutputMetal(
-                        tank
+                        tankPosition
                 ).orElse(null);
 
         if (outputMetal == null) {
@@ -577,7 +511,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
         if (cauldronTarget == null) {
             player.displayClientMessage(
                     Component.literal(
-                            "Place a Casting Cauldron within 3 clear blocks below the faucet."
+                            "Place a Casting Cauldron within 4 clear blocks below the faucet."
                     ),
                     true
             );

@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
+import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
 import net.chriskatze.katzencraftmetals.menu.FoundryFaucetOutputMenu;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
@@ -68,6 +69,16 @@ public class FoundryFaucetBlockEntity
     @Nullable
     private ResourceLocation pouringMetal;
 
+    /*
+     * Hot-path controller lookup cache. A Faucet ticks every server tick, so a
+     * broad Tank-to-Controller search here would defeat the event-driven Tank
+     * rewrite. The cached position is revalidated against the Controller's
+     * immutable structure set before every use and is rediscovered only after
+     * a real structure/controller change.
+     */
+    @Nullable
+    private BlockPos cachedControllerPos;
+
     public FoundryFaucetBlockEntity(
             BlockPos pos,
             BlockState state
@@ -121,7 +132,8 @@ public class FoundryFaucetBlockEntity
                         .isAutoPourEnabledForFaucet(
                                 level,
                                 pos,
-                                state
+                                state,
+                                faucet
                         );
 
         if (!faucet.pouring) {
@@ -263,7 +275,7 @@ public class FoundryFaucetBlockEntity
         if (
                 context.cauldron().isFull()
                         || !hasMoltenReachedFaucetHeight(
-                        context.tank(),
+                        context.tankPos(),
                         context.network()
                 )
                         || context.network()
@@ -367,34 +379,35 @@ public class FoundryFaucetBlockEntity
 
     @Nullable
     private FoundryControllerBlockEntity getAttachedControllerForLockMenu() {
-        FoundryTankBlockEntity tank =
-                getAttachedTankForLockMenu();
-
-        if (tank == null) {
-            return null;
-        }
-
-        FoundryTankNetwork network =
-                tank.getNetwork();
-
-        if (
-                network == null
-                        || !network.isActive()
-        ) {
-            return null;
-        }
-
-        return network.getAttachedController();
-    }
-
-    @Nullable
-    private FoundryTankBlockEntity getAttachedTankForLockMenu() {
         if (level == null) {
             return null;
         }
 
-        BlockState state =
-                getBlockState();
+        BlockPos tankPos =
+                getAttachedTankPosition();
+
+        if (tankPos == null) {
+            return null;
+        }
+
+        FoundryTankNetwork network =
+                resolveOwnedNetworkForTank(
+                        tankPos
+                );
+
+        return network != null
+                && network.isActive()
+                ? network.getAttachedController()
+                : null;
+    }
+
+    @Nullable
+    private BlockPos getAttachedTankPosition() {
+        if (level == null) {
+            return null;
+        }
+
+        BlockState state = getBlockState();
 
         if (!state.hasProperty(FoundryFaucetBlock.FACING)) {
             return null;
@@ -405,30 +418,97 @@ public class FoundryFaucetBlockEntity
                         FoundryFaucetBlock.FACING
                 );
 
-        BlockEntity blockEntity =
-                level.getBlockEntity(
-                        worldPosition.relative(
-                                facing.getOpposite()
-                        )
+        BlockPos tankPos =
+                worldPosition.relative(
+                        facing.getOpposite()
                 );
 
-        return blockEntity instanceof FoundryTankBlockEntity tank
-                ? tank
+        return level.getBlockState(tankPos)
+                .is(ModBlocks.FOUNDRY_TANK.get())
+                ? tankPos.immutable()
                 : null;
     }
 
-    public Optional<ResourceLocation> resolveOutputMetal(
-            FoundryTankBlockEntity tank
+    @Nullable
+    FoundryTankNetwork resolveOwnedNetworkForTank(
+            BlockPos tankPos
     ) {
         if (
-                tank == null
-                        || tank.getLevel() == null
+                level == null
+                        || tankPos == null
+        ) {
+            cachedControllerPos = null;
+            return null;
+        }
+
+        if (cachedControllerPos != null) {
+            BlockEntity cachedBlockEntity =
+                    level.getBlockEntity(
+                            cachedControllerPos
+                    );
+
+            if (
+                    cachedBlockEntity instanceof FoundryControllerBlockEntity cachedController
+            ) {
+                FoundryTankNetwork cachedNetwork =
+                        cachedController.getOwnedTankNetwork();
+
+                if (
+                        cachedNetwork != null
+                                && cachedNetwork.getTankPositions()
+                                .contains(tankPos)
+                ) {
+                    return cachedNetwork;
+                }
+            }
+
+            cachedControllerPos = null;
+        }
+
+        FoundryControllerBlockEntity foundController =
+                FoundryControllerTankStructure.findControllerForTank(
+                        level,
+                        tankPos
+                );
+
+        if (foundController == null) {
+            return null;
+        }
+
+        FoundryTankNetwork network =
+                foundController.getOwnedTankNetwork();
+
+        if (
+                network == null
+                        || !network.getTankPositions()
+                        .contains(tankPos)
+        ) {
+            return null;
+        }
+
+        cachedControllerPos =
+                foundController.getBlockPos()
+                        .immutable();
+
+        return network;
+    }
+
+    public Optional<ResourceLocation> resolveOutputMetal(
+            BlockPos tankPos
+    ) {
+        if (
+                level == null
+                        || tankPos == null
+                        || !level.getBlockState(tankPos)
+                        .is(ModBlocks.FOUNDRY_TANK.get())
         ) {
             return Optional.empty();
         }
 
         FoundryTankNetwork network =
-                tank.getNetwork();
+                resolveOwnedNetworkForTank(
+                        tankPos
+                );
 
         if (
                 network == null
@@ -439,11 +519,7 @@ public class FoundryFaucetBlockEntity
 
         network.ensureMoltenContentsMigrated();
 
-        /*
-         * A Faucet can only draw from the physical tank block it is connected
-         * to once the molten column has actually reached that height.
-         */
-        if (!hasMoltenReachedFaucetHeight(tank, network)) {
+        if (!hasMoltenReachedFaucetHeight(tankPos, network)) {
             return Optional.empty();
         }
 
@@ -459,11 +535,9 @@ public class FoundryFaucetBlockEntity
                 network.getAttachedController();
 
         ResourceLocation automaticMetal =
-                controller != null
-                        ? controller.getSelectedOutputMetalOrDefault(
+                controller.getSelectedOutputMetalOrDefault(
                         network
-                )
-                        : tank.getTopLocalMetal();
+                );
 
         if (
                 automaticMetal != null
@@ -493,19 +567,56 @@ public class FoundryFaucetBlockEntity
     // SMART SOURCE / TARGET LOOKUP
     // =========================
 
-    /** Retained for compatibility with older callers. */
+    /** New dumb-Tank position-based height query. */
     public static boolean hasMoltenAtFaucetHeight(
-            FoundryTankBlockEntity tank
+            Level level,
+            BlockPos tankPos
     ) {
         if (
-                tank == null
-                        || tank.getLevel() == null
+                level == null
+                        || tankPos == null
         ) {
             return false;
         }
 
         FoundryTankNetwork network =
-                tank.getNetwork();
+                FoundryTankNetwork.find(
+                        level,
+                        tankPos
+                );
+
+        if (
+                network == null
+                        || !network.isActive()
+        ) {
+            return false;
+        }
+
+        network.ensureMoltenContentsMigrated();
+        return hasMoltenReachedFaucetHeight(
+                tankPos,
+                network
+        );
+    }
+
+    public static boolean hasMoltenAtFaucetHeight(
+            Level level,
+            BlockPos tankPos,
+            ResourceLocation metal
+    ) {
+        if (
+                level == null
+                        || tankPos == null
+                        || metal == null
+        ) {
+            return false;
+        }
+
+        FoundryTankNetwork network =
+                FoundryTankNetwork.find(
+                        level,
+                        tankPos
+                );
 
         if (
                 network == null
@@ -517,8 +628,22 @@ public class FoundryFaucetBlockEntity
         network.ensureMoltenContentsMigrated();
 
         return hasMoltenReachedFaucetHeight(
-                tank,
+                tankPos,
                 network
+        )
+                && network.getMoltenAmount(metal)
+                >= TRANSFER_AMOUNT;
+    }
+
+    /* Legacy overloads kept only so old migration-side callers still compile. */
+    public static boolean hasMoltenAtFaucetHeight(
+            FoundryTankBlockEntity tank
+    ) {
+        return tank != null
+                && tank.getLevel() != null
+                && hasMoltenAtFaucetHeight(
+                tank.getLevel(),
+                tank.getBlockPos()
         );
     }
 
@@ -526,43 +651,23 @@ public class FoundryFaucetBlockEntity
             FoundryTankBlockEntity tank,
             ResourceLocation metal
     ) {
-        if (
-                tank == null
-                        || tank.getLevel() == null
-                        || metal == null
-        ) {
-            return false;
-        }
-
-        FoundryTankNetwork network =
-                tank.getNetwork();
-
-        if (
-                network == null
-                        || !network.isActive()
-        ) {
-            return false;
-        }
-
-        network.ensureMoltenContentsMigrated();
-
-        return hasMoltenReachedFaucetHeight(
-                tank,
-                network
-        )
-                && network.getMoltenAmount(
+        return tank != null
+                && tank.getLevel() != null
+                && hasMoltenAtFaucetHeight(
+                tank.getLevel(),
+                tank.getBlockPos(),
                 metal
-        ) >= TRANSFER_AMOUNT;
+        );
     }
 
     private static boolean hasMoltenReachedFaucetHeight(
-            FoundryTankBlockEntity tank,
+            BlockPos tankPos,
             FoundryTankNetwork network
     ) {
-        return tank != null
+        return tankPos != null
                 && network != null
                 && network.getLocalVisualMoltenAmount(
-                tank.getBlockPos()
+                tankPos
         ) > 0.0f;
     }
 
@@ -624,17 +729,15 @@ public class FoundryFaucetBlockEntity
                         facing.getOpposite()
                 );
 
-        BlockEntity tankBlockEntity =
-                level.getBlockEntity(
-                        tankPosition
-                );
-
-        if (!(tankBlockEntity instanceof FoundryTankBlockEntity tank)) {
+        if (!level.getBlockState(tankPosition)
+                .is(ModBlocks.FOUNDRY_TANK.get())) {
             return null;
         }
 
         FoundryTankNetwork network =
-                tank.getNetwork();
+                faucet.resolveOwnedNetworkForTank(
+                        tankPosition
+                );
 
         if (
                 network == null
@@ -645,7 +748,7 @@ public class FoundryFaucetBlockEntity
 
         network.ensureMoltenContentsMigrated();
 
-        if (!hasMoltenReachedFaucetHeight(tank, network)) {
+        if (!hasMoltenReachedFaucetHeight(tankPosition, network)) {
             return null;
         }
 
@@ -653,7 +756,7 @@ public class FoundryFaucetBlockEntity
                 faucet.pouringMetal != null
                         ? faucet.pouringMetal
                         : faucet.resolveOutputMetal(
-                        tank
+                        tankPosition
                 ).orElse(null);
 
         if (
@@ -690,7 +793,7 @@ public class FoundryFaucetBlockEntity
 
         return new PouringContext(
                 network,
-                tank,
+                tankPosition.immutable(),
                 cauldron,
                 outputMetal
         );
@@ -704,7 +807,7 @@ public class FoundryFaucetBlockEntity
 
     private record PouringContext(
             FoundryTankNetwork network,
-            FoundryTankBlockEntity tank,
+            BlockPos tankPos,
             CastingCauldronBlockEntity cauldron,
             ResourceLocation metal
     ) {

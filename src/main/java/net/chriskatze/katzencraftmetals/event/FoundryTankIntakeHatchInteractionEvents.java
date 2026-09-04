@@ -3,7 +3,8 @@ package net.chriskatze.katzencraftmetals.event;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
-import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.chriskatze.katzencraftmetals.block.custom.FoundryTankBlock;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
@@ -13,7 +14,6 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -30,8 +30,7 @@ public final class FoundryTankIntakeHatchInteractionEvents {
     public static void onRightClickBlock(
             PlayerInteractEvent.RightClickBlock event
     ) {
-        Player player =
-                event.getEntity();
+        Player player = event.getEntity();
 
         if (
                 event.getHand() != InteractionHand.MAIN_HAND
@@ -40,42 +39,24 @@ public final class FoundryTankIntakeHatchInteractionEvents {
             return;
         }
 
-        Direction clickedFace =
-                event.getFace();
+        Direction clickedFace = event.getFace();
 
-        if (clickedFace == null) {
-            return;
-        }
-
-        /*
-         * Only tank top and tank side shift-clicks are special foundry
-         * attachment interactions. Bottom clicks can pass through normally.
-         */
         if (
-                clickedFace != Direction.UP
+                clickedFace == null
+                        || clickedFace != Direction.UP
                         && !clickedFace.getAxis().isHorizontal()
         ) {
             return;
         }
 
-        Level level =
-                event.getLevel();
+        Level level = event.getLevel();
+        BlockPos pos = event.getPos();
+        BlockState tankState = level.getBlockState(pos);
 
-        BlockPos pos =
-                event.getPos();
-
-        BlockEntity blockEntity =
-                level.getBlockEntity(
-                        pos
-                );
-
-        if (!(blockEntity instanceof FoundryTankBlockEntity tank)) {
+        if (!(tankState.getBlock() instanceof FoundryTankBlock)) {
             return;
         }
 
-        /*
-         * Catch shift-right-click before held blocks/items can steal the click.
-         */
         event.setCanceled(true);
         event.setCancellationResult(
                 InteractionResult.SUCCESS
@@ -89,10 +70,9 @@ public final class FoundryTankIntakeHatchInteractionEvents {
             toggleIntakeHatch(
                     level,
                     pos,
-                    tank,
+                    tankState,
                     player
             );
-
             return;
         }
 
@@ -107,46 +87,64 @@ public final class FoundryTankIntakeHatchInteractionEvents {
     private static void toggleIntakeHatch(
             Level level,
             BlockPos pos,
-            FoundryTankBlockEntity tank,
+            BlockState tankState,
             Player player
     ) {
-        if (!tank.isTopTank()) {
+        if (
+                level.getBlockState(pos.above())
+                        .getBlock()
+                        instanceof FoundryTankBlock
+        ) {
             player.displayClientMessage(
                     Component.literal(
                             "Only a top Tank can be opened as an intake hatch."
                     ),
                     true
             );
-
             return;
         }
 
-        if (!tank.hasActiveController()) {
+        FoundryTankNetwork network =
+                FoundryTankNetwork.find(
+                        level,
+                        pos
+                );
+
+        if (
+                network == null
+                        || !network.isActive()
+        ) {
             player.displayClientMessage(
                     Component.literal(
                             "The intake hatch needs an active Foundry Controller."
                     ),
                     true
             );
-
             return;
         }
 
-        tank.setIntakeHatchOpen(
-                !tank.isIntakeHatchOpen()
+        boolean open =
+                !tankState.getValue(
+                        FoundryTankBlock.HATCH_OPEN
+                );
+
+        level.setBlockAndUpdate(
+                pos,
+                tankState.setValue(
+                        FoundryTankBlock.HATCH_OPEN,
+                        open
+                )
         );
 
         playAttachmentClick(
                 level,
                 pos,
-                tank.isIntakeHatchOpen()
-                        ? 1.2f
-                        : 0.8f
+                open ? 1.2f : 0.8f
         );
 
         player.displayClientMessage(
                 Component.literal(
-                        tank.isIntakeHatchOpen()
+                        open
                                 ? "Foundry intake hatch opened."
                                 : "Foundry intake hatch closed."
                 ),
@@ -160,20 +158,10 @@ public final class FoundryTankIntakeHatchInteractionEvents {
             Direction side,
             Player player
     ) {
-        BlockPos faucetPos =
-                tankPos.relative(
-                        side
-                );
+        BlockPos faucetPos = tankPos.relative(side);
+        BlockState currentState = level.getBlockState(faucetPos);
 
-        BlockState currentState =
-                level.getBlockState(
-                        faucetPos
-                );
-
-        if (isMatchingFaucet(
-                currentState,
-                side
-        )) {
+        if (isMatchingFaucet(currentState, side)) {
             level.destroyBlock(
                     faucetPos,
                     false
@@ -191,7 +179,6 @@ public final class FoundryTankIntakeHatchInteractionEvents {
                     ),
                     true
             );
-
             return;
         }
 
@@ -202,7 +189,6 @@ public final class FoundryTankIntakeHatchInteractionEvents {
                     ),
                     true
             );
-
             return;
         }
 
@@ -215,34 +201,23 @@ public final class FoundryTankIntakeHatchInteractionEvents {
                                 side
                         );
 
-        if (!faucetState.canSurvive(
-                level,
-                faucetPos
-        )) {
+        if (!faucetState.canSurvive(level, faucetPos)) {
             player.displayClientMessage(
                     Component.literal(
                             "A Foundry faucet cannot be attached there."
                     ),
                     true
             );
-
             return;
         }
 
-        boolean placed =
-                level.setBlockAndUpdate(
-                        faucetPos,
-                        faucetState
-                );
-
-        if (!placed) {
+        if (!level.setBlockAndUpdate(faucetPos, faucetState)) {
             player.displayClientMessage(
                     Component.literal(
                             "The Foundry faucet could not be attached."
                     ),
                     true
             );
-
             return;
         }
 
@@ -264,15 +239,9 @@ public final class FoundryTankIntakeHatchInteractionEvents {
             BlockState state,
             Direction side
     ) {
-        return state.is(
-                ModBlocks.FOUNDRY_FAUCET.get()
-        )
-                && state.hasProperty(
-                FoundryFaucetBlock.FACING
-        )
-                && state.getValue(
-                FoundryFaucetBlock.FACING
-        ) == side;
+        return state.is(ModBlocks.FOUNDRY_FAUCET.get())
+                && state.hasProperty(FoundryFaucetBlock.FACING)
+                && state.getValue(FoundryFaucetBlock.FACING) == side;
     }
 
     private static void playAttachmentClick(

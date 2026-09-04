@@ -2,7 +2,11 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.chriskatze.katzencraftmetals.block.custom.FoundryTankBlock;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
@@ -121,30 +125,37 @@ final class FoundryTankIntakeHatchRenderer {
     private FoundryTankIntakeHatchRenderer() {
     }
 
+    /** Final dumb-Tank entry point used by the Controller renderer. */
     static void render(
-            FoundryTankBlockEntity tank,
+            Level level,
+            BlockPos tankPos,
+            BlockState tankState,
             PoseStack.Pose pose,
             MultiBufferSource bufferSource,
             int packedLight,
             int packedOverlay
     ) {
         if (
-                !tank.isIntakeHatchOpen()
-                        || !tank.isTopTank()
+                level == null
+                        || tankPos == null
+                        || tankState == null
+                        || !(tankState.getBlock() instanceof FoundryTankBlock)
+                        || !tankState.hasProperty(
+                        FoundryTankBlock.HATCH_OPEN
+                )
+                        || !tankState.getValue(
+                        FoundryTankBlock.HATCH_OPEN
+                )
+                        || level.getBlockState(tankPos.above())
+                        .getBlock()
+                        instanceof FoundryTankBlock
         ) {
             return;
         }
 
         boolean cameraAboveHatch =
-                isCameraAboveHatch(tank);
+                isCameraAboveHatch(tankPos);
 
-        /*
-         * Render all solid/no-cull geometry first.
-         *
-         * Do not switch render buffers and then continue writing to this
-         * consumer. Buffer switching can invalidate the old builder and cause
-         * "IllegalStateException: Not building!".
-         */
         VertexConsumer solidConsumer =
                 bufferSource.getBuffer(
                         RenderType.entityCutoutNoCullZOffset(
@@ -175,9 +186,6 @@ final class FoundryTankIntakeHatchRenderer {
                 packedOverlay
         );
 
-        /*
-         * Render the translucent underside last, after all solid hatch geometry.
-         */
         if (!cameraAboveHatch) {
             VertexConsumer translucentConsumer =
                     bufferSource.getBuffer(
@@ -195,13 +203,35 @@ final class FoundryTankIntakeHatchRenderer {
         }
     }
 
-    private static boolean isCameraAboveHatch(
-            FoundryTankBlockEntity tank
+    /** Legacy bridge; old Tank BER is no longer registered in the final stage. */
+    static void render(
+            FoundryTankBlockEntity tank,
+            PoseStack.Pose pose,
+            MultiBufferSource bufferSource,
+            int packedLight,
+            int packedOverlay
     ) {
-        if (tank.getLevel() == null) {
-            return true;
+        if (
+                tank == null
+                        || tank.getLevel() == null
+        ) {
+            return;
         }
 
+        render(
+                tank.getLevel(),
+                tank.getBlockPos(),
+                tank.getBlockState(),
+                pose,
+                bufferSource,
+                packedLight,
+                packedOverlay
+        );
+    }
+
+    private static boolean isCameraAboveHatch(
+            BlockPos tankPos
+    ) {
         Vec3 cameraPosition =
                 Minecraft.getInstance()
                         .gameRenderer
@@ -209,8 +239,7 @@ final class FoundryTankIntakeHatchRenderer {
                         .getPosition();
 
         return cameraPosition.y
-                >= tank.getBlockPos()
-                .getY() + 1.0;
+                >= tankPos.getY() + 1.0;
     }
 
     private static void renderFullTopCap(
