@@ -149,7 +149,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 false
         );
 
-        tankPart(
+        tankIsolatedHorizontalPart(
                 builder,
                 tankPanelModel(
                         "foundry_tank_panel_up",
@@ -157,13 +157,12 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         0.0f, 15.88f, 0.0f,
                         16.0f, 15.89f, 16.0f,
                         "top",
-                        1.0f, 1.0f, 15.0f, 15.0f
+                        0.0f, 0.0f, 16.0f, 16.0f
                 ),
-                FoundryTankBlock.UP,
-                false
+                FoundryTankBlock.UP
         );
 
-        tankPart(
+        tankIsolatedHorizontalPart(
                 builder,
                 tankPanelModel(
                         "foundry_tank_panel_down",
@@ -171,10 +170,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         0.0f, 0.11f, 0.0f,
                         16.0f, 0.12f, 16.0f,
                         "top",
-                        1.0f, 1.0f, 15.0f, 15.0f
+                        0.0f, 0.0f, 16.0f, 16.0f
                 ),
-                FoundryTankBlock.DOWN,
-                false
+                FoundryTankBlock.DOWN
         );
 
         tankPart(
@@ -327,9 +325,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         16.0f,
                         16.0f,
                         "side",
+                        13.0f,
                         0.0f,
-                        0.0f,
-                        3.0f,
+                        16.0f,
                         16.0f
                 ),
                 FoundryTankBlock.SOUTH,
@@ -350,9 +348,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         16.0f,
                         16.0f,
                         "side",
-                        13.0f,
                         0.0f,
-                        16.0f,
+                        0.0f,
+                        3.0f,
                         16.0f
                 ),
                 FoundryTankBlock.SOUTH,
@@ -419,9 +417,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         16.0f,
                         3.0f,
                         "side",
+                        13.0f,
                         0.0f,
-                        0.0f,
-                        3.0f,
+                        16.0f,
                         16.0f
                 ),
                 FoundryTankBlock.WEST,
@@ -442,9 +440,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         16.0f,
                         16.0f,
                         "side",
-                        13.0f,
                         0.0f,
-                        16.0f,
+                        0.0f,
+                        3.0f,
                         16.0f
                 ),
                 FoundryTankBlock.WEST,
@@ -545,6 +543,15 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 false
         );
 
+        /*
+         * Horizontal perimeter ownership:
+         *
+         * NORTH/SOUTH strips own the 1x1 corner pixels. WEST/EAST are split
+         * into a middle run plus optional one-pixel end extensions. This
+         * reproduces the old renderer's sideMinZ/sideMaxZ rule and guarantees
+         * that a normal top/bottom corner has exactly one quad instead of two
+         * or three coplanar quads.
+         */
         tankPart(
                 builder,
                 tankSideModel(
@@ -591,50 +598,32 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 false
         );
 
-        tankPart(
+        tankHorizontalSidePerimeterParts(
                 builder,
-                tankSideModel(
-                        "foundry_tank_top_west",
-                        Direction.UP,
-                        0.0f,
-                        15.9f,
-                        0.0f,
-                        1.0f,
-                        16.0f,
-                        16.0f,
-                        "top",
-                        0.0f,
-                        0.0f,
-                        1.0f,
-                        16.0f
-                ),
+                "foundry_tank_top_west",
+                Direction.UP,
                 FoundryTankBlock.UP,
-                false,
                 FoundryTankBlock.WEST,
-                false
+                0.0f,
+                1.0f,
+                15.9f,
+                16.0f,
+                0.0f,
+                1.0f
         );
 
-        tankPart(
+        tankHorizontalSidePerimeterParts(
                 builder,
-                tankSideModel(
-                        "foundry_tank_top_east",
-                        Direction.UP,
-                        15.0f,
-                        15.9f,
-                        0.0f,
-                        16.0f,
-                        16.0f,
-                        16.0f,
-                        "top",
-                        15.0f,
-                        0.0f,
-                        16.0f,
-                        16.0f
-                ),
+                "foundry_tank_top_east",
+                Direction.UP,
                 FoundryTankBlock.UP,
-                false,
                 FoundryTankBlock.EAST,
-                false
+                15.0f,
+                16.0f,
+                15.9f,
+                16.0f,
+                15.0f,
+                16.0f
         );
 
         tankPart(
@@ -683,256 +672,141 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 false
         );
 
-        tankPart(
+        tankHorizontalSidePerimeterParts(
                 builder,
-                tankSideModel(
-                        "foundry_tank_bottom_west",
-                        Direction.DOWN,
-                        0.0f,
-                        0.0f,
-                        0.0f,
-                        1.0f,
-                        0.1f,
-                        16.0f,
-                        "top",
-                        0.0f,
-                        0.0f,
-                        1.0f,
-                        16.0f
-                ),
+                "foundry_tank_bottom_west",
+                Direction.DOWN,
                 FoundryTankBlock.DOWN,
-                false,
                 FoundryTankBlock.WEST,
-                false
+                0.0f,
+                1.0f,
+                0.0f,
+                0.1f,
+                0.0f,
+                1.0f
         );
 
-        tankPart(
+        tankHorizontalSidePerimeterParts(
                 builder,
-                tankSideModel(
-                        "foundry_tank_bottom_east",
-                        Direction.DOWN,
-                        15.0f,
-                        0.0f,
-                        0.0f,
-                        16.0f,
-                        0.1f,
-                        16.0f,
-                        "top",
-                        15.0f,
-                        0.0f,
-                        16.0f,
-                        16.0f
-                ),
+                "foundry_tank_bottom_east",
+                Direction.DOWN,
                 FoundryTankBlock.DOWN,
-                false,
                 FoundryTankBlock.EAST,
-                false
+                15.0f,
+                16.0f,
+                0.0f,
+                0.1f,
+                15.0f,
+                16.0f
         );
 
-
-        tankPart(
-                builder,
-                tankSideModel(
-                        "foundry_tank_top_corner_north_west",
-                        Direction.UP,
-                        0.0f,
-                        15.9f,
-                        0.0f,
-                        1.0f,
-                        16.0f,
-                        1.0f,
-                        "top",
-                        0.0f,
-                        0.0f,
-                        1.0f,
-                        1.0f
-                ),
-                FoundryTankBlock.UP,
-                false,
-                FoundryTankBlock.NORTH,
-                false,
-                FoundryTankBlock.WEST,
-                false
-        );
-
-        tankPart(
-                builder,
-                tankSideModel(
-                        "foundry_tank_top_corner_north_east",
-                        Direction.UP,
-                        15.0f,
-                        15.9f,
-                        0.0f,
-                        16.0f,
-                        16.0f,
-                        1.0f,
-                        "top",
-                        15.0f,
-                        0.0f,
-                        16.0f,
-                        1.0f
-                ),
-                FoundryTankBlock.UP,
-                false,
-                FoundryTankBlock.NORTH,
-                false,
-                FoundryTankBlock.EAST,
-                false
-        );
-
-        tankPart(
-                builder,
-                tankSideModel(
-                        "foundry_tank_top_corner_south_west",
-                        Direction.UP,
-                        0.0f,
-                        15.9f,
-                        15.0f,
-                        1.0f,
-                        16.0f,
-                        16.0f,
-                        "top",
-                        0.0f,
-                        15.0f,
-                        1.0f,
-                        16.0f
-                ),
-                FoundryTankBlock.UP,
-                false,
-                FoundryTankBlock.SOUTH,
-                false,
-                FoundryTankBlock.WEST,
-                false
-        );
-
-        tankPart(
-                builder,
-                tankSideModel(
-                        "foundry_tank_top_corner_south_east",
-                        Direction.UP,
-                        15.0f,
-                        15.9f,
-                        15.0f,
-                        16.0f,
-                        16.0f,
-                        16.0f,
-                        "top",
-                        15.0f,
-                        15.0f,
-                        16.0f,
-                        16.0f
-                ),
-                FoundryTankBlock.UP,
-                false,
-                FoundryTankBlock.SOUTH,
-                false,
-                FoundryTankBlock.EAST,
-                false
-        );
-
-        tankPart(
-                builder,
-                tankSideModel(
-                        "foundry_tank_bottom_corner_north_west",
-                        Direction.DOWN,
-                        0.0f,
-                        0.0f,
-                        0.0f,
-                        1.0f,
-                        0.1f,
-                        1.0f,
-                        "top",
-                        0.0f,
-                        0.0f,
-                        1.0f,
-                        1.0f
-                ),
-                FoundryTankBlock.DOWN,
-                false,
-                FoundryTankBlock.NORTH,
-                false,
-                FoundryTankBlock.WEST,
-                false
-        );
-
-        tankPart(
-                builder,
-                tankSideModel(
-                        "foundry_tank_bottom_corner_north_east",
-                        Direction.DOWN,
-                        15.0f,
-                        0.0f,
-                        0.0f,
-                        16.0f,
-                        0.1f,
-                        1.0f,
-                        "top",
-                        15.0f,
-                        0.0f,
-                        16.0f,
-                        1.0f
-                ),
-                FoundryTankBlock.DOWN,
-                false,
-                FoundryTankBlock.NORTH,
-                false,
-                FoundryTankBlock.EAST,
-                false
-        );
-
-        tankPart(
-                builder,
-                tankSideModel(
-                        "foundry_tank_bottom_corner_south_west",
-                        Direction.DOWN,
-                        0.0f,
-                        0.0f,
-                        15.0f,
-                        1.0f,
-                        0.1f,
-                        16.0f,
-                        "top",
-                        0.0f,
-                        15.0f,
-                        1.0f,
-                        16.0f
-                ),
-                FoundryTankBlock.DOWN,
-                false,
-                FoundryTankBlock.SOUTH,
-                false,
-                FoundryTankBlock.WEST,
-                false
-        );
-
-        tankPart(
-                builder,
-                tankSideModel(
-                        "foundry_tank_bottom_corner_south_east",
-                        Direction.DOWN,
-                        15.0f,
-                        0.0f,
-                        15.0f,
-                        16.0f,
-                        0.1f,
-                        16.0f,
-                        "top",
-                        15.0f,
-                        15.0f,
-                        16.0f,
-                        16.0f
-                ),
-                FoundryTankBlock.DOWN,
-                false,
-                FoundryTankBlock.SOUTH,
-                false,
-                FoundryTankBlock.EAST,
-                false
-        );
+        /*
+         * Do NOT add static horizontal corner models here.
+         *
+         * Convex/static corners are already owned by NORTH/SOUTH. Concave
+         * diagonal corners cannot be represented by the six adjacency
+         * properties and are supplied by
+         * FoundryControllerTankFrameCorrectionRenderer instead.
+         */
 
         simpleBlockItem(
                 tank,
                 itemModel
+        );
+    }
+
+    /**
+     * Generates one WEST/EAST top/bottom perimeter run without corner overlap.
+     *
+     * The middle 14 pixels are always present while this edge is exposed.
+     * The NORTH end pixel is present only when there is a Tank to the north,
+     * because otherwise the NORTH perimeter strip owns that corner pixel.
+     * SOUTH follows the same rule.
+     */
+    private void tankHorizontalSidePerimeterParts(
+            MultiPartBlockStateBuilder builder,
+            String namePrefix,
+            Direction face,
+            BooleanProperty exposedFaceProperty,
+            BooleanProperty sideBoundaryProperty,
+            float minX,
+            float maxX,
+            float minY,
+            float maxY,
+            float minU,
+            float maxU
+    ) {
+        tankPart(
+                builder,
+                tankSideModel(
+                        namePrefix + "_middle",
+                        face,
+                        minX,
+                        minY,
+                        1.0f,
+                        maxX,
+                        maxY,
+                        15.0f,
+                        "top",
+                        minU,
+                        1.0f,
+                        maxU,
+                        15.0f
+                ),
+                exposedFaceProperty,
+                false,
+                sideBoundaryProperty,
+                false
+        );
+
+        tankPart(
+                builder,
+                tankSideModel(
+                        namePrefix + "_north_extension",
+                        face,
+                        minX,
+                        minY,
+                        0.0f,
+                        maxX,
+                        maxY,
+                        1.0f,
+                        "top",
+                        minU,
+                        0.0f,
+                        maxU,
+                        1.0f
+                ),
+                exposedFaceProperty,
+                false,
+                sideBoundaryProperty,
+                false,
+                FoundryTankBlock.NORTH,
+                true
+        );
+
+        tankPart(
+                builder,
+                tankSideModel(
+                        namePrefix + "_south_extension",
+                        face,
+                        minX,
+                        minY,
+                        15.0f,
+                        maxX,
+                        maxY,
+                        16.0f,
+                        "top",
+                        minU,
+                        15.0f,
+                        maxU,
+                        16.0f
+                ),
+                exposedFaceProperty,
+                false,
+                sideBoundaryProperty,
+                false,
+                FoundryTankBlock.SOUTH,
+                true
         );
     }
 
@@ -1022,21 +896,40 @@ public class ModBlockStateProvider extends BlockStateProvider {
             float maxU,
             float maxV
     ) {
-        boolean flipSideTextureU =
-                shouldFlipTankSideTextureU(
-                        face,
-                        texture
-                );
+        /*
+         * Side-frame pieces are thin physical planes that are visible from
+         * both outside and inside the Tank. Their UV handedness must be based
+         * on the physical plane being generated, not independently on the two
+         * face directions.
+         *
+         * NORTH/EAST were already visually correct in the stable static model:
+         * their outward face used the reversed U range and their inward/back
+         * face used the normal U range. SOUTH/WEST used the opposite pair,
+         * which mirrored the measurement arms on both sides of those planes.
+         *
+         * Use the known-good pair for every horizontal side plane:
+         *   outward face -> reversed U
+         *   inward face  -> normal U
+         *
+         * Top/bottom texture parts do not use this directional side-frame
+         * mapping and therefore keep their supplied UV range unchanged.
+         */
+        boolean sideFrameTexture =
+                "side".equals(texture)
+                        && face.getAxis().isHorizontal();
 
         float adjustedMinU =
-                flipSideTextureU
+                sideFrameTexture
                         ? maxU
                         : minU;
 
         float adjustedMaxU =
-                flipSideTextureU
+                sideFrameTexture
                         ? minU
                         : maxU;
+
+        float oppositeMinU = minU;
+        float oppositeMaxU = maxU;
 
         return models().withExistingParent(
                         name,
@@ -1088,9 +981,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         "#" + texture
                 )
                 .uvs(
-                        adjustedMinU,
+                        oppositeMinU,
                         minV,
-                        adjustedMaxU,
+                        oppositeMaxU,
                         maxV
                 )
                 .end()
@@ -1118,6 +1011,26 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 face == Direction.NORTH
                         || face == Direction.EAST
         );
+    }
+
+    /**
+     * The complete top/bottom texture belongs only to a horizontally isolated
+     * Tank. Connected horizontal runs expose only their perimeter frames.
+     */
+    private void tankIsolatedHorizontalPart(
+            MultiPartBlockStateBuilder builder,
+            ModelFile model,
+            BooleanProperty exposedFaceConnection
+    ) {
+        builder.part()
+                .modelFile(model)
+                .addModel()
+                .condition(exposedFaceConnection, false)
+                .condition(FoundryTankBlock.NORTH, false)
+                .condition(FoundryTankBlock.EAST, false)
+                .condition(FoundryTankBlock.SOUTH, false)
+                .condition(FoundryTankBlock.WEST, false)
+                .end();
     }
 
     private void tankPart(

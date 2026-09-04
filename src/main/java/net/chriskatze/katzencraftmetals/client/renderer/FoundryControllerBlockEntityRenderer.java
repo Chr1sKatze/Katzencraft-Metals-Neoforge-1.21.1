@@ -30,6 +30,9 @@ public final class FoundryControllerBlockEntityRenderer
     private final FoundryControllerTankLiquidRenderer liquidRenderer =
             new FoundryControllerTankLiquidRenderer();
 
+    private final FoundryControllerTankFrameCorrectionRenderer frameCorrectionRenderer =
+            new FoundryControllerTankFrameCorrectionRenderer();
+
     public FoundryControllerBlockEntityRenderer(
             BlockEntityRendererProvider.Context context
     ) {
@@ -59,6 +62,15 @@ public final class FoundryControllerBlockEntityRenderer
         if (physicalStructure.isEmpty()) {
             return;
         }
+
+        frameCorrectionRenderer.render(
+                controller,
+                physicalStructure,
+                poseStack,
+                bufferSource,
+                packedLight,
+                packedOverlay
+        );
 
         liquidRenderer.render(
                 controller,
