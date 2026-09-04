@@ -234,9 +234,15 @@ public class FoundryTankBlock extends Block {
     }
 
     /**
-     * Tests the component that would exist after placing a Tank at placedPos.
-     * Only the hard physical envelope/count is checked here; more specialized
-     * fluid-shape validation still belongs to the Controller.
+     * Tests the physical component that would exist after placing a Tank at
+     * placedPos.
+     *
+     * Placement owns two physical invariants:
+     * - the hard 4x4x4 / 64-Tank envelope;
+     * - the simple bottom-up fluid-connectivity rule that prevents an
+     *   upside-down U/cup from being physically completed.
+     *
+     * Other Foundry/Controller validity rules remain Controller-side.
      */
     private static boolean fitsPhysicalVesselLimit(
             LevelAccessor level,
@@ -295,7 +301,119 @@ public class FoundryTankBlock extends Block {
             }
         }
 
+        /*
+         * Placement-time simple-fluid rule.
+         *
+         * Keep free-form Tank construction, but never allow a placement to
+         * create a component whose lower liquid pockets are disconnected and
+         * only become connected by a higher bridge.
+         *
+         * Allowed example (upright U / vertical C):
+         *
+         *   [T][ ][T]
+         *   [T][T][T]
+         *
+         * At every fill height, everything below that height is connected.
+         *
+         * Rejected example (upside-down U / cup):
+         *
+         *   [T][T][T]
+         *   [T][ ][T]
+         *
+         * Before liquid reaches the top bridge, the two lower pockets are
+         * disconnected. The Controller already rejects this exact topology;
+         * placement now prevents the block that would create it.
+         *
+         * IMPORTANT:
+         * This is intentionally ONLY the bottom-up connectivity invariant.
+         * Do not call the complete Controller structure validator here: Tank
+         * placement should remain as free as it is today apart from physically
+         * impossible vessel shapes.
+         */
+        return hasBottomUpConnectedFill(visited);
+    }
+
+    /**
+     * Returns true when every bottom-up prefix of this one physical Tank
+     * component is face-connected.
+     *
+     * This mirrors the Foundry Controller's existing simple-fluid rule without
+     * importing the Controller's other validity requirements into placement.
+     */
+    private static boolean hasBottomUpConnectedFill(
+            Set<BlockPos> positions
+    ) {
+        if (positions == null || positions.isEmpty()) {
+            return false;
+        }
+
+        int minY = Integer.MAX_VALUE;
+        int maxY = Integer.MIN_VALUE;
+
+        for (BlockPos position : positions) {
+            minY = Math.min(minY, position.getY());
+            maxY = Math.max(maxY, position.getY());
+        }
+
+        for (int y = minY; y <= maxY; y++) {
+            Set<BlockPos> prefix =
+                    new HashSet<>();
+
+            for (BlockPos position : positions) {
+                if (position.getY() <= y) {
+                    prefix.add(position);
+                }
+            }
+
+            if (
+                    !prefix.isEmpty()
+                            && !isFaceConnected(prefix)
+            ) {
+                return false;
+            }
+        }
+
         return true;
+    }
+
+    private static boolean isFaceConnected(
+            Set<BlockPos> positions
+    ) {
+        if (positions.isEmpty()) {
+            return true;
+        }
+
+        Set<BlockPos> visited =
+                new HashSet<>();
+
+        ArrayDeque<BlockPos> queue =
+                new ArrayDeque<>();
+
+        BlockPos start =
+                positions.iterator()
+                        .next();
+
+        visited.add(start);
+        queue.addLast(start);
+
+        while (!queue.isEmpty()) {
+            BlockPos current =
+                    queue.removeFirst();
+
+            for (Direction direction : Direction.values()) {
+                BlockPos next =
+                        current.relative(direction);
+
+                if (
+                        positions.contains(next)
+                                && visited.add(next)
+                ) {
+                    queue.addLast(next);
+                }
+            }
+        }
+
+        return visited.size() == positions.size();
     }
 
     private static boolean bridgesDifferentActiveFoundries(
