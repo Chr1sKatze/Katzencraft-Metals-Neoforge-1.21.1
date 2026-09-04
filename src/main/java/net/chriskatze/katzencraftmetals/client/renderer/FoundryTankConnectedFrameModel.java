@@ -231,6 +231,10 @@ public final class FoundryTankConnectedFrameModel
                 CorrectionPart.SIDE_NORTH_BOTTOM,
                 CorrectionPart.SIDE_NORTH_WEST,
                 CorrectionPart.SIDE_NORTH_EAST,
+                CorrectionPart.JOIN_NORTH_LEFT_ABOVE,
+                CorrectionPart.JOIN_NORTH_RIGHT_ABOVE,
+                CorrectionPart.JOIN_NORTH_LEFT_BELOW,
+                CorrectionPart.JOIN_NORTH_RIGHT_BELOW,
                 CorrectionPart.CAP_NORTH_TOP_WEST,
                 CorrectionPart.CAP_NORTH_TOP_EAST,
                 CorrectionPart.CAP_NORTH_BOTTOM_WEST,
@@ -247,6 +251,10 @@ public final class FoundryTankConnectedFrameModel
                 CorrectionPart.SIDE_SOUTH_BOTTOM,
                 CorrectionPart.SIDE_SOUTH_EAST,
                 CorrectionPart.SIDE_SOUTH_WEST,
+                CorrectionPart.JOIN_SOUTH_LEFT_ABOVE,
+                CorrectionPart.JOIN_SOUTH_RIGHT_ABOVE,
+                CorrectionPart.JOIN_SOUTH_LEFT_BELOW,
+                CorrectionPart.JOIN_SOUTH_RIGHT_BELOW,
                 CorrectionPart.CAP_SOUTH_TOP_EAST,
                 CorrectionPart.CAP_SOUTH_TOP_WEST,
                 CorrectionPart.CAP_SOUTH_BOTTOM_EAST,
@@ -263,6 +271,10 @@ public final class FoundryTankConnectedFrameModel
                 CorrectionPart.SIDE_WEST_BOTTOM,
                 CorrectionPart.SIDE_WEST_SOUTH,
                 CorrectionPart.SIDE_WEST_NORTH,
+                CorrectionPart.JOIN_WEST_LEFT_ABOVE,
+                CorrectionPart.JOIN_WEST_RIGHT_ABOVE,
+                CorrectionPart.JOIN_WEST_LEFT_BELOW,
+                CorrectionPart.JOIN_WEST_RIGHT_BELOW,
                 CorrectionPart.CAP_WEST_TOP_SOUTH,
                 CorrectionPart.CAP_WEST_TOP_NORTH,
                 CorrectionPart.CAP_WEST_BOTTOM_SOUTH,
@@ -279,6 +291,10 @@ public final class FoundryTankConnectedFrameModel
                 CorrectionPart.SIDE_EAST_BOTTOM,
                 CorrectionPart.SIDE_EAST_NORTH,
                 CorrectionPart.SIDE_EAST_SOUTH,
+                CorrectionPart.JOIN_EAST_LEFT_ABOVE,
+                CorrectionPart.JOIN_EAST_RIGHT_ABOVE,
+                CorrectionPart.JOIN_EAST_LEFT_BELOW,
+                CorrectionPart.JOIN_EAST_RIGHT_BELOW,
                 CorrectionPart.CAP_EAST_TOP_NORTH,
                 CorrectionPart.CAP_EAST_TOP_SOUTH,
                 CorrectionPart.CAP_EAST_BOTTOM_NORTH,
@@ -329,6 +345,10 @@ public final class FoundryTankConnectedFrameModel
             CorrectionPart bottomPart,
             CorrectionPart leftPart,
             CorrectionPart rightPart,
+            CorrectionPart leftAboveJoin,
+            CorrectionPart rightAboveJoin,
+            CorrectionPart leftBelowJoin,
+            CorrectionPart rightBelowJoin,
             CorrectionPart topLeftCap,
             CorrectionPart topRightCap,
             CorrectionPart bottomLeftCap,
@@ -421,40 +441,70 @@ public final class FoundryTankConnectedFrameModel
         }
 
         /*
-         * The explicit 1x1 side cap is required whenever a concave/diagonal
-         * correction reaches another real frame boundary. At least one of the
-         * two meeting edges must be diagonal-aware; ordinary convex corners are
-         * already fully owned by the static model.
+         * Historical vertical marker join.
+         *
+         * The old Tank renderer did not use generic side-corner caps here.
+         * Instead, when an exposed side frame continues vertically:
+         *
+         * - the lower Tank adds a 1x1 extension at its top edge;
+         * - the upper Tank adds a 2x1 extension at its bottom edge.
+         *
+         * Only emit the join on a side that is itself a frame boundary.
          */
-        if (
-                topBoundary
-                        && leftBoundary
-                        && (topCorrection || leftCorrection)
-        ) {
+        boolean continuesAbove =
+                hasAdjacentExposedFace(
+                        level,
+                        pos,
+                        face,
+                        Direction.UP
+                );
+
+        boolean continuesBelow =
+                hasAdjacentExposedFace(
+                        level,
+                        pos,
+                        face,
+                        Direction.DOWN
+                );
+
+        if (leftBoundary && continuesAbove) {
+            mask |= leftAboveJoin.bit();
+        }
+
+        if (rightBoundary && continuesAbove) {
+            mask |= rightAboveJoin.bit();
+        }
+
+        if (leftBoundary && continuesBelow) {
+            mask |= leftBelowJoin.bit();
+        }
+
+        if (rightBoundary && continuesBelow) {
+            mask |= rightBelowJoin.bit();
+        }
+
+        /*
+         * Same-face 2x2 cavity corner cap:
+         *
+         *   XX
+         *   X.
+         *
+         * Each missing quadrant is owned exactly once by the block diagonally
+         * opposite it.
+         */
+        if (needsSideConcaveCap(level, pos, Direction.UP, left)) {
             mask |= topLeftCap.bit();
         }
 
-        if (
-                topBoundary
-                        && rightBoundary
-                        && (topCorrection || rightCorrection)
-        ) {
+        if (needsSideConcaveCap(level, pos, Direction.UP, right)) {
             mask |= topRightCap.bit();
         }
 
-        if (
-                bottomBoundary
-                        && leftBoundary
-                        && (bottomCorrection || leftCorrection)
-        ) {
+        if (needsSideConcaveCap(level, pos, Direction.DOWN, left)) {
             mask |= bottomLeftCap.bit();
         }
 
-        if (
-                bottomBoundary
-                        && rightBoundary
-                        && (bottomCorrection || rightCorrection)
-        ) {
+        if (needsSideConcaveCap(level, pos, Direction.DOWN, right)) {
             mask |= bottomRightCap.bit();
         }
 
@@ -624,6 +674,27 @@ public final class FoundryTankConnectedFrameModel
         );
     }
 
+    private static boolean needsSideConcaveCap(
+            BlockAndTintGetter level,
+            BlockPos pos,
+            Direction vertical,
+            Direction horizontal
+    ) {
+        return isTank(
+                level,
+                pos.relative(vertical)
+        )
+                && isTank(
+                level,
+                pos.relative(horizontal)
+        )
+                && !isTank(
+                level,
+                pos.relative(vertical)
+                        .relative(horizontal)
+        );
+    }
+
     private static boolean isTank(
             BlockAndTintGetter level,
             BlockPos pos
@@ -663,20 +734,40 @@ public final class FoundryTankConnectedFrameModel
         DOWN_WEST("foundry_tank_correction_down_west"),
         DOWN_EAST("foundry_tank_correction_down_east"),
 
+        JOIN_NORTH_LEFT_ABOVE("foundry_tank_correction_join_north_left_above"),
+        JOIN_NORTH_RIGHT_ABOVE("foundry_tank_correction_join_north_right_above"),
+        JOIN_NORTH_LEFT_BELOW("foundry_tank_correction_join_north_left_below"),
+        JOIN_NORTH_RIGHT_BELOW("foundry_tank_correction_join_north_right_below"),
+
+        JOIN_SOUTH_LEFT_ABOVE("foundry_tank_correction_join_south_left_above"),
+        JOIN_SOUTH_RIGHT_ABOVE("foundry_tank_correction_join_south_right_above"),
+        JOIN_SOUTH_LEFT_BELOW("foundry_tank_correction_join_south_left_below"),
+        JOIN_SOUTH_RIGHT_BELOW("foundry_tank_correction_join_south_right_below"),
+
+        JOIN_WEST_LEFT_ABOVE("foundry_tank_correction_join_west_left_above"),
+        JOIN_WEST_RIGHT_ABOVE("foundry_tank_correction_join_west_right_above"),
+        JOIN_WEST_LEFT_BELOW("foundry_tank_correction_join_west_left_below"),
+        JOIN_WEST_RIGHT_BELOW("foundry_tank_correction_join_west_right_below"),
+
+        JOIN_EAST_LEFT_ABOVE("foundry_tank_correction_join_east_left_above"),
+        JOIN_EAST_RIGHT_ABOVE("foundry_tank_correction_join_east_right_above"),
+        JOIN_EAST_LEFT_BELOW("foundry_tank_correction_join_east_left_below"),
+        JOIN_EAST_RIGHT_BELOW("foundry_tank_correction_join_east_right_below"),
+
         CAP_NORTH_TOP_WEST("foundry_tank_correction_cap_north_top_west"),
         CAP_NORTH_TOP_EAST("foundry_tank_correction_cap_north_top_east"),
         CAP_NORTH_BOTTOM_WEST("foundry_tank_correction_cap_north_bottom_west"),
         CAP_NORTH_BOTTOM_EAST("foundry_tank_correction_cap_north_bottom_east"),
 
-        CAP_SOUTH_TOP_WEST("foundry_tank_correction_cap_south_top_west"),
         CAP_SOUTH_TOP_EAST("foundry_tank_correction_cap_south_top_east"),
-        CAP_SOUTH_BOTTOM_WEST("foundry_tank_correction_cap_south_bottom_west"),
+        CAP_SOUTH_TOP_WEST("foundry_tank_correction_cap_south_top_west"),
         CAP_SOUTH_BOTTOM_EAST("foundry_tank_correction_cap_south_bottom_east"),
+        CAP_SOUTH_BOTTOM_WEST("foundry_tank_correction_cap_south_bottom_west"),
 
-        CAP_WEST_TOP_NORTH("foundry_tank_correction_cap_west_top_north"),
         CAP_WEST_TOP_SOUTH("foundry_tank_correction_cap_west_top_south"),
-        CAP_WEST_BOTTOM_NORTH("foundry_tank_correction_cap_west_bottom_north"),
+        CAP_WEST_TOP_NORTH("foundry_tank_correction_cap_west_top_north"),
         CAP_WEST_BOTTOM_SOUTH("foundry_tank_correction_cap_west_bottom_south"),
+        CAP_WEST_BOTTOM_NORTH("foundry_tank_correction_cap_west_bottom_north"),
 
         CAP_EAST_TOP_NORTH("foundry_tank_correction_cap_east_top_north"),
         CAP_EAST_TOP_SOUTH("foundry_tank_correction_cap_east_top_south"),

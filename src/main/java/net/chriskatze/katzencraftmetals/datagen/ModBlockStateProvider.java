@@ -742,12 +742,18 @@ public class ModBlockStateProvider extends BlockStateProvider {
         correctionSideModel("foundry_tank_correction_side_north_bottom",
                 Direction.NORTH, 0.0f, 0.0f, -O, 16.0f, 1.0f, 0.08f,
                 0.0f, 15.0f, 16.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_side_north_west",
-                Direction.NORTH, 0.0f, 0.0f, -O, 3.0f, 16.0f, 0.08f,
-                0.0f, 0.0f, 3.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_side_north_east",
-                Direction.NORTH, 13.0f, 0.0f, -O, 16.0f, 16.0f, 0.08f,
-                13.0f, 0.0f, 16.0f, 16.0f);
+        correctionMarkerRailModel(
+                "foundry_tank_correction_side_north_west",
+                Direction.NORTH,
+                true,
+                O
+        );
+        correctionMarkerRailModel(
+                "foundry_tank_correction_side_north_east",
+                Direction.NORTH,
+                false,
+                O
+        );
 
         correctionSideModel("foundry_tank_correction_side_south_top",
                 Direction.SOUTH, 0.0f, 15.0f, 15.92f, 16.0f, 16.0f, 16.0f + O,
@@ -755,12 +761,21 @@ public class ModBlockStateProvider extends BlockStateProvider {
         correctionSideModel("foundry_tank_correction_side_south_bottom",
                 Direction.SOUTH, 0.0f, 0.0f, 15.92f, 16.0f, 1.0f, 16.0f + O,
                 0.0f, 15.0f, 16.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_side_south_west",
-                Direction.SOUTH, 0.0f, 0.0f, 15.92f, 3.0f, 16.0f, 16.0f + O,
-                13.0f, 0.0f, 16.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_side_south_east",
-                Direction.SOUTH, 13.0f, 0.0f, 15.92f, 16.0f, 16.0f, 16.0f + O,
-                0.0f, 0.0f, 3.0f, 16.0f);
+        /*
+         * SOUTH local-left is EAST and local-right is WEST.
+         */
+        correctionMarkerRailModel(
+                "foundry_tank_correction_side_south_east",
+                Direction.SOUTH,
+                true,
+                O
+        );
+        correctionMarkerRailModel(
+                "foundry_tank_correction_side_south_west",
+                Direction.SOUTH,
+                false,
+                O
+        );
 
         correctionSideModel("foundry_tank_correction_side_west_top",
                 Direction.WEST, -O, 15.0f, 0.0f, 0.08f, 16.0f, 16.0f,
@@ -768,12 +783,21 @@ public class ModBlockStateProvider extends BlockStateProvider {
         correctionSideModel("foundry_tank_correction_side_west_bottom",
                 Direction.WEST, -O, 0.0f, 0.0f, 0.08f, 1.0f, 16.0f,
                 0.0f, 15.0f, 16.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_side_west_north",
-                Direction.WEST, -O, 0.0f, 0.0f, 0.08f, 16.0f, 3.0f,
-                13.0f, 0.0f, 16.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_side_west_south",
-                Direction.WEST, -O, 0.0f, 13.0f, 0.08f, 16.0f, 16.0f,
-                0.0f, 0.0f, 3.0f, 16.0f);
+        /*
+         * WEST local-left is SOUTH and local-right is NORTH.
+         */
+        correctionMarkerRailModel(
+                "foundry_tank_correction_side_west_south",
+                Direction.WEST,
+                true,
+                O
+        );
+        correctionMarkerRailModel(
+                "foundry_tank_correction_side_west_north",
+                Direction.WEST,
+                false,
+                O
+        );
 
         correctionSideModel("foundry_tank_correction_side_east_top",
                 Direction.EAST, 15.92f, 15.0f, 0.0f, 16.0f + O, 16.0f, 16.0f,
@@ -781,12 +805,21 @@ public class ModBlockStateProvider extends BlockStateProvider {
         correctionSideModel("foundry_tank_correction_side_east_bottom",
                 Direction.EAST, 15.92f, 0.0f, 0.0f, 16.0f + O, 1.0f, 16.0f,
                 0.0f, 15.0f, 16.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_side_east_north",
-                Direction.EAST, 15.92f, 0.0f, 0.0f, 16.0f + O, 16.0f, 3.0f,
-                0.0f, 0.0f, 3.0f, 16.0f);
-        correctionSideModel("foundry_tank_correction_side_east_south",
-                Direction.EAST, 15.92f, 0.0f, 13.0f, 16.0f + O, 16.0f, 16.0f,
-                13.0f, 0.0f, 16.0f, 16.0f);
+        /*
+         * EAST local-left is NORTH and local-right is SOUTH.
+         */
+        correctionMarkerRailModel(
+                "foundry_tank_correction_side_east_north",
+                Direction.EAST,
+                true,
+                O
+        );
+        correctionMarkerRailModel(
+                "foundry_tank_correction_side_east_south",
+                Direction.EAST,
+                false,
+                O
+        );
 
         // -------------------------
         // UP / DOWN perimeter edges
@@ -817,44 +850,159 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 Direction.DOWN, 15.0f, -O, 0.0f, 16.0f, 0.08f, 16.0f,
                 15.0f, 0.0f, 16.0f, 16.0f);
 
-        // -------------------------
-        // 1x1 side junction caps
-        // -------------------------
-        correctionCap("foundry_tank_correction_cap_north_top_west",
-                Direction.NORTH, 0.0f, 15.0f, -O, 1.0f, 16.0f, 0.08f);
-        correctionCap("foundry_tank_correction_cap_north_top_east",
-                Direction.NORTH, 15.0f, 15.0f, -O, 16.0f, 16.0f, 0.08f);
-        correctionCap("foundry_tank_correction_cap_north_bottom_west",
-                Direction.NORTH, 0.0f, 0.0f, -O, 1.0f, 1.0f, 0.08f);
-        correctionCap("foundry_tank_correction_cap_north_bottom_east",
-                Direction.NORTH, 15.0f, 0.0f, -O, 16.0f, 1.0f, 0.08f);
+        // ------------------------------------------
+        // Historical vertical side-frame seam joins
+        // ------------------------------------------
+        /*
+         * These reproduce FoundryTankSideFrameRenderer.renderMarkerJoin()
+         * from the original Tank renderer exactly:
+         *
+         * - a LOWER Tank whose exposed face continues above contributes a
+         *   1x1 extension at its TOP edge;
+         * - the Tank ABOVE contributes a 2x1 extension at its BOTTOM edge.
+         *
+         * v12 invented generic 1x1 side-corner caps instead. Those caps could
+         * overlap an existing rail (the yellow z-fighting pixel in the
+         * screenshot) while the real historical join pixel remained absent
+         * one cell away (the pink position).
+         *
+         * The models below are face-local equivalents of the old helper, but
+         * use the current lightened #frame texture and the same tiny outward
+         * correction offset as the other connected-frame models.
+         */
 
-        correctionCap("foundry_tank_correction_cap_south_top_west",
-                Direction.SOUTH, 0.0f, 15.0f, 15.92f, 1.0f, 16.0f, 16.0f + O);
-        correctionCap("foundry_tank_correction_cap_south_top_east",
-                Direction.SOUTH, 15.0f, 15.0f, 15.92f, 16.0f, 16.0f, 16.0f + O);
-        correctionCap("foundry_tank_correction_cap_south_bottom_west",
-                Direction.SOUTH, 0.0f, 0.0f, 15.92f, 1.0f, 1.0f, 16.0f + O);
-        correctionCap("foundry_tank_correction_cap_south_bottom_east",
-                Direction.SOUTH, 15.0f, 0.0f, 15.92f, 16.0f, 1.0f, 16.0f + O);
+        // NORTH: local left = WEST (low X), local right = EAST (high X).
+        correctionSideModel("foundry_tank_correction_join_north_left_above",
+                Direction.NORTH, 1.0f, 15.0f, -O, 2.0f, 16.0f, 0.08f,
+                1.0f, 0.0f, 2.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_join_north_right_above",
+                Direction.NORTH, 14.0f, 15.0f, -O, 15.0f, 16.0f, 0.08f,
+                14.0f, 0.0f, 15.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_join_north_left_below",
+                Direction.NORTH, 1.0f, 0.0f, -O, 3.0f, 1.0f, 0.08f,
+                1.0f, 15.0f, 3.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_join_north_right_below",
+                Direction.NORTH, 13.0f, 0.0f, -O, 15.0f, 1.0f, 0.08f,
+                13.0f, 15.0f, 15.0f, 16.0f);
 
-        correctionCap("foundry_tank_correction_cap_west_top_north",
-                Direction.WEST, -O, 15.0f, 0.0f, 0.08f, 16.0f, 1.0f);
-        correctionCap("foundry_tank_correction_cap_west_top_south",
-                Direction.WEST, -O, 15.0f, 15.0f, 0.08f, 16.0f, 16.0f);
-        correctionCap("foundry_tank_correction_cap_west_bottom_north",
-                Direction.WEST, -O, 0.0f, 0.0f, 0.08f, 1.0f, 1.0f);
-        correctionCap("foundry_tank_correction_cap_west_bottom_south",
-                Direction.WEST, -O, 0.0f, 15.0f, 0.08f, 1.0f, 16.0f);
+        // SOUTH: local left = EAST (high X), local right = WEST (low X).
+        correctionSideModel("foundry_tank_correction_join_south_left_above",
+                Direction.SOUTH, 14.0f, 15.0f, 15.92f, 15.0f, 16.0f, 16.0f + O,
+                1.0f, 0.0f, 2.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_join_south_right_above",
+                Direction.SOUTH, 1.0f, 15.0f, 15.92f, 2.0f, 16.0f, 16.0f + O,
+                14.0f, 0.0f, 15.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_join_south_left_below",
+                Direction.SOUTH, 13.0f, 0.0f, 15.92f, 15.0f, 1.0f, 16.0f + O,
+                1.0f, 15.0f, 3.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_join_south_right_below",
+                Direction.SOUTH, 1.0f, 0.0f, 15.92f, 3.0f, 1.0f, 16.0f + O,
+                13.0f, 15.0f, 15.0f, 16.0f);
 
-        correctionCap("foundry_tank_correction_cap_east_top_north",
-                Direction.EAST, 15.92f, 15.0f, 0.0f, 16.0f + O, 16.0f, 1.0f);
-        correctionCap("foundry_tank_correction_cap_east_top_south",
-                Direction.EAST, 15.92f, 15.0f, 15.0f, 16.0f + O, 16.0f, 16.0f);
-        correctionCap("foundry_tank_correction_cap_east_bottom_north",
-                Direction.EAST, 15.92f, 0.0f, 0.0f, 16.0f + O, 1.0f, 1.0f);
-        correctionCap("foundry_tank_correction_cap_east_bottom_south",
-                Direction.EAST, 15.92f, 0.0f, 15.0f, 16.0f + O, 1.0f, 16.0f);
+        // WEST: local left = SOUTH (high Z), local right = NORTH (low Z).
+        correctionSideModel("foundry_tank_correction_join_west_left_above",
+                Direction.WEST, -O, 15.0f, 14.0f, 0.08f, 16.0f, 15.0f,
+                1.0f, 0.0f, 2.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_join_west_right_above",
+                Direction.WEST, -O, 15.0f, 1.0f, 0.08f, 16.0f, 2.0f,
+                14.0f, 0.0f, 15.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_join_west_left_below",
+                Direction.WEST, -O, 0.0f, 13.0f, 0.08f, 1.0f, 15.0f,
+                1.0f, 15.0f, 3.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_join_west_right_below",
+                Direction.WEST, -O, 0.0f, 1.0f, 0.08f, 1.0f, 3.0f,
+                13.0f, 15.0f, 15.0f, 16.0f);
+
+        // EAST: local left = NORTH (low Z), local right = SOUTH (high Z).
+        correctionSideModel("foundry_tank_correction_join_east_left_above",
+                Direction.EAST, 15.92f, 15.0f, 1.0f, 16.0f + O, 16.0f, 2.0f,
+                1.0f, 0.0f, 2.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_join_east_right_above",
+                Direction.EAST, 15.92f, 15.0f, 14.0f, 16.0f + O, 16.0f, 15.0f,
+                14.0f, 0.0f, 15.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_join_east_left_below",
+                Direction.EAST, 15.92f, 0.0f, 1.0f, 16.0f + O, 1.0f, 3.0f,
+                1.0f, 15.0f, 3.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_join_east_right_below",
+                Direction.EAST, 15.92f, 0.0f, 13.0f, 16.0f + O, 1.0f, 15.0f,
+                13.0f, 15.0f, 15.0f, 16.0f);
+
+        // -----------------------------------
+        // 1x1 SIDE concave-corner cap models
+        // -----------------------------------
+        /*
+         * IMPORTANT:
+         * v16 placed these at local 1..2 / 14..15.
+         * v16.1 moved them the wrong way to 2..3 / 13..14.
+         * The verified direction is the opposite:
+         *     left edge  -> 0..1
+         *     right edge -> 15..16
+         */
+        /*
+         * These fill the single same-face re-entrant corner square in a 2x2
+         * side-face cavity:
+         *
+         *   XX
+         *   X.
+         *
+         * The cap belongs to the block diagonally opposite the missing cell.
+         */
+
+        // NORTH: local left = WEST, local right = EAST.
+        correctionSideModel("foundry_tank_correction_cap_north_top_west",
+                Direction.NORTH, 0.0f, 15.0f, -O, 1.0f, 16.0f, 0.08f,
+                0.0f, 0.0f, 1.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_cap_north_top_east",
+                Direction.NORTH, 15.0f, 15.0f, -O, 16.0f, 16.0f, 0.08f,
+                15.0f, 0.0f, 16.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_cap_north_bottom_west",
+                Direction.NORTH, 0.0f, 0.0f, -O, 1.0f, 1.0f, 0.08f,
+                0.0f, 15.0f, 1.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_cap_north_bottom_east",
+                Direction.NORTH, 15.0f, 0.0f, -O, 16.0f, 1.0f, 0.08f,
+                15.0f, 15.0f, 16.0f, 16.0f);
+
+        // SOUTH: local left = EAST, local right = WEST.
+        correctionSideModel("foundry_tank_correction_cap_south_top_east",
+                Direction.SOUTH, 15.0f, 15.0f, 15.92f, 16.0f, 16.0f, 16.0f + O,
+                0.0f, 0.0f, 1.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_cap_south_top_west",
+                Direction.SOUTH, 0.0f, 15.0f, 15.92f, 1.0f, 16.0f, 16.0f + O,
+                15.0f, 0.0f, 16.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_cap_south_bottom_east",
+                Direction.SOUTH, 15.0f, 0.0f, 15.92f, 16.0f, 1.0f, 16.0f + O,
+                0.0f, 15.0f, 1.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_cap_south_bottom_west",
+                Direction.SOUTH, 0.0f, 0.0f, 15.92f, 1.0f, 1.0f, 16.0f + O,
+                15.0f, 15.0f, 16.0f, 16.0f);
+
+        // WEST: local left = SOUTH, local right = NORTH.
+        correctionSideModel("foundry_tank_correction_cap_west_top_south",
+                Direction.WEST, -O, 15.0f, 15.0f, 0.08f, 16.0f, 16.0f,
+                0.0f, 0.0f, 1.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_cap_west_top_north",
+                Direction.WEST, -O, 15.0f, 0.0f, 0.08f, 16.0f, 1.0f,
+                15.0f, 0.0f, 16.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_cap_west_bottom_south",
+                Direction.WEST, -O, 0.0f, 15.0f, 0.08f, 1.0f, 16.0f,
+                0.0f, 15.0f, 1.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_cap_west_bottom_north",
+                Direction.WEST, -O, 0.0f, 0.0f, 0.08f, 1.0f, 1.0f,
+                15.0f, 15.0f, 16.0f, 16.0f);
+
+        // EAST: local left = NORTH, local right = SOUTH.
+        correctionSideModel("foundry_tank_correction_cap_east_top_north",
+                Direction.EAST, 15.92f, 15.0f, 0.0f, 16.0f + O, 16.0f, 1.0f,
+                0.0f, 0.0f, 1.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_cap_east_top_south",
+                Direction.EAST, 15.92f, 15.0f, 15.0f, 16.0f + O, 16.0f, 16.0f,
+                15.0f, 0.0f, 16.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_cap_east_bottom_north",
+                Direction.EAST, 15.92f, 0.0f, 0.0f, 16.0f + O, 1.0f, 1.0f,
+                0.0f, 15.0f, 1.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_cap_east_bottom_south",
+                Direction.EAST, 15.92f, 0.0f, 15.0f, 16.0f + O, 1.0f, 16.0f,
+                15.0f, 15.0f, 16.0f, 16.0f);
 
         // -------------------------
         // 1x1 UP / DOWN concave caps
@@ -876,6 +1024,257 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 Direction.DOWN, 0.0f, -O, 15.0f, 1.0f, 0.08f, 16.0f);
         correctionCap("foundry_tank_correction_cap_down_south_east",
                 Direction.DOWN, 15.0f, -O, 15.0f, 16.0f, 0.08f, 16.0f);
+    }
+
+    /**
+     * Rebuilds one diagonal-aware vertical side rail exactly like the original
+     * FoundryTankSideFrameRenderer instead of relying on a 3-pixel-wide
+     * transparent texture slice.
+     *
+     * Geometry:
+     *   - permanent 1px rail;
+     *   - at marker rows 3, 7, 11: a 2x1 arm;
+     *   - directly below every arm: one 1x1 pixel.
+     *
+     * This explicit ownership is important at re-entrant corners. A generic
+     * 1x1 corner cap can overlap the marker arm (z-fighting), while a cropped
+     * 3px strip can make the lower one-pixel part ambiguous at a block seam.
+     */
+    private BlockModelBuilder correctionMarkerRailModel(
+            String name,
+            Direction face,
+            boolean leftSide,
+            float outwardOffset
+    ) {
+        BlockModelBuilder model =
+                models().withExistingParent(
+                                name,
+                                mcLoc("block/block")
+                        )
+                        .renderType("cutout")
+                        .texture(
+                                "particle",
+                                modLoc("block/foundry_tank_frame")
+                        )
+                        .texture(
+                                "frame",
+                                modLoc("block/foundry_tank_frame")
+                        )
+                        .ao(false);
+
+        /*
+         * Permanent one-pixel rail.
+         */
+        if (leftSide) {
+            addCorrectionMarkerRect(
+                    model,
+                    face,
+                    outwardOffset,
+                    0.0f,
+                    1.0f,
+                    0.0f,
+                    16.0f,
+                    0.0f,
+                    0.0f,
+                    1.0f,
+                    16.0f
+            );
+        } else {
+            addCorrectionMarkerRect(
+                    model,
+                    face,
+                    outwardOffset,
+                    15.0f,
+                    16.0f,
+                    0.0f,
+                    16.0f,
+                    15.0f,
+                    0.0f,
+                    16.0f,
+                    16.0f
+            );
+        }
+
+        int[] markerRows = {
+                3,
+                7,
+                11
+        };
+
+        for (int row : markerRows) {
+            float armMinY =
+                    16.0f - (row + 1.0f);
+
+            float armMaxY =
+                    16.0f - row;
+
+            float lowerMinY =
+                    16.0f - (row + 2.0f);
+
+            float lowerMaxY =
+                    16.0f - (row + 1.0f);
+
+            if (leftSide) {
+                /*
+                 * ##
+                 */
+                addCorrectionMarkerRect(
+                        model,
+                        face,
+                        outwardOffset,
+                        1.0f,
+                        3.0f,
+                        armMinY,
+                        armMaxY,
+                        1.0f,
+                        row,
+                        3.0f,
+                        row + 1.0f
+                );
+
+                /*
+                 * #
+                 * The exact one-pixel piece that was still missing in the
+                 * reported inner-corner view.
+                 */
+                addCorrectionMarkerRect(
+                        model,
+                        face,
+                        outwardOffset,
+                        1.0f,
+                        2.0f,
+                        lowerMinY,
+                        lowerMaxY,
+                        1.0f,
+                        row + 1.0f,
+                        2.0f,
+                        row + 2.0f
+                );
+            } else {
+                addCorrectionMarkerRect(
+                        model,
+                        face,
+                        outwardOffset,
+                        13.0f,
+                        15.0f,
+                        armMinY,
+                        armMaxY,
+                        13.0f,
+                        row,
+                        15.0f,
+                        row + 1.0f
+                );
+
+                addCorrectionMarkerRect(
+                        model,
+                        face,
+                        outwardOffset,
+                        14.0f,
+                        15.0f,
+                        lowerMinY,
+                        lowerMaxY,
+                        14.0f,
+                        row + 1.0f,
+                        15.0f,
+                        row + 2.0f
+                );
+            }
+        }
+
+        return model;
+    }
+
+    /**
+     * Adds one face-local side rectangle to a correction model.
+     *
+     * The conversion is copied from the old FoundryTankCasingQuads coordinate
+     * system:
+     *   NORTH: horizontal grows west -> east
+     *   SOUTH: horizontal grows east -> west
+     *   WEST:  horizontal grows south -> north
+     *   EAST:  horizontal grows north -> south
+     *
+     * The outward face keeps the same known-good reversed-U convention used by
+     * the current static Tank frames; the inward/back face keeps normal U.
+     */
+    private void addCorrectionMarkerRect(
+            BlockModelBuilder model,
+            Direction face,
+            float outwardOffset,
+            float minHorizontal,
+            float maxHorizontal,
+            float minY,
+            float maxY,
+            float minU,
+            float minV,
+            float maxU,
+            float maxV
+    ) {
+        float fromX;
+        float fromZ;
+        float toX;
+        float toZ;
+
+        switch (face) {
+            case NORTH -> {
+                fromX = minHorizontal;
+                toX = maxHorizontal;
+                fromZ = -outwardOffset;
+                toZ = 0.08f;
+            }
+            case SOUTH -> {
+                fromX = 16.0f - maxHorizontal;
+                toX = 16.0f - minHorizontal;
+                fromZ = 15.92f;
+                toZ = 16.0f + outwardOffset;
+            }
+            case WEST -> {
+                fromX = -outwardOffset;
+                toX = 0.08f;
+                fromZ = 16.0f - maxHorizontal;
+                toZ = 16.0f - minHorizontal;
+            }
+            case EAST -> {
+                fromX = 15.92f;
+                toX = 16.0f + outwardOffset;
+                fromZ = minHorizontal;
+                toZ = maxHorizontal;
+            }
+            default -> throw new IllegalArgumentException(
+                    "Foundry Tank marker rail must use a horizontal face."
+            );
+        }
+
+        model.element()
+                .from(
+                        fromX,
+                        minY,
+                        fromZ
+                )
+                .to(
+                        toX,
+                        maxY,
+                        toZ
+                )
+                .face(face)
+                .texture("#frame")
+                .uvs(
+                        maxU,
+                        minV,
+                        minU,
+                        maxV
+                )
+                .end()
+                .face(face.getOpposite())
+                .texture("#frame")
+                .uvs(
+                        minU,
+                        minV,
+                        maxU,
+                        maxV
+                )
+                .end()
+                .end();
     }
 
     private void correctionSideModel(
