@@ -6,6 +6,7 @@ import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
 import net.chriskatze.katzencraftmetals.client.renderer.CastingCauldronBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryControllerBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryFaucetBlockEntityRenderer;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankConnectedFrameModel;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
 import net.chriskatze.katzencraftmetals.screen.*;
 import net.minecraft.client.Minecraft;
@@ -17,6 +18,7 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
+import net.neoforged.neoforge.client.event.ModelEvent;
 
 import static net.chriskatze.katzencraftmetals.KatzencraftMetalsMod.LOGGER;
 
@@ -57,6 +59,20 @@ public class ModClientEvents {
                     RenderType.cutout()
             );
         });
+    }
+
+    @SubscribeEvent
+    public static void registerAdditionalModels(
+            ModelEvent.RegisterAdditional event
+    ) {
+        FoundryTankConnectedFrameModel.registerAdditionalModels(event);
+    }
+
+    @SubscribeEvent
+    public static void modifyBakingResult(
+            ModelEvent.ModifyBakingResult event
+    ) {
+        FoundryTankConnectedFrameModel.modifyBakingResult(event);
     }
 
     @SubscribeEvent

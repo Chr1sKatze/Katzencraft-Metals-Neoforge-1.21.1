@@ -17,10 +17,11 @@ import java.util.Set;
 /**
  * Single renderer for dynamic Foundry visuals.
  *
- * Tank casing remains normal chunk rendering. Dynamic liquid is additionally
- * clipped against the client's real physical Tank blocks, so a stale Controller
- * snapshot can never draw liquid in a Tank position that the client has already
- * received as air after a break.
+ * Tank casing and diagonal/concave frame corrections are normal chunk
+ * rendering through FoundryTankConnectedFrameModel. This Controller BER owns
+ * dynamic liquid only. Liquid is additionally clipped against the client's real
+ * physical Tank blocks, so a stale Controller snapshot can never draw liquid in
+ * a Tank position that the client has already received as air after a break.
  */
 public final class FoundryControllerBlockEntityRenderer
         implements BlockEntityRenderer<FoundryControllerBlockEntity> {
@@ -29,9 +30,6 @@ public final class FoundryControllerBlockEntityRenderer
 
     private final FoundryControllerTankLiquidRenderer liquidRenderer =
             new FoundryControllerTankLiquidRenderer();
-
-    private final FoundryControllerTankFrameCorrectionRenderer frameCorrectionRenderer =
-            new FoundryControllerTankFrameCorrectionRenderer();
 
     public FoundryControllerBlockEntityRenderer(
             BlockEntityRendererProvider.Context context
@@ -62,15 +60,6 @@ public final class FoundryControllerBlockEntityRenderer
         if (physicalStructure.isEmpty()) {
             return;
         }
-
-        frameCorrectionRenderer.render(
-                controller,
-                physicalStructure,
-                poseStack,
-                bufferSource,
-                packedLight,
-                packedOverlay
-        );
 
         liquidRenderer.render(
                 controller,

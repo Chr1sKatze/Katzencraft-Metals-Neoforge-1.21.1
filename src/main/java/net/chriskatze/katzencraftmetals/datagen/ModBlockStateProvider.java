@@ -701,17 +701,230 @@ public class ModBlockStateProvider extends BlockStateProvider {
         );
 
         /*
-         * Do NOT add static horizontal corner models here.
+         * Do NOT add diagonal-aware corrections directly to the multipart
+         * BlockState. Six direct-neighbor booleans cannot encode diagonals.
          *
-         * Convex/static corners are already owned by NORTH/SOUTH. Concave
-         * diagonal corners cannot be represented by the six adjacency
-         * properties and are supplied by
-         * FoundryControllerTankFrameCorrectionRenderer instead.
+         * Instead, generate small standalone correction models below. The
+         * client-side FoundryTankConnectedFrameModel selects them from
+         * world-aware ModelData during chunk rebuilds. This works both with and
+         * without a Controller and requires no Tank BlockEntity.
          */
+        generateFoundryTankConnectedCorrectionModels();
 
         simpleBlockItem(
                 tank,
                 itemModel
+        );
+    }
+
+
+    /**
+     * Standalone world-aware correction models.
+     *
+     * These models are NOT referenced by the multipart BlockState directly.
+     * FoundryTankConnectedFrameModel registers them as additional baked models
+     * and selects them only when diagonal topology requires a frame that the
+     * six direct-neighbor BlockState properties cannot describe.
+     *
+     * Correction planes sit 0.02 model units (~0.00125 block) outward from the
+     * baked Tank plane. That prevents z-fighting at a junction where one edge
+     * is static and the diagonal-aware edge is dynamic-model geometry.
+     */
+    private void generateFoundryTankConnectedCorrectionModels() {
+        final float O = 0.02f;
+
+        // -------------------------
+        // Vertical side-face edges
+        // -------------------------
+        correctionSideModel("foundry_tank_correction_side_north_top",
+                Direction.NORTH, 0.0f, 15.0f, -O, 16.0f, 16.0f, 0.08f,
+                0.0f, 0.0f, 16.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_side_north_bottom",
+                Direction.NORTH, 0.0f, 0.0f, -O, 16.0f, 1.0f, 0.08f,
+                0.0f, 15.0f, 16.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_side_north_west",
+                Direction.NORTH, 0.0f, 0.0f, -O, 3.0f, 16.0f, 0.08f,
+                0.0f, 0.0f, 3.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_side_north_east",
+                Direction.NORTH, 13.0f, 0.0f, -O, 16.0f, 16.0f, 0.08f,
+                13.0f, 0.0f, 16.0f, 16.0f);
+
+        correctionSideModel("foundry_tank_correction_side_south_top",
+                Direction.SOUTH, 0.0f, 15.0f, 15.92f, 16.0f, 16.0f, 16.0f + O,
+                0.0f, 0.0f, 16.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_side_south_bottom",
+                Direction.SOUTH, 0.0f, 0.0f, 15.92f, 16.0f, 1.0f, 16.0f + O,
+                0.0f, 15.0f, 16.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_side_south_west",
+                Direction.SOUTH, 0.0f, 0.0f, 15.92f, 3.0f, 16.0f, 16.0f + O,
+                13.0f, 0.0f, 16.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_side_south_east",
+                Direction.SOUTH, 13.0f, 0.0f, 15.92f, 16.0f, 16.0f, 16.0f + O,
+                0.0f, 0.0f, 3.0f, 16.0f);
+
+        correctionSideModel("foundry_tank_correction_side_west_top",
+                Direction.WEST, -O, 15.0f, 0.0f, 0.08f, 16.0f, 16.0f,
+                0.0f, 0.0f, 16.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_side_west_bottom",
+                Direction.WEST, -O, 0.0f, 0.0f, 0.08f, 1.0f, 16.0f,
+                0.0f, 15.0f, 16.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_side_west_north",
+                Direction.WEST, -O, 0.0f, 0.0f, 0.08f, 16.0f, 3.0f,
+                13.0f, 0.0f, 16.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_side_west_south",
+                Direction.WEST, -O, 0.0f, 13.0f, 0.08f, 16.0f, 16.0f,
+                0.0f, 0.0f, 3.0f, 16.0f);
+
+        correctionSideModel("foundry_tank_correction_side_east_top",
+                Direction.EAST, 15.92f, 15.0f, 0.0f, 16.0f + O, 16.0f, 16.0f,
+                0.0f, 0.0f, 16.0f, 1.0f);
+        correctionSideModel("foundry_tank_correction_side_east_bottom",
+                Direction.EAST, 15.92f, 0.0f, 0.0f, 16.0f + O, 1.0f, 16.0f,
+                0.0f, 15.0f, 16.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_side_east_north",
+                Direction.EAST, 15.92f, 0.0f, 0.0f, 16.0f + O, 16.0f, 3.0f,
+                0.0f, 0.0f, 3.0f, 16.0f);
+        correctionSideModel("foundry_tank_correction_side_east_south",
+                Direction.EAST, 15.92f, 0.0f, 13.0f, 16.0f + O, 16.0f, 16.0f,
+                13.0f, 0.0f, 16.0f, 16.0f);
+
+        // -------------------------
+        // UP / DOWN perimeter edges
+        // -------------------------
+        correctionTopModel("foundry_tank_correction_up_north",
+                Direction.UP, 0.0f, 15.92f, 0.0f, 16.0f, 16.0f + O, 1.0f,
+                0.0f, 0.0f, 16.0f, 1.0f);
+        correctionTopModel("foundry_tank_correction_up_south",
+                Direction.UP, 0.0f, 15.92f, 15.0f, 16.0f, 16.0f + O, 16.0f,
+                0.0f, 15.0f, 16.0f, 16.0f);
+        correctionTopModel("foundry_tank_correction_up_west",
+                Direction.UP, 0.0f, 15.92f, 0.0f, 1.0f, 16.0f + O, 16.0f,
+                0.0f, 0.0f, 1.0f, 16.0f);
+        correctionTopModel("foundry_tank_correction_up_east",
+                Direction.UP, 15.0f, 15.92f, 0.0f, 16.0f, 16.0f + O, 16.0f,
+                15.0f, 0.0f, 16.0f, 16.0f);
+
+        correctionTopModel("foundry_tank_correction_down_north",
+                Direction.DOWN, 0.0f, -O, 0.0f, 16.0f, 0.08f, 1.0f,
+                0.0f, 0.0f, 16.0f, 1.0f);
+        correctionTopModel("foundry_tank_correction_down_south",
+                Direction.DOWN, 0.0f, -O, 15.0f, 16.0f, 0.08f, 16.0f,
+                0.0f, 15.0f, 16.0f, 16.0f);
+        correctionTopModel("foundry_tank_correction_down_west",
+                Direction.DOWN, 0.0f, -O, 0.0f, 1.0f, 0.08f, 16.0f,
+                0.0f, 0.0f, 1.0f, 16.0f);
+        correctionTopModel("foundry_tank_correction_down_east",
+                Direction.DOWN, 15.0f, -O, 0.0f, 16.0f, 0.08f, 16.0f,
+                15.0f, 0.0f, 16.0f, 16.0f);
+
+        // -------------------------
+        // 1x1 side junction caps
+        // -------------------------
+        correctionCap("foundry_tank_correction_cap_north_top_west",
+                Direction.NORTH, 0.0f, 15.0f, -O, 1.0f, 16.0f, 0.08f);
+        correctionCap("foundry_tank_correction_cap_north_top_east",
+                Direction.NORTH, 15.0f, 15.0f, -O, 16.0f, 16.0f, 0.08f);
+        correctionCap("foundry_tank_correction_cap_north_bottom_west",
+                Direction.NORTH, 0.0f, 0.0f, -O, 1.0f, 1.0f, 0.08f);
+        correctionCap("foundry_tank_correction_cap_north_bottom_east",
+                Direction.NORTH, 15.0f, 0.0f, -O, 16.0f, 1.0f, 0.08f);
+
+        correctionCap("foundry_tank_correction_cap_south_top_west",
+                Direction.SOUTH, 0.0f, 15.0f, 15.92f, 1.0f, 16.0f, 16.0f + O);
+        correctionCap("foundry_tank_correction_cap_south_top_east",
+                Direction.SOUTH, 15.0f, 15.0f, 15.92f, 16.0f, 16.0f, 16.0f + O);
+        correctionCap("foundry_tank_correction_cap_south_bottom_west",
+                Direction.SOUTH, 0.0f, 0.0f, 15.92f, 1.0f, 1.0f, 16.0f + O);
+        correctionCap("foundry_tank_correction_cap_south_bottom_east",
+                Direction.SOUTH, 15.0f, 0.0f, 15.92f, 16.0f, 1.0f, 16.0f + O);
+
+        correctionCap("foundry_tank_correction_cap_west_top_north",
+                Direction.WEST, -O, 15.0f, 0.0f, 0.08f, 16.0f, 1.0f);
+        correctionCap("foundry_tank_correction_cap_west_top_south",
+                Direction.WEST, -O, 15.0f, 15.0f, 0.08f, 16.0f, 16.0f);
+        correctionCap("foundry_tank_correction_cap_west_bottom_north",
+                Direction.WEST, -O, 0.0f, 0.0f, 0.08f, 1.0f, 1.0f);
+        correctionCap("foundry_tank_correction_cap_west_bottom_south",
+                Direction.WEST, -O, 0.0f, 15.0f, 0.08f, 1.0f, 16.0f);
+
+        correctionCap("foundry_tank_correction_cap_east_top_north",
+                Direction.EAST, 15.92f, 15.0f, 0.0f, 16.0f + O, 16.0f, 1.0f);
+        correctionCap("foundry_tank_correction_cap_east_top_south",
+                Direction.EAST, 15.92f, 15.0f, 15.0f, 16.0f + O, 16.0f, 16.0f);
+        correctionCap("foundry_tank_correction_cap_east_bottom_north",
+                Direction.EAST, 15.92f, 0.0f, 0.0f, 16.0f + O, 1.0f, 1.0f);
+        correctionCap("foundry_tank_correction_cap_east_bottom_south",
+                Direction.EAST, 15.92f, 0.0f, 15.0f, 16.0f + O, 1.0f, 16.0f);
+
+        // -------------------------
+        // 1x1 UP / DOWN concave caps
+        // -------------------------
+        correctionCap("foundry_tank_correction_cap_up_north_west",
+                Direction.UP, 0.0f, 15.92f, 0.0f, 1.0f, 16.0f + O, 1.0f);
+        correctionCap("foundry_tank_correction_cap_up_north_east",
+                Direction.UP, 15.0f, 15.92f, 0.0f, 16.0f, 16.0f + O, 1.0f);
+        correctionCap("foundry_tank_correction_cap_up_south_west",
+                Direction.UP, 0.0f, 15.92f, 15.0f, 1.0f, 16.0f + O, 16.0f);
+        correctionCap("foundry_tank_correction_cap_up_south_east",
+                Direction.UP, 15.0f, 15.92f, 15.0f, 16.0f, 16.0f + O, 16.0f);
+
+        correctionCap("foundry_tank_correction_cap_down_north_west",
+                Direction.DOWN, 0.0f, -O, 0.0f, 1.0f, 0.08f, 1.0f);
+        correctionCap("foundry_tank_correction_cap_down_north_east",
+                Direction.DOWN, 15.0f, -O, 0.0f, 16.0f, 0.08f, 1.0f);
+        correctionCap("foundry_tank_correction_cap_down_south_west",
+                Direction.DOWN, 0.0f, -O, 15.0f, 1.0f, 0.08f, 16.0f);
+        correctionCap("foundry_tank_correction_cap_down_south_east",
+                Direction.DOWN, 15.0f, -O, 15.0f, 16.0f, 0.08f, 16.0f);
+    }
+
+    private void correctionSideModel(
+            String name,
+            Direction face,
+            float fromX, float fromY, float fromZ,
+            float toX, float toY, float toZ,
+            float minU, float minV, float maxU, float maxV
+    ) {
+        tankSideModel(
+                name,
+                face,
+                fromX, fromY, fromZ,
+                toX, toY, toZ,
+                "side",
+                minU, minV, maxU, maxV
+        );
+    }
+
+    private void correctionTopModel(
+            String name,
+            Direction face,
+            float fromX, float fromY, float fromZ,
+            float toX, float toY, float toZ,
+            float minU, float minV, float maxU, float maxV
+    ) {
+        tankSideModel(
+                name,
+                face,
+                fromX, fromY, fromZ,
+                toX, toY, toZ,
+                "top",
+                minU, minV, maxU, maxV
+        );
+    }
+
+    private void correctionCap(
+            String name,
+            Direction face,
+            float fromX, float fromY, float fromZ,
+            float toX, float toY, float toZ
+    ) {
+        tankSideModel(
+                name,
+                face,
+                fromX, fromY, fromZ,
+                toX, toY, toZ,
+                "frame",
+                0.0f, 0.0f, 1.0f, 1.0f
         );
     }
 
@@ -947,9 +1160,14 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         modLoc("block/foundry_tank_side")
                 )
                 .texture(
+                        "frame",
+                        modLoc("block/foundry_tank_frame")
+                )
+                .texture(
                         "top",
                         modLoc("block/foundry_tank_top")
                 )
+                .ao(false)
                 .element()
                 .from(
                         fromX,
@@ -965,7 +1183,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         face
                 )
                 .texture(
-                        "#" + texture
+                        sideFrameTexture
+                                ? "#frame"
+                                : "#" + texture
                 )
                 .uvs(
                         adjustedMinU,
@@ -978,7 +1198,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         face.getOpposite()
                 )
                 .texture(
-                        "#" + texture
+                        sideFrameTexture
+                                ? "#frame"
+                                : "#" + texture
                 )
                 .uvs(
                         oppositeMinU,

@@ -4,11 +4,13 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 
 import java.util.Set;
 
@@ -26,7 +28,7 @@ final class FoundryControllerTankFrameCorrectionRenderer {
     private static final ResourceLocation SIDE_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(
                     KatzencraftMetalsMod.MODID,
-                    "textures/block/foundry_tank_side.png"
+                    "textures/block/foundry_tank_frame.png"
             );
 
     private static final ResourceLocation TOP_TEXTURE =
@@ -40,6 +42,26 @@ final class FoundryControllerTankFrameCorrectionRenderer {
     private static final float HORIZONTAL_CORRECTION_OFFSET = 0.0010f;
     private static final float SIDE_MARKER_WIDTH = 3.0f * PIXEL;
     private static final float SIDE_MARKER_RIGHT_MIN = 13.0f * PIXEL;
+
+    /*
+     * Correction frames should look like the grey metallic rail from the
+     * original side texture, not like its deliberately dark shaded opposite
+     * edge.
+     *
+     * foundry_tank_side.png is asymmetric:
+     * - U 0..3 contains the bright left rail + marker pattern
+     * - U 13..16 contains the same pattern but with very dark shading
+     * - V 0..1 is the bright top rail
+     * - V 15..16 is the very dark bottom rail
+     *
+     * Static Tank faces keep that baked directional shading. Dynamic
+     * concave/stepped correction pieces instead reuse the bright source strips
+     * and mirror them geometrically when they belong on the opposite edge.
+     */
+    private static final float CORRECTION_VERTICAL_U0 = 0.0f;
+    private static final float CORRECTION_VERTICAL_U1 = 3.0f * PIXEL;
+    private static final float CORRECTION_HORIZONTAL_V0 = 0.0f;
+    private static final float CORRECTION_HORIZONTAL_V1 = PIXEL;
 
     private static final float CORNER_CAP_U0 = 7.0f * PIXEL;
     private static final float CORNER_CAP_U1 = 8.0f * PIXEL;
@@ -58,7 +80,20 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             return;
         }
 
+        /*
+         * Always run the complete visual boundary overlay for Controller-owned
+         * vessels.
+         *
+         * The previous v9 rectangular-prism shortcut was too aggressive:
+         * although the six adjacency properties describe a rectangular Tank
+         * volume, the baked two-sided frame planes can still leave tiny
+         * inside-facing junction gaps. One Controller renderer is cheap enough
+         * to own these visual joins for every vessel shape, and unlike the old
+         * architecture this does NOT create a renderer/BlockEntity per Tank.
+         */
+
         BlockPos controllerPos = controller.getBlockPos();
+        Level level = controller.getLevel();
 
         /*
          * IMPORTANT:
@@ -100,6 +135,7 @@ final class FoundryControllerTankFrameCorrectionRenderer {
                         structure,
                         sideConsumer,
                         poseStack.last(),
+                        level,
                         packedLight,
                         packedOverlay
                 );
@@ -132,6 +168,7 @@ final class FoundryControllerTankFrameCorrectionRenderer {
                         structure,
                         topConsumer,
                         poseStack.last(),
+                        level,
                         packedLight,
                         packedOverlay
                 );
@@ -146,13 +183,28 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             Set<BlockPos> structure,
             VertexConsumer consumer,
             PoseStack.Pose pose,
-            int packedLight,
+            Level level,
+            int fallbackPackedLight,
             int packedOverlay
     ) {
         for (Direction face : Direction.Plane.HORIZONTAL) {
             if (structure.contains(tankPos.relative(face))) {
                 continue;
             }
+
+            /*
+             * The correction quad lies on an exposed Tank face. Sample the
+             * neighboring air cell, not the Tank block itself. Sampling the
+             * occupied Tank position (v7) could return a heavily occluded light
+             * value and make 1-pixel/inner correction pieces look absent.
+             */
+            int packedLight =
+                    level != null
+                            ? LevelRenderer.getLightColor(
+                                    level,
+                                    tankPos.relative(face)
+                            )
+                            : fallbackPackedLight;
 
             Direction leftDirection = getFaceLeftDirection(face);
             Direction rightDirection = leftDirection.getOpposite();
@@ -190,17 +242,24 @@ final class FoundryControllerTankFrameCorrectionRenderer {
                     );
 
             /*
-             * The static multipart model already draws a boundary when the
-             * adjacent Tank is absent. We draw only the second case from the
-             * historical rule: the adjacent Tank exists, but its matching face
-             * is occluded by a diagonal Tank.
+             * Color/texture rule for generated inner frames:
+             *
+             * The source texture intentionally shades its right and bottom
+             * perimeter almost black. That looks good as baked exterior
+             * directional shading, but correction-only inner rails looked like
+             * black geometry. Every correction below therefore samples the
+             * bright metallic left/top source strip. Opposite edges mirror that
+             * bright strip instead of sampling the dark source edge.
              */
-            if (needsExposedFaceBoundaryCorrection(
-                    tankPos,
-                    face,
-                    Direction.UP,
-                    structure
-            )) {
+
+            /*
+             * For a non-rectangular vessel, reproduce the historical renderer's
+             * complete exposed-face boundary. Some of these quads intentionally
+             * overlay a static frame by 0.001 block. That is preferable to
+             * splitting edge ownership across two topology systems, which was
+             * the source of the missing inner lines/pixels.
+             */
+            if (topBoundary) {
                 renderSideRect(
                         face,
                         consumer,
@@ -211,19 +270,14 @@ final class FoundryControllerTankFrameCorrectionRenderer {
                         1.0f,
                         0.0f,
                         1.0f,
-                        0.0f,
-                        PIXEL,
+                        CORRECTION_HORIZONTAL_V0,
+                        CORRECTION_HORIZONTAL_V1,
                         packedLight,
                         packedOverlay
                 );
             }
 
-            if (needsExposedFaceBoundaryCorrection(
-                    tankPos,
-                    face,
-                    Direction.DOWN,
-                    structure
-            )) {
+            if (bottomBoundary) {
                 renderSideRect(
                         face,
                         consumer,
@@ -234,8 +288,8 @@ final class FoundryControllerTankFrameCorrectionRenderer {
                         PIXEL,
                         0.0f,
                         1.0f,
-                        1.0f - PIXEL,
-                        1.0f,
+                        CORRECTION_HORIZONTAL_V0,
+                        CORRECTION_HORIZONTAL_V1,
                         packedLight,
                         packedOverlay
                 );
@@ -249,12 +303,6 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             if (
                     leftBoundary
                             && verticalMaxY > verticalMinY
-                            && needsExposedFaceBoundaryCorrection(
-                            tankPos,
-                            face,
-                            leftDirection,
-                            structure
-                    )
             ) {
                 renderSideRect(
                         face,
@@ -264,8 +312,8 @@ final class FoundryControllerTankFrameCorrectionRenderer {
                         SIDE_MARKER_WIDTH,
                         verticalMinY,
                         verticalMaxY,
-                        0.0f,
-                        SIDE_MARKER_WIDTH,
+                        CORRECTION_VERTICAL_U0,
+                        CORRECTION_VERTICAL_U1,
                         verticalMinV,
                         verticalMaxV,
                         packedLight,
@@ -276,12 +324,6 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             if (
                     rightBoundary
                             && verticalMaxY > verticalMinY
-                            && needsExposedFaceBoundaryCorrection(
-                            tankPos,
-                            face,
-                            rightDirection,
-                            structure
-                    )
             ) {
                 renderSideRect(
                         face,
@@ -291,14 +333,150 @@ final class FoundryControllerTankFrameCorrectionRenderer {
                         1.0f,
                         verticalMinY,
                         verticalMaxY,
-                        SIDE_MARKER_RIGHT_MIN,
-                        1.0f,
+                        CORRECTION_VERTICAL_U1,
+                        CORRECTION_VERTICAL_U0,
                         verticalMinV,
                         verticalMaxV,
                         packedLight,
                         packedOverlay
                 );
             }
+
+            /*
+             * Restore the exact one-/two-pixel join pieces from the original
+             * Tank side renderer. The broad 3-pixel UV strip reproduces the
+             * normal marker rows, but these seam pixels live specifically on
+             * the top/bottom block boundary when the exposed side continues
+             * vertically and therefore need their own geometry.
+             */
+            if (leftBoundary) {
+                renderSideMarkerJoin(
+                        tankPos,
+                        face,
+                        true,
+                        structure,
+                        consumer,
+                        pose,
+                        packedLight,
+                        packedOverlay
+                );
+            }
+
+            if (rightBoundary) {
+                renderSideMarkerJoin(
+                        tankPos,
+                        face,
+                        false,
+                        structure,
+                        consumer,
+                        pose,
+                        packedLight,
+                        packedOverlay
+                );
+            }
+        }
+    }
+
+    private static void renderSideMarkerJoin(
+            BlockPos tankPos,
+            Direction face,
+            boolean leftSide,
+            Set<BlockPos> structure,
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            int packedLight,
+            int packedOverlay
+    ) {
+        boolean continuesAbove =
+                hasAdjacentExposedFace(
+                        tankPos,
+                        face,
+                        Direction.UP,
+                        structure
+                );
+
+        boolean continuesBelow =
+                hasAdjacentExposedFace(
+                        tankPos,
+                        face,
+                        Direction.DOWN,
+                        structure
+                );
+
+        if (continuesAbove) {
+            float minHorizontal =
+                    leftSide
+                            ? PIXEL
+                            : 14.0f * PIXEL;
+
+            float maxHorizontal =
+                    leftSide
+                            ? 2.0f * PIXEL
+                            : 15.0f * PIXEL;
+
+            float minU =
+                    leftSide
+                            ? PIXEL
+                            : 2.0f * PIXEL;
+
+            float maxU =
+                    leftSide
+                            ? 2.0f * PIXEL
+                            : PIXEL;
+
+            renderSideRect(
+                    face,
+                    consumer,
+                    pose,
+                    minHorizontal,
+                    maxHorizontal,
+                    15.0f * PIXEL,
+                    1.0f,
+                    minU,
+                    maxU,
+                    0.0f,
+                    PIXEL,
+                    packedLight,
+                    packedOverlay
+            );
+        }
+
+        if (continuesBelow) {
+            float minHorizontal =
+                    leftSide
+                            ? PIXEL
+                            : 13.0f * PIXEL;
+
+            float maxHorizontal =
+                    leftSide
+                            ? 3.0f * PIXEL
+                            : 15.0f * PIXEL;
+
+            float minU =
+                    leftSide
+                            ? PIXEL
+                            : 3.0f * PIXEL;
+
+            float maxU =
+                    leftSide
+                            ? 3.0f * PIXEL
+                            : PIXEL;
+
+            renderSideRect(
+                    face,
+                    consumer,
+                    pose,
+                    minHorizontal,
+                    maxHorizontal,
+                    0.0f,
+                    PIXEL,
+                    minU,
+                    maxU,
+                    15.0f * PIXEL,
+                    1.0f,
+                    packedLight,
+                    packedOverlay
+            );
         }
     }
 
@@ -307,38 +485,68 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             Set<BlockPos> structure,
             VertexConsumer consumer,
             PoseStack.Pose pose,
-            int packedLight,
+            Level level,
+            int fallbackPackedLight,
             int packedOverlay
     ) {
         if (!structure.contains(tankPos.above())) {
+            int upPackedLight =
+                    level != null
+                            ? LevelRenderer.getLightColor(
+                                    level,
+                                    tankPos.above()
+                            )
+                            : fallbackPackedLight;
+
             renderHorizontalFaceCorrections(
                     tankPos,
                     Direction.UP,
                     structure,
                     consumer,
                     pose,
-                    packedLight,
+                    upPackedLight,
                     packedOverlay
             );
         }
 
         if (!structure.contains(tankPos.below())) {
+            int downPackedLight =
+                    level != null
+                            ? LevelRenderer.getLightColor(
+                                    level,
+                                    tankPos.below()
+                            )
+                            : fallbackPackedLight;
+
             renderHorizontalFaceCorrections(
                     tankPos,
                     Direction.DOWN,
                     structure,
                     consumer,
                     pose,
-                    packedLight,
+                    downPackedLight,
                     packedOverlay
             );
         } else {
+            /*
+             * Raised-footprint caps sit around the base of this Tank. The
+             * raised Tank's upper air cell is a stable exposed lighting sample
+             * and avoids the zero/near-zero occupied-block sample from v7.
+             */
+            int raisedPackedLight =
+                    level != null
+                            ? LevelRenderer.getLightColor(
+                                    level,
+                                    tankPos.above()
+                            )
+                            : fallbackPackedLight;
+
             renderRaisedFootprintCornerCaps(
                     tankPos,
                     structure,
                     consumer,
                     pose,
-                    packedLight,
+                    raisedPackedLight,
                     packedOverlay
             );
         }
@@ -369,58 +577,129 @@ final class FoundryControllerTankFrameCorrectionRenderer {
                         structure
                 );
 
+        boolean westBoundary =
+                !hasAdjacentExposedFace(
+                        tankPos,
+                        face,
+                        Direction.WEST,
+                        structure
+                );
+
+        boolean eastBoundary =
+                !hasAdjacentExposedFace(
+                        tankPos,
+                        face,
+                        Direction.EAST,
+                        structure
+                );
+
         /*
          * NORTH/SOUTH own the horizontal corner pixels. WEST/EAST correction
          * strips are trimmed around any north/south perimeter, exactly like
          * the historical dynamic renderer. This keeps dynamic stepped-frame
          * corrections from becoming another source of coplanar corner quads.
          */
-        renderHorizontalBoundaryCorrection(
-                tankPos,
+        renderHorizontalBoundary(
                 face,
                 Direction.NORTH,
                 northBoundary,
+                northBoundary,
                 southBoundary,
-                structure,
                 consumer,
                 pose,
                 packedLight,
                 packedOverlay
         );
 
-        renderHorizontalBoundaryCorrection(
-                tankPos,
+        renderHorizontalBoundary(
                 face,
                 Direction.SOUTH,
+                southBoundary,
                 northBoundary,
                 southBoundary,
-                structure,
                 consumer,
                 pose,
                 packedLight,
                 packedOverlay
         );
 
-        renderHorizontalBoundaryCorrection(
-                tankPos,
+        renderHorizontalBoundary(
                 face,
                 Direction.WEST,
+                westBoundary,
                 northBoundary,
                 southBoundary,
-                structure,
                 consumer,
                 pose,
                 packedLight,
                 packedOverlay
         );
 
-        renderHorizontalBoundaryCorrection(
-                tankPos,
+        renderHorizontalBoundary(
                 face,
                 Direction.EAST,
+                eastBoundary,
                 northBoundary,
                 southBoundary,
-                structure,
+                consumer,
+                pose,
+                packedLight,
+                packedOverlay
+        );
+
+        /*
+         * Guarantee the physical 1x1 junction wherever two ordinary perimeter
+         * strips meet. NORTH/SOUTH still own the main corner texture, but this
+         * tiny cap sits an additional epsilon outward so the inside-facing
+         * reverse view cannot expose a one-pixel crack between independently
+         * baked strips.
+         */
+        renderBoundaryJunctionCap(
+                face,
+                northBoundary && westBoundary,
+                0.0f,
+                PIXEL,
+                0.0f,
+                PIXEL,
+                consumer,
+                pose,
+                packedLight,
+                packedOverlay
+        );
+
+        renderBoundaryJunctionCap(
+                face,
+                northBoundary && eastBoundary,
+                1.0f - PIXEL,
+                1.0f,
+                0.0f,
+                PIXEL,
+                consumer,
+                pose,
+                packedLight,
+                packedOverlay
+        );
+
+        renderBoundaryJunctionCap(
+                face,
+                southBoundary && westBoundary,
+                0.0f,
+                PIXEL,
+                1.0f - PIXEL,
+                1.0f,
+                consumer,
+                pose,
+                packedLight,
+                packedOverlay
+        );
+
+        renderBoundaryJunctionCap(
+                face,
+                southBoundary && eastBoundary,
+                1.0f - PIXEL,
+                1.0f,
+                1.0f - PIXEL,
+                1.0f,
                 consumer,
                 pose,
                 packedLight,
@@ -497,24 +776,18 @@ final class FoundryControllerTankFrameCorrectionRenderer {
         );
     }
 
-    private static void renderHorizontalBoundaryCorrection(
-            BlockPos tankPos,
+    private static void renderHorizontalBoundary(
             Direction face,
             Direction edgeDirection,
+            boolean shouldRender,
             boolean northBoundary,
             boolean southBoundary,
-            Set<BlockPos> structure,
             VertexConsumer consumer,
             PoseStack.Pose pose,
             int packedLight,
             int packedOverlay
     ) {
-        if (!needsExposedFaceBoundaryCorrection(
-                tankPos,
-                face,
-                edgeDirection,
-                structure
-        )) {
+        if (!shouldRender) {
             return;
         }
 
@@ -599,6 +872,63 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             }
             default -> {
             }
+        }
+    }
+
+    private static void renderBoundaryJunctionCap(
+            Direction face,
+            boolean shouldRender,
+            float minX,
+            float maxX,
+            float minZ,
+            float maxZ,
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            int packedLight,
+            int packedOverlay
+    ) {
+        if (!shouldRender) {
+            return;
+        }
+
+        float extraOffset = HORIZONTAL_CORRECTION_OFFSET + 0.00020f;
+        float y =
+                face == Direction.UP
+                        ? 1.0f + extraOffset
+                        : -extraOffset;
+
+        if (face == Direction.UP) {
+            renderQuad(
+                    consumer,
+                    pose,
+                    minX, y, minZ,
+                    minX, y, maxZ,
+                    maxX, y, maxZ,
+                    maxX, y, minZ,
+                    CORNER_CAP_U0, CORNER_CAP_V0,
+                    CORNER_CAP_U0, CORNER_CAP_V1,
+                    CORNER_CAP_U1, CORNER_CAP_V1,
+                    CORNER_CAP_U1, CORNER_CAP_V0,
+                    0.0f, 1.0f, 0.0f,
+                    packedLight,
+                    packedOverlay
+            );
+        } else {
+            renderQuad(
+                    consumer,
+                    pose,
+                    minX, y, maxZ,
+                    minX, y, minZ,
+                    maxX, y, minZ,
+                    maxX, y, maxZ,
+                    CORNER_CAP_U0, CORNER_CAP_V1,
+                    CORNER_CAP_U0, CORNER_CAP_V0,
+                    CORNER_CAP_U1, CORNER_CAP_V0,
+                    CORNER_CAP_U1, CORNER_CAP_V1,
+                    0.0f, -1.0f, 0.0f,
+                    packedLight,
+                    packedOverlay
+            );
         }
     }
 
@@ -816,42 +1146,6 @@ final class FoundryControllerTankFrameCorrectionRenderer {
                 && !structure.contains(adjacent.relative(faceDirection));
     }
 
-    /**
-     * Returns true only for an exposed-face edge that the static six-property
-     * multipart model cannot represent.
-     *
-     * The complete rule for one edge of an exposed face is:
-     *   - if the neighboring Tank has the same exposed face, the surface
-     *     continues and there is no border;
-     *   - if there is no neighboring Tank at all, the static BlockState model
-     *     already renders that border;
-     *   - if a neighboring Tank exists but its corresponding face is occluded,
-     *     exposed-face continuity stops here and this renderer supplies the
-     *     missing concave/stepped border.
-     *
-     * This covers L/U/arch footprints and stepped 3-D layouts without special
-     * casing ownership or additional BlockState properties.
-     */
-    private static boolean needsExposedFaceBoundaryCorrection(
-            BlockPos tankPos,
-            Direction faceDirection,
-            Direction edgeDirection,
-            Set<BlockPos> structure
-    ) {
-        BlockPos adjacent = tankPos.relative(edgeDirection);
-
-        if (!structure.contains(adjacent)) {
-            return false;
-        }
-
-        return !hasAdjacentExposedFace(
-                tankPos,
-                faceDirection,
-                edgeDirection,
-                structure
-        );
-    }
-
     private static Direction getFaceLeftDirection(Direction face) {
         return switch (face) {
             case NORTH -> Direction.WEST;
@@ -889,14 +1183,54 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             int packedLight,
             int packedOverlay
     ) {
+        /*
+         * Correction faces are displaced outward to stay in front of the baked
+         * model and avoid z-fighting.
+         *
+         * A displaced side plane must also grow to the displaced planes that
+         * meet it. Otherwise:
+         *
+         *   side plane:       x/z = +/- 0.001
+         *   top plane:        y   = 1.001
+         *   original extent:  y   <= 1.000
+         *
+         * leaves a real 0.001-block crack along the inside corner. That crack
+         * was the "missing frame line / missing pixel" visible from oblique
+         * angles in v5-v10.
+         *
+         * Expand only coordinates that already touch a block boundary. UVs are
+         * deliberately unchanged; stretching by 0.001 block is visually
+         * negligible, while the physical frame surfaces now overlap and become
+         * watertight.
+         */
+        float expandedMinHorizontal =
+                minHorizontal <= 0.0f
+                        ? -SIDE_CORRECTION_OFFSET
+                        : minHorizontal;
+
+        float expandedMaxHorizontal =
+                maxHorizontal >= 1.0f
+                        ? 1.0f + SIDE_CORRECTION_OFFSET
+                        : maxHorizontal;
+
+        float expandedMinY =
+                minY <= 0.0f
+                        ? -HORIZONTAL_CORRECTION_OFFSET
+                        : minY;
+
+        float expandedMaxY =
+                maxY >= 1.0f
+                        ? 1.0f + HORIZONTAL_CORRECTION_OFFSET
+                        : maxY;
+
         FoundryTankCasingQuads.renderSideRect(
                 face,
                 consumer,
                 pose,
-                minHorizontal,
-                maxHorizontal,
-                minY,
-                maxY,
+                expandedMinHorizontal,
+                expandedMaxHorizontal,
+                expandedMinY,
+                expandedMaxY,
                 minU,
                 maxU,
                 minV,
@@ -929,6 +1263,33 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             int packedLight,
             int packedOverlay
     ) {
+        /*
+         * Match the side-frame expansion above. A top/bottom correction plane
+         * displaced to y +/- 0.001 must extend to x/z +/- 0.001 wherever the
+         * strip reaches a physical block edge. This makes horizontal and side
+         * frame surfaces overlap at the exact displaced corner instead of
+         * ending on two parallel-but-separated block boundaries.
+         */
+        float expandedMinX =
+                minX <= 0.0f
+                        ? -SIDE_CORRECTION_OFFSET
+                        : minX;
+
+        float expandedMaxX =
+                maxX >= 1.0f
+                        ? 1.0f + SIDE_CORRECTION_OFFSET
+                        : maxX;
+
+        float expandedMinZ =
+                minZ <= 0.0f
+                        ? -SIDE_CORRECTION_OFFSET
+                        : minZ;
+
+        float expandedMaxZ =
+                maxZ >= 1.0f
+                        ? 1.0f + SIDE_CORRECTION_OFFSET
+                        : maxZ;
+
         float y =
                 face == Direction.UP
                         ? 1.0f + HORIZONTAL_CORRECTION_OFFSET
@@ -938,10 +1299,10 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             FoundryTankCasingQuads.renderCasingQuad(
                     consumer,
                     pose,
-                    minX, y, minZ,
-                    minX, y, maxZ,
-                    maxX, y, maxZ,
-                    maxX, y, minZ,
+                    expandedMinX, y, expandedMinZ,
+                    expandedMinX, y, expandedMaxZ,
+                    expandedMaxX, y, expandedMaxZ,
+                    expandedMaxX, y, expandedMinZ,
                     minU, minV,
                     minU, maxV,
                     maxU, maxV,
@@ -954,10 +1315,10 @@ final class FoundryControllerTankFrameCorrectionRenderer {
             FoundryTankCasingQuads.renderCasingQuad(
                     consumer,
                     pose,
-                    minX, y, maxZ,
-                    minX, y, minZ,
-                    maxX, y, minZ,
-                    maxX, y, maxZ,
+                    expandedMinX, y, expandedMaxZ,
+                    expandedMinX, y, expandedMinZ,
+                    expandedMaxX, y, expandedMinZ,
+                    expandedMaxX, y, expandedMaxZ,
                     minU, maxV,
                     minU, minV,
                     maxU, minV,
