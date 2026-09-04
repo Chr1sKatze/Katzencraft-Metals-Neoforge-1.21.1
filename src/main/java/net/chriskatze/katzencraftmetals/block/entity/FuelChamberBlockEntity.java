@@ -178,26 +178,20 @@ public class FuelChamberBlockEntity
                 continue;
             }
 
-            if (
-                    blockEntity
-                            instanceof FoundryTankBlockEntity tank
-            ) {
-                FoundryTankNetwork network =
-                        tank.getNetwork();
+            FoundryTankNetwork network =
+                    FoundryTankNetwork.find(
+                            level,
+                            neighborPos
+                    );
 
-                if (network == null) {
-                    continue;
-                }
-
+            if (network != null) {
                 FoundryControllerBlockEntity controller =
                         network.getAttachedController();
 
-                if (controller != null) {
-                    candidates.putIfAbsent(
-                            controller.getControllerId(),
-                            controller
-                    );
-                }
+                candidates.putIfAbsent(
+                        controller.getControllerId(),
+                        controller
+                );
             }
         }
 
@@ -231,24 +225,19 @@ public class FuelChamberBlockEntity
             return controller;
         }
 
-        if (
-                clickedBlockEntity
-                        instanceof FoundryTankBlockEntity tank
-        ) {
-            FoundryTankNetwork network =
-                    tank.getNetwork();
+        FoundryTankNetwork network =
+                FoundryTankNetwork.find(
+                        level,
+                        clickedAgainstPosition
+                );
 
+        if (network != null) {
             FoundryControllerBlockEntity controller =
-                    network != null
-                            ? network.getAttachedController()
-                            : null;
+                    network.getAttachedController();
 
-            if (
-                    controller != null
-                            && candidates.containsKey(
-                            controller.getControllerId()
-                    )
-            ) {
+            if (candidates.containsKey(
+                    controller.getControllerId()
+            )) {
                 return controller;
             }
         }

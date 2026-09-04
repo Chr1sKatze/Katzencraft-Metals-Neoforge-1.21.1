@@ -2,7 +2,6 @@ package net.chriskatze.katzencraftmetals.menu;
 
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
-import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.fuel.FoundryFuels;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
@@ -470,7 +469,7 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             return 0;
         }
 
-        return capacity / FoundryTankBlockEntity.CAPACITY;
+        return capacity / FoundryTankNetwork.TANK_CAPACITY;
     }
 
     public int getMaximumTankCount() {

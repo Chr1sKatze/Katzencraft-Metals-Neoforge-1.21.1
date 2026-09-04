@@ -635,31 +635,6 @@ public class FoundryFaucetBlockEntity
                 >= TRANSFER_AMOUNT;
     }
 
-    /* Legacy overloads kept only so old migration-side callers still compile. */
-    public static boolean hasMoltenAtFaucetHeight(
-            FoundryTankBlockEntity tank
-    ) {
-        return tank != null
-                && tank.getLevel() != null
-                && hasMoltenAtFaucetHeight(
-                tank.getLevel(),
-                tank.getBlockPos()
-        );
-    }
-
-    public static boolean hasMoltenAtFaucetHeight(
-            FoundryTankBlockEntity tank,
-            ResourceLocation metal
-    ) {
-        return tank != null
-                && tank.getLevel() != null
-                && hasMoltenAtFaucetHeight(
-                tank.getLevel(),
-                tank.getBlockPos(),
-                metal
-        );
-    }
-
     private static boolean hasMoltenReachedFaucetHeight(
             BlockPos tankPos,
             FoundryTankNetwork network

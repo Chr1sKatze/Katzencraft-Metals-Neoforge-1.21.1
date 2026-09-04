@@ -3,13 +3,11 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
 import net.chriskatze.katzencraftmetals.block.entity.CastingCauldronBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryFaucetBlockEntity;
-import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.level.block.entity.BlockEntity;
 import org.jetbrains.annotations.Nullable;
 
 final class FoundryFaucetMetalResolver {
@@ -48,6 +46,10 @@ final class FoundryFaucetMetalResolver {
     private static ResourceLocation resolveSourceTankMetal(
             FoundryFaucetBlockEntity faucet
     ) {
+        if (faucet.getLevel() == null) {
+            return null;
+        }
+
         Direction facing =
                 faucet.getBlockState().getValue(
                         FoundryFaucetBlock.FACING
@@ -58,15 +60,17 @@ final class FoundryFaucetMetalResolver {
                         facing.getOpposite()
                 );
 
-        BlockEntity sourceBlockEntity =
-                faucet.getLevel().getBlockEntity(
-                        sourceTankPos
-                );
-
-        if (sourceBlockEntity instanceof FoundryTankBlockEntity sourceTank) {
-            return sourceTank.getStoredMetal();
-        }
-
-        return null;
+        /*
+         * Tanks are ordinary blocks now. Resolve the source through the
+         * Faucet's Controller-owned network lookup instead of looking for a
+         * Tank BlockEntity.
+         *
+         * resolveOutputMetal() uses the Faucet's cached Controller lookup and
+         * respects the Faucet/controller output selection, while remaining
+         * entirely position-based.
+         */
+        return faucet.resolveOutputMetal(
+                sourceTankPos
+        ).orElse(null);
     }
 }

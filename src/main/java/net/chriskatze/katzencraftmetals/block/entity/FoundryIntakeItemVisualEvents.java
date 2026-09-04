@@ -534,7 +534,7 @@ public final class FoundryIntakeItemVisualEvents {
 
             int levelCapacity =
                     tanksAtY
-                            * FoundryTankBlockEntity.CAPACITY;
+                            * FoundryTankNetwork.TANK_CAPACITY;
 
             if (remainingAmount <= levelCapacity) {
                 double fill =

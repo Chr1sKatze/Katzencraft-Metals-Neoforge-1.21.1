@@ -240,19 +240,11 @@ public class ModBlocks {
     public static final DeferredBlock<FoundryTankBlock> FOUNDRY_TANK =
             registerBlock(
                     "foundry_tank",
-                    () -> new GlowingFoundryTankBlock(
+                    () -> new FoundryTankBlock(
                             BlockBehaviour.Properties.of()
                                     .strength(8.0f, 12.0f)
                                     .requiresCorrectToolForDrops()
                                     .noOcclusion()
-                                    .lightLevel(
-                                            state ->
-                                                    state.getValue(
-                                                            GlowingFoundryTankBlock.LIT
-                                                    )
-                                                            ? GlowingFoundryTankBlock.MOLTEN_LIGHT_LEVEL
-                                                            : 0
-                                    )
                                     .sound(SoundType.METAL)
                     )
             );

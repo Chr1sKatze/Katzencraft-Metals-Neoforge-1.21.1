@@ -3,7 +3,6 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryTankBlock;
-import net.chriskatze.katzencraftmetals.block.entity.FoundryTankBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
@@ -203,31 +202,6 @@ final class FoundryTankIntakeHatchRenderer {
         }
     }
 
-    /** Legacy bridge; old Tank BER is no longer registered in the final stage. */
-    static void render(
-            FoundryTankBlockEntity tank,
-            PoseStack.Pose pose,
-            MultiBufferSource bufferSource,
-            int packedLight,
-            int packedOverlay
-    ) {
-        if (
-                tank == null
-                        || tank.getLevel() == null
-        ) {
-            return;
-        }
-
-        render(
-                tank.getLevel(),
-                tank.getBlockPos(),
-                tank.getBlockState(),
-                pose,
-                bufferSource,
-                packedLight,
-                packedOverlay
-        );
-    }
 
     private static boolean isCameraAboveHatch(
             BlockPos tankPos
@@ -1012,3 +986,4 @@ final class FoundryTankIntakeHatchRenderer {
                 );
     }
 }
+
