@@ -149,7 +149,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 false
         );
 
-        tankIsolatedHorizontalPart(
+        tankPart(
                 builder,
                 tankPanelModel(
                         "foundry_tank_panel_up",
@@ -159,10 +159,11 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         "top",
                         0.0f, 0.0f, 16.0f, 16.0f
                 ),
-                FoundryTankBlock.UP
+                FoundryTankBlock.UP,
+                false
         );
 
-        tankIsolatedHorizontalPart(
+        tankPart(
                 builder,
                 tankPanelModel(
                         "foundry_tank_panel_down",
@@ -172,7 +173,8 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         "top",
                         0.0f, 0.0f, 16.0f, 16.0f
                 ),
-                FoundryTankBlock.DOWN
+                FoundryTankBlock.DOWN,
+                false
         );
 
         tankPart(
@@ -1583,7 +1585,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         name,
                         mcLoc("block/block")
                 )
-                .renderType("cutout")
+                .renderType("translucent")
                 .texture(
                         "particle",
                         modLoc("block/foundry_tank_side")
@@ -1595,6 +1597,10 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 .texture(
                         "top",
                         modLoc("block/foundry_tank_top")
+                )
+                .texture(
+                        "glass",
+                        modLoc("block/foundry_tank_glass_tint")
                 )
                 .element()
                 .from(
@@ -1608,7 +1614,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
                         toZ
                 )
                 .face(face)
-                .texture("#" + texture)
+                .texture("#glass")
                 .uvs(
                         adjustedMinU,
                         minV,

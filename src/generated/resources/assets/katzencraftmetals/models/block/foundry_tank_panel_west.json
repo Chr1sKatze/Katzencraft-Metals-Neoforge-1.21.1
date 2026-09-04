@@ -4,7 +4,7 @@
     {
       "faces": {
         "west": {
-          "texture": "#side",
+          "texture": "#glass",
           "uv": [
             3.0,
             1.0,
@@ -25,8 +25,9 @@
       ]
     }
   ],
-  "render_type": "minecraft:cutout",
+  "render_type": "minecraft:translucent",
   "textures": {
+    "glass": "katzencraftmetals:block/foundry_tank_glass_tint",
     "particle": "katzencraftmetals:block/foundry_tank_side",
     "side": "katzencraftmetals:block/foundry_tank_side",
     "top": "katzencraftmetals:block/foundry_tank_top"
