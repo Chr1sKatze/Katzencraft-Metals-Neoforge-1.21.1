@@ -33,6 +33,12 @@ final class FoundryTankRenderConstants {
                     "textures/block/foundry_surface_hotspot.png"
             );
 
+    static final ResourceLocation SURFACE_CONTACT_RIM_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(
+                    KatzencraftMetalsMod.MODID,
+                    "textures/block/foundry_surface_contact_rim.png"
+            );
+
     static final float PIXEL =
             1.0f / 16.0f;
 
@@ -120,6 +126,21 @@ final class FoundryTankRenderConstants {
     static final float HOT_SPOT_MAX_ALPHA = 0.82f;
     static final float HOT_SPOT_GLASS_FADE_DISTANCE = 1.25f * PIXEL;
     static final long HOT_SPOT_LIFETIME_TICKS = 44L;
+
+    /*
+     * Very soft bright contact at the molten-liquid / glass boundary.
+     *
+     * This must stay subtle; it should read like heat blooming at the edge,
+     * not like a hard cartoon outline around the liquid.
+     */
+    static final float CONTACT_RIM_WIDTH_SMALL = 2.5f * PIXEL;
+    static final float CONTACT_RIM_WIDTH_MEDIUM = 3.5f * PIXEL;
+    static final float CONTACT_RIM_WIDTH_LARGE = 4.5f * PIXEL;
+    static final int CONTACT_RIM_MEDIUM_SURFACE_CELLS = 4;
+    static final int CONTACT_RIM_LARGE_SURFACE_CELLS = 16;
+    static final float CONTACT_RIM_Y_OFFSET = 0.0022f;
+    static final float CONTACT_RIM_MAX_ALPHA = 0.16f;
+    static final float CONTACT_RIM_GLASS_FADE_DISTANCE = 1.75f * PIXEL;
 
     static final long SURFACE_PARTICLE_INTERVAL_TICKS = 8L;
     static final float SURFACE_PARTICLE_TOP_LIMIT = 0.94f;

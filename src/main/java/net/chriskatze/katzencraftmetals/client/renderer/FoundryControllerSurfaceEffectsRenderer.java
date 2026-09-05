@@ -19,6 +19,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_GLASS_FADE_DISTANCE;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_MAX_ALPHA;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_LARGE_SURFACE_CELLS;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_MEDIUM_SURFACE_CELLS;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_WIDTH_LARGE;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_WIDTH_MEDIUM;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_WIDTH_SMALL;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_Y_OFFSET;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_GLASS_FADE_DISTANCE;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_LIFETIME_TICKS;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MARGIN;
@@ -29,6 +37,7 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MIN_TARGET_COUNT;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_Y_OFFSET;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_MAX_INSET;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_CONTACT_RIM_TEXTURE;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_HOT_SPOT_TEXTURE;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_PARTICLE_INTERVAL_TICKS;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_PARTICLE_TOP_LIMIT;
@@ -103,6 +112,15 @@ final class FoundryControllerSurfaceEffectsRenderer {
             return;
         }
 
+        renderContactRim(
+                tankPos,
+                structure,
+                geometry,
+                pose,
+                bufferSource,
+                packedOverlay
+        );
+
         renderHotSpots(
                 tankPos,
                 structure,
@@ -122,6 +140,588 @@ final class FoundryControllerSurfaceEffectsRenderer {
                 structure,
                 geometry,
                 level
+        );
+    }
+
+    /**
+     * Renders a very soft bright band where molten liquid meets the Tank wall.
+     *
+     * This is intentionally subtle. The outer edge is only lightly tinted and
+     * the strip fades fully to transparent toward the center of the liquid, so
+     * it reads as heat at the contact boundary rather than a hard outline.
+     */
+    private static void renderContactRim(
+            BlockPos tankPos,
+            Set<BlockPos> structure,
+            FoundryTankLiquidGeometry geometry,
+            PoseStack.Pose pose,
+            MultiBufferSource bufferSource,
+            int packedOverlay
+    ) {
+        float glassHeadroom =
+                Math.max(
+                        0.0f,
+                        LIQUID_MAX_INSET - geometry.surfaceY()
+                );
+
+        /*
+         * Keep the contact glow visible under the top glass as well, but make
+         * it slightly softer there.
+         */
+        float glassFade =
+                Mth.lerp(
+                        Mth.clamp(
+                                glassHeadroom / CONTACT_RIM_GLASS_FADE_DISTANCE,
+                                0.0f,
+                                1.0f
+                        ),
+                        0.60f,
+                        1.0f
+                );
+
+        int outerAlpha =
+                Mth.clamp(
+                        Math.round(
+                                255.0f
+                                        * CONTACT_RIM_MAX_ALPHA
+                                        * glassFade
+                        ),
+                        0,
+                        255
+                );
+
+        if (outerAlpha <= 1) {
+            return;
+        }
+
+        int horizontalSurfaceCells =
+                countHorizontalSurfaceCells(
+                        structure,
+                        tankPos.getY()
+                );
+
+        float rimWidth =
+                getContactRimWidth(
+                        horizontalSurfaceCells
+                );
+
+        float y =
+                Math.min(
+                        geometry.surfaceY() + CONTACT_RIM_Y_OFFSET,
+                        LIQUID_MAX_INSET
+                                + FULL_TANK_HOT_SPOT_SEPARATION * 0.5f
+                );
+
+        VertexConsumer consumer =
+                bufferSource.getBuffer(
+                        RenderType.entityTranslucent(
+                                SURFACE_CONTACT_RIM_TEXTURE
+                        )
+                );
+
+        boolean northBoundary =
+                !structure.contains(tankPos.north());
+
+        boolean southBoundary =
+                !structure.contains(tankPos.south());
+
+        boolean westBoundary =
+                !structure.contains(tankPos.west());
+
+        boolean eastBoundary =
+                !structure.contains(tankPos.east());
+
+        if (northBoundary) {
+            renderNorthContactRim(
+                    consumer,
+                    pose,
+                    geometry,
+                    rimWidth,
+                    y,
+                    outerAlpha,
+                    packedOverlay
+            );
+        }
+
+        if (southBoundary) {
+            renderSouthContactRim(
+                    consumer,
+                    pose,
+                    geometry,
+                    rimWidth,
+                    y,
+                    outerAlpha,
+                    packedOverlay
+            );
+        }
+
+        /*
+         * North/south own the corner squares. Trim west/east away from those
+         * same squares so two translucent coplanar rim quads never overlap.
+         *
+         * The previous version rendered both strips across each corner, which
+         * is why the corner area shimmered / z-fought.
+         */
+        float verticalMinZ =
+                geometry.minZ()
+                        + (northBoundary ? rimWidth : 0.0f);
+
+        float verticalMaxZ =
+                geometry.maxZ()
+                        - (southBoundary ? rimWidth : 0.0f);
+
+        if (westBoundary && verticalMaxZ > verticalMinZ) {
+            renderWestContactRim(
+                    consumer,
+                    pose,
+                    geometry,
+                    rimWidth,
+                    verticalMinZ,
+                    verticalMaxZ,
+                    y,
+                    outerAlpha,
+                    packedOverlay
+            );
+        }
+
+        if (eastBoundary && verticalMaxZ > verticalMinZ) {
+            renderEastContactRim(
+                    consumer,
+                    pose,
+                    geometry,
+                    rimWidth,
+                    verticalMinZ,
+                    verticalMaxZ,
+                    y,
+                    outerAlpha,
+                    packedOverlay
+            );
+        }
+    }
+
+    private static void renderNorthContactRim(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            FoundryTankLiquidGeometry geometry,
+            float rimWidth,
+            float y,
+            int outerAlpha,
+            int packedOverlay
+    ) {
+        float innerZ =
+                Math.min(
+                        geometry.maxZ(),
+                        geometry.minZ() + rimWidth
+                );
+
+        renderContactRimQuad(
+                consumer,
+                pose,
+                geometry.minX(),
+                geometry.maxX(),
+                y,
+                geometry.minZ(),
+                innerZ,
+                true,
+                outerAlpha,
+                packedOverlay
+        );
+    }
+
+    private static void renderSouthContactRim(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            FoundryTankLiquidGeometry geometry,
+            float rimWidth,
+            float y,
+            int outerAlpha,
+            int packedOverlay
+    ) {
+        float innerZ =
+                Math.max(
+                        geometry.minZ(),
+                        geometry.maxZ() - rimWidth
+                );
+
+        renderContactRimQuad(
+                consumer,
+                pose,
+                geometry.minX(),
+                geometry.maxX(),
+                y,
+                innerZ,
+                geometry.maxZ(),
+                false,
+                outerAlpha,
+                packedOverlay
+        );
+    }
+
+    private static void renderWestContactRim(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            FoundryTankLiquidGeometry geometry,
+            float rimWidth,
+            float minZ,
+            float maxZ,
+            float y,
+            int outerAlpha,
+            int packedOverlay
+    ) {
+        float innerX =
+                Math.min(
+                        geometry.maxX(),
+                        geometry.minX() + rimWidth
+                );
+
+        renderContactRimQuadWestEast(
+                consumer,
+                pose,
+                geometry.minX(),
+                innerX,
+                y,
+                minZ,
+                maxZ,
+                true,
+                outerAlpha,
+                packedOverlay
+        );
+    }
+
+    private static void renderEastContactRim(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            FoundryTankLiquidGeometry geometry,
+            float rimWidth,
+            float minZ,
+            float maxZ,
+            float y,
+            int outerAlpha,
+            int packedOverlay
+    ) {
+        float innerX =
+                Math.max(
+                        geometry.minX(),
+                        geometry.maxX() - rimWidth
+                );
+
+        renderContactRimQuadWestEast(
+                consumer,
+                pose,
+                innerX,
+                geometry.maxX(),
+                y,
+                minZ,
+                maxZ,
+                false,
+                outerAlpha,
+                packedOverlay
+        );
+    }
+
+    /*
+     * North/south-oriented strip: alpha fades across Z.
+     */
+    private static void renderContactRimQuad(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            float minX,
+            float maxX,
+            float y,
+            float minZ,
+            float maxZ,
+            boolean outerOnMinZ,
+            int outerAlpha,
+            int packedOverlay
+    ) {
+        int innerAlpha = 0;
+
+        if (outerOnMinZ) {
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    minX,
+                    y,
+                    minZ,
+                    0.0f,
+                    0.0f,
+                    outerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    minX,
+                    y,
+                    maxZ,
+                    0.0f,
+                    1.0f,
+                    innerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    maxX,
+                    y,
+                    maxZ,
+                    1.0f,
+                    1.0f,
+                    innerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    maxX,
+                    y,
+                    minZ,
+                    1.0f,
+                    0.0f,
+                    outerAlpha,
+                    packedOverlay
+            );
+        } else {
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    minX,
+                    y,
+                    minZ,
+                    0.0f,
+                    0.0f,
+                    innerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    minX,
+                    y,
+                    maxZ,
+                    0.0f,
+                    1.0f,
+                    outerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    maxX,
+                    y,
+                    maxZ,
+                    1.0f,
+                    1.0f,
+                    outerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    maxX,
+                    y,
+                    minZ,
+                    1.0f,
+                    0.0f,
+                    innerAlpha,
+                    packedOverlay
+            );
+        }
+    }
+
+    /*
+     * West/east-oriented strip: alpha fades across X.
+     */
+    private static void renderContactRimQuadWestEast(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            float minX,
+            float maxX,
+            float y,
+            float minZ,
+            float maxZ,
+            boolean outerOnMinX,
+            int outerAlpha,
+            int packedOverlay
+    ) {
+        int innerAlpha = 0;
+
+        if (outerOnMinX) {
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    minX,
+                    y,
+                    minZ,
+                    0.0f,
+                    0.0f,
+                    outerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    minX,
+                    y,
+                    maxZ,
+                    0.0f,
+                    1.0f,
+                    outerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    maxX,
+                    y,
+                    maxZ,
+                    1.0f,
+                    1.0f,
+                    innerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    maxX,
+                    y,
+                    minZ,
+                    1.0f,
+                    0.0f,
+                    innerAlpha,
+                    packedOverlay
+            );
+        } else {
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    minX,
+                    y,
+                    minZ,
+                    0.0f,
+                    0.0f,
+                    innerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    minX,
+                    y,
+                    maxZ,
+                    0.0f,
+                    1.0f,
+                    innerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    maxX,
+                    y,
+                    maxZ,
+                    1.0f,
+                    1.0f,
+                    outerAlpha,
+                    packedOverlay
+            );
+            addContactRimVertex(
+                    consumer,
+                    pose,
+                    maxX,
+                    y,
+                    minZ,
+                    1.0f,
+                    0.0f,
+                    outerAlpha,
+                    packedOverlay
+            );
+        }
+    }
+
+    private static void addContactRimVertex(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            float x,
+            float y,
+            float z,
+            float u,
+            float v,
+            int alpha,
+            int packedOverlay
+    ) {
+        consumer.addVertex(
+                        pose.pose(),
+                        x,
+                        y,
+                        z
+                )
+                .setColor(
+                        255,
+                        214,
+                        132,
+                        alpha
+                )
+                .setUv(
+                        u,
+                        v
+                )
+                .setOverlay(packedOverlay)
+                .setLight(
+                        LightTexture.FULL_BRIGHT
+                )
+                .setNormal(
+                        pose,
+                        0.0f,
+                        1.0f,
+                        0.0f
+                );
+    }
+
+    /**
+     * Size-dependent contact-rim width.
+     *
+     * Requested targets:
+     *   1x1 surface  -> 2.5 px
+     *   2x2 surface  -> 3.5 px
+     *   4x4 surface  -> 4.5 px
+     *
+     * For intermediate layouts, interpolate by horizontal surface cell count
+     * so irregular and non-square shapes still scale smoothly.
+     */
+    private static float getContactRimWidth(
+            int horizontalSurfaceCells
+    ) {
+        if (horizontalSurfaceCells <= CONTACT_RIM_MEDIUM_SURFACE_CELLS) {
+            float t =
+                    Mth.clamp(
+                            (horizontalSurfaceCells - 1.0f)
+                                    / (CONTACT_RIM_MEDIUM_SURFACE_CELLS - 1.0f),
+                            0.0f,
+                            1.0f
+                    );
+
+            return Mth.lerp(
+                    t,
+                    CONTACT_RIM_WIDTH_SMALL,
+                    CONTACT_RIM_WIDTH_MEDIUM
+            );
+        }
+
+        float t =
+                Mth.clamp(
+                        (horizontalSurfaceCells
+                                - (float) CONTACT_RIM_MEDIUM_SURFACE_CELLS)
+                                / (CONTACT_RIM_LARGE_SURFACE_CELLS
+                                - (float) CONTACT_RIM_MEDIUM_SURFACE_CELLS),
+                        0.0f,
+                        1.0f
+                );
+
+        return Mth.lerp(
+                t,
+                CONTACT_RIM_WIDTH_MEDIUM,
+                CONTACT_RIM_WIDTH_LARGE
         );
     }
 
