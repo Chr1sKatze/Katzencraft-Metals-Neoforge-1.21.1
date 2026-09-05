@@ -1,17 +1,19 @@
 package net.chriskatze.katzencraftmetals.client.renderer;
 
 /**
- * Shared animation timing for every rendered molten-iron surface.
+ * Shared animation timing for rendered molten surfaces.
  *
- * This exactly mirrors the supplied vanilla still-lava metadata:
+ * This mirrors the supplied vanilla still-lava metadata:
  *
  * frametime = 2
  *
  * frames:
  * 0, 1, 2, ... 18, 19, 18, ... 2, 1
  *
- * All Tanks, Casting Cauldrons, and Faucet streams therefore select
- * the same texture frame on the same game tick.
+ * Callers that need synchronized animation can use getFrame(gameTime).
+ * Callers that should have a stable independent phase can additionally supply
+ * a phase seed. Every render that uses the same seed remains perfectly
+ * synchronized while different seeds begin at different points in the cycle.
  */
 public final class MoltenIronAnimation {
 
@@ -28,7 +30,41 @@ public final class MoltenIronAnimation {
     private MoltenIronAnimation() {
     }
 
+    /**
+     * Original globally synchronized animation timing.
+     */
     public static Frame getFrame(
+            long gameTime
+    ) {
+        return getFrameFromTime(gameTime);
+    }
+
+    /**
+     * Returns the molten animation frame with a deterministic phase offset.
+     *
+     * The phase seed is converted into a whole-frame offset, so animation speed
+     * and frame timing remain completely unchanged. Renderers that pass the same
+     * seed always stay synchronized with one another.
+     */
+    public static Frame getFrame(
+            long gameTime,
+            long phaseSeed
+    ) {
+        int phaseFrameOffset =
+                (int) Math.floorMod(
+                        mix64(phaseSeed),
+                        SEQUENCE_LENGTH
+                );
+
+        long shiftedGameTime =
+                gameTime
+                        + (long) phaseFrameOffset
+                        * FRAME_TIME_TICKS;
+
+        return getFrameFromTime(shiftedGameTime);
+    }
+
+    private static Frame getFrameFromTime(
             long gameTime
     ) {
         int sequenceIndex =
@@ -61,6 +97,17 @@ public final class MoltenIronAnimation {
                 minV,
                 maxV
         );
+    }
+
+    private static long mix64(
+            long value
+    ) {
+        value ^= value >>> 33;
+        value *= 0xff51afd7ed558ccdL;
+        value ^= value >>> 33;
+        value *= 0xc4ceb9fe1a85ec53L;
+        value ^= value >>> 33;
+        return value;
     }
 
     public record Frame(

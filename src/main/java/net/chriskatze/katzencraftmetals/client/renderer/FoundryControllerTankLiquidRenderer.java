@@ -90,10 +90,23 @@ final class FoundryControllerTankLiquidRenderer {
             );
         }
 
-        MoltenIronAnimation.Frame animationFrame =
-                MoltenIronAnimation.getFrame(level.getGameTime());
-
         BlockPos controllerPos = controller.getBlockPos();
+
+        /*
+         * Give the complete Foundry one stable molten-animation phase derived
+         * from its Controller position.
+         *
+         * Every Tank cell and every metal layer in this Foundry receives the
+         * exact same frame, so the connected liquid remains visually seamless.
+         * A different Foundry normally has a different Controller position and
+         * therefore a different phase, preventing all Foundries in the world
+         * from pulsing in perfect synchronization.
+         */
+        MoltenIronAnimation.Frame animationFrame =
+                MoltenIronAnimation.getFrame(
+                        level.getGameTime(),
+                        controllerPos.asLong()
+                );
 
         for (BlockPos tankPos : structure) {
             List<FoundryTankRenderedMetalLayer> localLayers =
