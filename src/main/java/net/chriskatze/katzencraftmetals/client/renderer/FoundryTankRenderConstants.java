@@ -27,6 +27,12 @@ final class FoundryTankRenderConstants {
                     "textures/block/foundry_tank_faucet_overlay.png"
             );
 
+    static final ResourceLocation SURFACE_HOT_SPOT_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(
+                    KatzencraftMetalsMod.MODID,
+                    "textures/block/foundry_surface_hotspot.png"
+            );
+
     static final float PIXEL =
             1.0f / 16.0f;
 
@@ -98,11 +104,23 @@ final class FoundryTankRenderConstants {
     static final float DRAIN_ANIMATION_TICKS =
             FoundryFaucetBlockEntity.TRANSFER_INTERVAL;
 
-    static final int HOT_SPOT_COUNT = 3;
-    static final float HOT_SPOT_MIN_SIZE = 0.7f * PIXEL;
-    static final float HOT_SPOT_MAX_SIZE = 1.5f * PIXEL;
-    static final float HOT_SPOT_MARGIN = 1.5f * PIXEL;
-    static final float HOT_SPOT_Y_OFFSET = 0.0010f;
+    /*
+     * Molten-surface heat blooms.
+     *
+     * These are deliberately larger than the old 0.7-1.5 pixel re-rendered
+     * liquid patches. A dedicated translucent texture makes them readable
+     * through the Tank glass at any liquid height.
+     */
+    static final int HOT_SPOT_MIN_TARGET_COUNT = 2;
+    static final int HOT_SPOT_MAX_TARGET_COUNT = 6;
+    static final float HOT_SPOT_MIN_SIZE = 4.75f * PIXEL;
+    static final float HOT_SPOT_MAX_SIZE = 10.0f * PIXEL;
+    static final float HOT_SPOT_MARGIN = 5.25f * PIXEL;
+    static final float HOT_SPOT_Y_OFFSET = 0.0030f;
+    static final float HOT_SPOT_MAX_ALPHA = 0.82f;
+    static final float HOT_SPOT_GLASS_FADE_DISTANCE = 1.25f * PIXEL;
+    static final long HOT_SPOT_LIFETIME_TICKS = 44L;
+
     static final long SURFACE_PARTICLE_INTERVAL_TICKS = 8L;
     static final float SURFACE_PARTICLE_TOP_LIMIT = 0.94f;
     static final float SURFACE_SMOKE_HEADROOM_REQUIRED = 0.08f;

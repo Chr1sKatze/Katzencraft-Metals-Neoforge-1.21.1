@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
@@ -18,11 +19,17 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_COUNT;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_GLASS_FADE_DISTANCE;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_LIFETIME_TICKS;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MARGIN;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MAX_ALPHA;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MAX_SIZE;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MAX_TARGET_COUNT;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MIN_SIZE;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MIN_TARGET_COUNT;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_Y_OFFSET;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_MAX_INSET;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_HOT_SPOT_TEXTURE;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_PARTICLE_INTERVAL_TICKS;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_PARTICLE_TOP_LIMIT;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_SMOKE_HEADROOM_REQUIRED;
@@ -61,6 +68,15 @@ final class FoundryControllerSurfaceEffectsRenderer {
     private static final double SMOKE_MIN_RISE_SPEED = 0.012D;
     private static final double SMOKE_EXTRA_RISE_SPEED = 0.010D;
 
+    /*
+     * At a completely full Tank the liquid surface sits exactly at
+     * LIQUID_MAX_INSET. Rendering the hotspot on that same plane causes
+     * z-fighting/jitter. Keep it a tiny fraction of a texture pixel above the
+     * liquid, but still safely below the top glass face.
+     */
+    private static final float FULL_TANK_HOT_SPOT_SEPARATION =
+            0.004f * (1.0f / 16.0f);
+
     private final Map<FoundryControllerBlockEntity, SmokeTickState> smokeTickStates =
             new WeakHashMap<>();
 
@@ -87,32 +103,18 @@ final class FoundryControllerSurfaceEffectsRenderer {
             return;
         }
 
-        int count = distanceSq <= FULL_EFFECT_DISTANCE_SQ
-                ? HOT_SPOT_COUNT
-                : 1;
-
-        if (structure.size() >= 48 && distanceSq > FULL_EFFECT_DISTANCE_SQ) {
-            long selection = mix64(tankPos.asLong());
-            if (Math.floorMod(selection, 3L) != 0L) {
-                count = 0;
-            }
-        }
-
-        if (count > 0) {
-            renderHotSpots(
-                    tankPos,
-                    definition,
-                    geometry,
-                    partialTick,
-                    pose,
-                    bufferSource,
-                    packedOverlay,
-                    frameMinV,
-                    frameMaxV,
-                    count,
-                    level.getGameTime()
-            );
-        }
+        renderHotSpots(
+                tankPos,
+                structure,
+                definition,
+                geometry,
+                partialTick,
+                pose,
+                bufferSource,
+                packedOverlay,
+                level.getGameTime(),
+                distanceSq
+        );
 
         maybeSpawnSmoke(
                 controller,
@@ -123,77 +125,505 @@ final class FoundryControllerSurfaceEffectsRenderer {
         );
     }
 
+    /**
+     * Renders visible molten heat blooms instead of re-drawing tiny pieces of
+     * the normal liquid texture.
+     *
+     * The old spots used the exact same full-bright molten texture as the
+     * surface underneath them, were less than two pixels wide, and used fixed
+     * positions derived only from Tank position. That made them almost
+     * invisible until the liquid was near the top glass, and when visible they
+     * always appeared in the same places.
+     *
+     * The new spots:
+     *   - use a dedicated soft glow texture;
+     *   - fade in and out over a short lifetime;
+     *   - pick a new deterministic random position after each fade-out;
+     *   - scale their density to the whole connected horizontal surface rather
+     *     than multiplying blindly with Tank count.
+     */
     private static void renderHotSpots(
             BlockPos tankPos,
+            Set<BlockPos> structure,
             MoltenMetalDefinition definition,
             FoundryTankLiquidGeometry geometry,
             float partialTick,
             PoseStack.Pose pose,
             MultiBufferSource bufferSource,
             int packedOverlay,
-            float frameMinV,
-            float frameMaxV,
-            int count,
-            long gameTime
+            long gameTime,
+            double distanceSq
     ) {
-        float usableMinX = geometry.minX() + HOT_SPOT_MARGIN;
-        float usableMaxX = geometry.maxX() - HOT_SPOT_MARGIN;
-        float usableMinZ = geometry.minZ() + HOT_SPOT_MARGIN;
-        float usableMaxZ = geometry.maxZ() - HOT_SPOT_MARGIN;
+        float usableMinX =
+                geometry.minX() + HOT_SPOT_MARGIN;
 
-        if (usableMaxX <= usableMinX || usableMaxZ <= usableMinZ) {
+        float usableMaxX =
+                geometry.maxX() - HOT_SPOT_MARGIN;
+
+        float usableMinZ =
+                geometry.minZ() + HOT_SPOT_MARGIN;
+
+        float usableMaxZ =
+                geometry.maxZ() - HOT_SPOT_MARGIN;
+
+        if (
+                usableMaxX <= usableMinX
+                        || usableMaxZ <= usableMinZ
+        ) {
             return;
         }
 
-        VertexConsumer consumer = bufferSource.getBuffer(
-                RenderType.entityTranslucent(definition.animatedTexture())
-        );
+        /*
+         * The top glass begins at the same inner height as LIQUID_MAX_INSET.
+         * The old hotspot Y offset could therefore push a full-Tank hotspot
+         * through the glass plane, changing its apparent color/order.
+         *
+         * Fade the heat blooms away during the final ~1.25 texture pixels of
+         * headroom and never let their quad cross the inner glass plane.
+         */
+        float glassHeadroom =
+                Math.max(
+                        0.0f,
+                        LIQUID_MAX_INSET - geometry.surfaceY()
+                );
 
-        for (int index = 0; index < count; index++) {
-            float pulse = 0.5f + 0.5f * Mth.sin(
-                    (gameTime + partialTick) * 0.23f
-                            + stableUnit(tankPos, index, 11L) * 6.2831855f
-            );
+        /*
+         * Keep the bloom visible even when the Tank is completely full.
+         *
+         * Near the top glass we reduce its strength, but never to zero. The
+         * quad is also clamped to the liquid surface / inner-glass plane
+         * instead of being pushed through the tinted glass.
+         */
+        float glassFade =
+                Mth.lerp(
+                        Mth.clamp(
+                                glassHeadroom / HOT_SPOT_GLASS_FADE_DISTANCE,
+                                0.0f,
+                                1.0f
+                        ),
+                        0.58f,
+                        1.0f
+                );
 
-            if (pulse < 0.30f) {
+        /*
+         * Never collapse the hotspot back onto the liquid's exact plane.
+         *
+         * At full height LIQUID_MAX_INSET is also the liquid top. The previous
+         * clamp therefore made both quads coplanar, which is what caused the
+         * visible jitter/z-fighting. The tiny extra ceiling here leaves a
+         * stable gap above the liquid while remaining below the glass.
+         */
+        float hotSpotY =
+                Math.min(
+                        geometry.surfaceY() + HOT_SPOT_Y_OFFSET,
+                        LIQUID_MAX_INSET + FULL_TANK_HOT_SPOT_SEPARATION
+                );
+
+        int horizontalSurfaceCells =
+                countHorizontalSurfaceCells(
+                        structure,
+                        tankPos.getY()
+                );
+
+        /*
+         * A single Tank gets one large active bloom. As the connected surface
+         * grows, aim for a few blooms across the whole surface rather than a
+         * fixed number per Tank cell.
+         */
+        int targetCount =
+                horizontalSurfaceCells == 1
+                        ? 1
+                        : Mth.clamp(
+                        2 + horizontalSurfaceCells / 3,
+                        HOT_SPOT_MIN_TARGET_COUNT,
+                        HOT_SPOT_MAX_TARGET_COUNT
+                );
+
+        /*
+         * At longer distance keep the effect visible but lighter.
+         */
+        if (distanceSq > FULL_EFFECT_DISTANCE_SQ) {
+            targetCount =
+                    Math.min(
+                            targetCount,
+                            3
+                    );
+        }
+
+        /*
+         * Use one bloom candidate per exposed Tank cell.
+         *
+         * A 1x1 Tank used to create two candidates inside the same 16x16
+         * surface. Once the blooms became large, the second candidate could
+         * repeatedly pass/fail the overlap test as both spots pulsed in size,
+         * which looked like a fast blink. One larger bloom is cleaner for a
+         * single Tank and still relocates smoothly after each fade-out cycle.
+         */
+        int attemptsPerCell = 1;
+
+        float activeChance =
+                Math.min(
+                        1.0f,
+                        targetCount
+                                / (float) Math.max(
+                                1,
+                                horizontalSurfaceCells * attemptsPerCell
+                        )
+                );
+
+        VertexConsumer consumer =
+                bufferSource.getBuffer(
+                        RenderType.entityTranslucent(
+                                SURFACE_HOT_SPOT_TEXTURE
+                        )
+                );
+
+        long metalSalt =
+                definition.id().hashCode();
+
+        float previousCenterX = Float.NaN;
+        float previousCenterZ = Float.NaN;
+        float previousSize = 0.0f;
+
+        for (int slot = 0; slot < attemptsPerCell; slot++) {
+            /*
+             * Give every potential bloom a different lifetime offset so the
+             * entire surface does not pulse in sync.
+             */
+            long phaseSeed =
+                    mix64(
+                            tankPos.asLong()
+                                    ^ (long) slot * 0x9E3779B97F4A7C15L
+                                    ^ metalSalt * 0xC2B2AE3D27D4EB4FL
+                    );
+
+            double phaseOffset =
+                    unit(phaseSeed ^ 0x13579BDFL)
+                            * HOT_SPOT_LIFETIME_TICKS;
+
+            double animatedTime =
+                    gameTime
+                            + partialTick
+                            + phaseOffset;
+
+            long cycle =
+                    (long) Math.floor(
+                            animatedTime
+                                    / HOT_SPOT_LIFETIME_TICKS
+                    );
+
+            double cycleStart =
+                    cycle
+                            * (double) HOT_SPOT_LIFETIME_TICKS;
+
+            float phase =
+                    (float) (
+                            (animatedTime - cycleStart)
+                                    / HOT_SPOT_LIFETIME_TICKS
+                    );
+
+            /*
+             * Zero at both ends means the position can change between cycles
+             * while the bloom is fully invisible, so there is no teleport pop.
+             */
+            float envelope =
+                    Mth.sin(
+                            Mth.clamp(
+                                    phase,
+                                    0.0f,
+                                    1.0f
+                            )
+                                    * (float) Math.PI
+                    );
+
+            if (envelope <= 0.04f) {
                 continue;
             }
 
-            float centerX = Mth.lerp(
-                    stableUnit(tankPos, index, 17L),
-                    usableMinX,
-                    usableMaxX
-            );
-            float centerZ = Mth.lerp(
-                    stableUnit(tankPos, index, 41L),
-                    usableMinZ,
-                    usableMaxZ
-            );
-            float size = Mth.lerp(
-                    pulse,
-                    HOT_SPOT_MIN_SIZE,
-                    HOT_SPOT_MAX_SIZE
-            );
+            long seed =
+                    mix64(
+                            tankPos.asLong()
+                                    ^ (long) slot * 0xD6E8FEB86659FD93L
+                                    ^ cycle * 0x9E3779B97F4A7C15L
+                                    ^ metalSalt * 0x94D049BB133111EBL
+                    );
 
-            float minX = Math.max(geometry.minX(), centerX - size * 0.5f);
-            float maxX = Math.min(geometry.maxX(), centerX + size * 0.5f);
-            float minZ = Math.max(geometry.minZ(), centerZ - size * 0.5f);
-            float maxZ = Math.min(geometry.maxZ(), centerZ + size * 0.5f);
+            if (unit(seed ^ 0x2468ACE0L) > activeChance) {
+                continue;
+            }
 
-            FoundryTankLiquidQuads.renderLiquidHorizontalFace(
-                    net.minecraft.core.Direction.UP,
+            /*
+             * Each bloom now chooses its own base diameter. The lifetime pulse
+             * changes that diameter only slightly, so different spots remain
+             * obviously different sizes instead of all converging on one size.
+             */
+            float baseSize =
+                    Mth.lerp(
+                            unit(seed ^ 0x5555L),
+                            HOT_SPOT_MIN_SIZE,
+                            HOT_SPOT_MAX_SIZE
+                    );
+
+            float size =
+                    baseSize
+                            * Mth.lerp(
+                            envelope,
+                            0.84f,
+                            1.06f
+                    );
+
+            float centerX = 0.0f;
+            float centerZ = 0.0f;
+            boolean foundNonOverlappingPosition = false;
+
+            /*
+             * Multi-Tank surfaces use only one candidate per cell, and
+             * HOT_SPOT_MARGIN is larger than the maximum radius, so spots in
+             * neighboring cells cannot overlap. A single Tank uses two
+             * candidates, so explicitly keep those two apart.
+             */
+            for (int placementAttempt = 0; placementAttempt < 10; placementAttempt++) {
+                long placementSeed =
+                        mix64(
+                                seed
+                                        ^ (long) placementAttempt
+                                        * 0xA24BAED4963EE407L
+                        );
+
+                centerX =
+                        Mth.lerp(
+                                unit(placementSeed ^ 0x1111L),
+                                usableMinX,
+                                usableMaxX
+                        );
+
+                centerZ =
+                        Mth.lerp(
+                                unit(placementSeed ^ 0x2222L),
+                                usableMinZ,
+                                usableMaxZ
+                        );
+
+                if (Float.isNaN(previousCenterX)) {
+                    foundNonOverlappingPosition = true;
+                    break;
+                }
+
+                float dx =
+                        centerX - previousCenterX;
+
+                float dz =
+                        centerZ - previousCenterZ;
+
+                float requiredDistance =
+                        (size + previousSize) * 0.5f
+                                + 0.50f * (1.0f / 16.0f);
+
+                if (
+                        dx * dx + dz * dz
+                                >= requiredDistance * requiredDistance
+                ) {
+                    foundNonOverlappingPosition = true;
+                    break;
+                }
+            }
+
+            if (!foundNonOverlappingPosition) {
+                continue;
+            }
+
+            /*
+             * Very slight motion makes a bloom feel alive without sliding
+             * obviously across the liquid.
+             */
+            float driftEnvelope =
+                    Mth.sin(
+                            phase
+                                    * (float) Math.PI
+                                    * 2.0f
+                    );
+
+            centerX +=
+                    (unit(seed ^ 0x3333L) - 0.5f)
+                            * 0.030f
+                            * driftEnvelope;
+
+            centerZ +=
+                    (unit(seed ^ 0x4444L) - 0.5f)
+                            * 0.030f
+                            * driftEnvelope;
+
+            centerX =
+                    Mth.clamp(
+                            centerX,
+                            usableMinX,
+                            usableMaxX
+                    );
+
+            centerZ =
+                    Mth.clamp(
+                            centerZ,
+                            usableMinZ,
+                            usableMaxZ
+                    );
+
+            float halfSize =
+                    size * 0.5f;
+
+            float minX =
+                    Math.max(
+                            geometry.minX(),
+                            centerX - halfSize
+                    );
+
+            float maxX =
+                    Math.min(
+                            geometry.maxX(),
+                            centerX + halfSize
+                    );
+
+            float minZ =
+                    Math.max(
+                            geometry.minZ(),
+                            centerZ - halfSize
+                    );
+
+            float maxZ =
+                    Math.min(
+                            geometry.maxZ(),
+                            centerZ + halfSize
+                    );
+
+            int alpha =
+                    Mth.clamp(
+                            Math.round(
+                                    255.0f
+                                            * HOT_SPOT_MAX_ALPHA
+                                            * envelope
+                                            * glassFade
+                            ),
+                            0,
+                            255
+                    );
+
+            if (alpha <= 2) {
+                continue;
+            }
+
+            renderHotSpotQuad(
                     consumer,
                     pose,
                     minX,
                     maxX,
-                    Math.min(1.0f, geometry.surfaceY() + HOT_SPOT_Y_OFFSET),
+                    hotSpotY,
                     minZ,
                     maxZ,
-                    packedOverlay,
-                    frameMinV,
-                    frameMaxV
+                    alpha,
+                    packedOverlay
             );
+
+            previousCenterX = centerX;
+            previousCenterZ = centerZ;
+            previousSize = size;
         }
+    }
+
+    private static void renderHotSpotQuad(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            float minX,
+            float maxX,
+            float y,
+            float minZ,
+            float maxZ,
+            int alpha,
+            int packedOverlay
+    ) {
+        int color =
+                (alpha << 24)
+                        | 0x00FFFFFF;
+
+        addHotSpotVertex(
+                consumer,
+                pose,
+                minX,
+                y,
+                minZ,
+                0.0f,
+                0.0f,
+                color,
+                packedOverlay
+        );
+
+        addHotSpotVertex(
+                consumer,
+                pose,
+                minX,
+                y,
+                maxZ,
+                0.0f,
+                1.0f,
+                color,
+                packedOverlay
+        );
+
+        addHotSpotVertex(
+                consumer,
+                pose,
+                maxX,
+                y,
+                maxZ,
+                1.0f,
+                1.0f,
+                color,
+                packedOverlay
+        );
+
+        addHotSpotVertex(
+                consumer,
+                pose,
+                maxX,
+                y,
+                minZ,
+                1.0f,
+                0.0f,
+                color,
+                packedOverlay
+        );
+    }
+
+    private static void addHotSpotVertex(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            float x,
+            float y,
+            float z,
+            float u,
+            float v,
+            int color,
+            int packedOverlay
+    ) {
+        consumer.addVertex(
+                        pose.pose(),
+                        x,
+                        y,
+                        z
+                )
+                .setColor(color)
+                .setUv(
+                        u,
+                        v
+                )
+                .setOverlay(packedOverlay)
+                .setLight(
+                        LightTexture.FULL_BRIGHT
+                )
+                .setNormal(
+                        pose,
+                        0.0f,
+                        1.0f,
+                        0.0f
+                );
     }
 
     private void maybeSpawnSmoke(
