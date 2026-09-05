@@ -96,10 +96,10 @@ final class FoundryTankRenderConstants {
             0.002f;
 
     static final float LIQUID_INSET =
-            0.12f / 16.0f;
+            0.2f / 16.0f;
 
     static final float LIQUID_MAX_INSET =
-            15.88f / 16.0f;
+            15.80f / 16.0f;
 
     static final float LIQUID_EPSILON =
             0.0001f;
