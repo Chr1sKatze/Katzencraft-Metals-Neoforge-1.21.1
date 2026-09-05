@@ -120,12 +120,25 @@ final class FoundryTankRenderConstants {
     static final int HOT_SPOT_MIN_TARGET_COUNT = 2;
     static final int HOT_SPOT_MAX_TARGET_COUNT = 6;
     static final float HOT_SPOT_MIN_SIZE = 4.75f * PIXEL;
-    static final float HOT_SPOT_MAX_SIZE = 10.0f * PIXEL;
+    static final float HOT_SPOT_MAX_SIZE = 16.0f * PIXEL;
     static final float HOT_SPOT_MARGIN = 5.25f * PIXEL;
     static final float HOT_SPOT_Y_OFFSET = 0.0030f;
-    static final float HOT_SPOT_MAX_ALPHA = 0.82f;
+    static final float HOT_SPOT_MAX_ALPHA = 0.90f;
     static final float HOT_SPOT_GLASS_FADE_DISTANCE = 1.25f * PIXEL;
-    static final long HOT_SPOT_LIFETIME_TICKS = 44L;
+
+    /*
+     * Each potential bloom gets its own stable lifetime, so neighboring spots
+     * do not breathe in sync. 30-60 ticks is roughly 1.5-3.0 seconds.
+     */
+    static final long HOT_SPOT_MIN_LIFETIME_TICKS = 30L;
+    static final long HOT_SPOT_MAX_LIFETIME_TICKS = 100L;
+
+    /*
+     * Broad blooms are deliberately softer while small blooms can be hotter.
+     * A little per-cycle random variation is applied on top of this range.
+     */
+    static final float HOT_SPOT_MIN_INTENSITY = 0.52f;
+    static final float HOT_SPOT_MAX_INTENSITY = 1.00f;
 
     /*
      * Very soft bright contact at the molten-liquid / glass boundary.

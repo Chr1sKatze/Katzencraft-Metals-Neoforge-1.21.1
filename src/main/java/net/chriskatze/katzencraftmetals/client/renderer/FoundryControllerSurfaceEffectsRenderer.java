@@ -28,7 +28,10 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_WIDTH_SMALL;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_Y_OFFSET;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_GLASS_FADE_DISTANCE;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_LIFETIME_TICKS;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MAX_INTENSITY;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MAX_LIFETIME_TICKS;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MIN_INTENSITY;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MIN_LIFETIME_TICKS;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MARGIN;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MAX_ALPHA;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MAX_SIZE;
@@ -737,7 +740,8 @@ final class FoundryControllerSurfaceEffectsRenderer {
      *
      * The new spots:
      *   - use a dedicated soft glow texture;
-     *   - fade in and out over a short lifetime;
+     *   - fade in and out over independently varied 1.5-3.0 second lifetimes;
+     *   - vary brightness so broad blooms are softer and small blooms hotter;
      *   - pick a new deterministic random position after each fade-out;
      *   - scale their density to the whole connected horizontal surface rather
      *     than multiplying blindly with Tank count.
@@ -897,9 +901,27 @@ final class FoundryControllerSurfaceEffectsRenderer {
                                     ^ metalSalt * 0xC2B2AE3D27D4EB4FL
                     );
 
+            /*
+             * Give every surface cell its own stable lifetime. That means one
+             * bloom may take ~1.5 seconds to complete a cycle while another
+             * takes close to ~3 seconds. Their fade timing therefore never
+             * collapses into one obvious synchronized pulse.
+             */
+            long hotSpotLifetimeTicks =
+                    Math.max(
+                            1L,
+                            Math.round(
+                                    Mth.lerp(
+                                            unit(phaseSeed ^ 0x7F4A7C15L),
+                                            (float) HOT_SPOT_MIN_LIFETIME_TICKS,
+                                            (float) HOT_SPOT_MAX_LIFETIME_TICKS
+                                    )
+                            )
+                    );
+
             double phaseOffset =
                     unit(phaseSeed ^ 0x13579BDFL)
-                            * HOT_SPOT_LIFETIME_TICKS;
+                            * hotSpotLifetimeTicks;
 
             double animatedTime =
                     gameTime
@@ -909,17 +931,17 @@ final class FoundryControllerSurfaceEffectsRenderer {
             long cycle =
                     (long) Math.floor(
                             animatedTime
-                                    / HOT_SPOT_LIFETIME_TICKS
+                                    / hotSpotLifetimeTicks
                     );
 
             double cycleStart =
                     cycle
-                            * (double) HOT_SPOT_LIFETIME_TICKS;
+                            * (double) hotSpotLifetimeTicks;
 
             float phase =
                     (float) (
                             (animatedTime - cycleStart)
-                                    / HOT_SPOT_LIFETIME_TICKS
+                                    / hotSpotLifetimeTicks
                     );
 
             /*
@@ -962,6 +984,49 @@ final class FoundryControllerSurfaceEffectsRenderer {
                             unit(seed ^ 0x5555L),
                             HOT_SPOT_MIN_SIZE,
                             HOT_SPOT_MAX_SIZE
+                    );
+
+            /*
+             * Size and intensity are intentionally related:
+             *
+             *   smaller bloom -> hotter / brighter
+             *   broader bloom -> softer / fainter
+             *
+             * A small independent per-cycle multiplier prevents equal-sized
+             * blooms from still looking mechanically identical.
+             */
+            float sizeRange =
+                    Math.max(
+                            0.0001f,
+                            HOT_SPOT_MAX_SIZE - HOT_SPOT_MIN_SIZE
+                    );
+
+            float normalizedSize =
+                    Mth.clamp(
+                            (baseSize - HOT_SPOT_MIN_SIZE) / sizeRange,
+                            0.0f,
+                            1.0f
+                    );
+
+            float sizeBasedIntensity =
+                    Mth.lerp(
+                            normalizedSize,
+                            HOT_SPOT_MAX_INTENSITY,
+                            HOT_SPOT_MIN_INTENSITY
+                    );
+
+            float randomIntensity =
+                    Mth.lerp(
+                            unit(seed ^ 0xABCD1234L),
+                            0.88f,
+                            1.10f
+                    );
+
+            float hotSpotIntensity =
+                    Mth.clamp(
+                            sizeBasedIntensity * randomIntensity,
+                            HOT_SPOT_MIN_INTENSITY,
+                            HOT_SPOT_MAX_INTENSITY
                     );
 
             float size =
@@ -1099,6 +1164,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
                             Math.round(
                                     255.0f
                                             * HOT_SPOT_MAX_ALPHA
+                                            * hotSpotIntensity
                                             * envelope
                                             * glassFade
                             ),
