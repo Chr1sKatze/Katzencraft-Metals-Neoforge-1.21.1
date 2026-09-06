@@ -241,7 +241,35 @@ final class FoundryControllerTankLiquidRenderer {
                     );
                 }
 
-                if (renderedLayer.renderBottom()) {
+                /*
+                 * Close the underside of internal metal-to-metal boundaries.
+                 *
+                 * The lower metal's UP face is intentionally suppressed when a
+                 * different metal sits directly above it, because that flat face
+                 * used to show through the glass as a straight one-pixel line.
+                 *
+                 * Without a matching DOWN face on the upper metal, however, the
+                 * interface is physically open when viewed from underneath.
+                 *
+                 * Render a downward-facing cap from the upper metal whenever a
+                 * different metal is directly below. Because the molten RenderType
+                 * uses back-face culling, this cap is visible from below but does
+                 * not reintroduce the old straight line when viewed from above.
+                 *
+                 * getDifferentMetalDirectlyBelow() also handles interfaces that
+                 * cross vertically between two stacked Tank blocks.
+                 */
+                boolean differentMetalDirectlyBelow =
+                        getDifferentMetalDirectlyBelow(
+                                tankPos,
+                                renderedLayer,
+                                renderedLayers
+                        ) != null;
+
+                if (
+                        renderedLayer.renderBottom()
+                                || differentMetalDirectlyBelow
+                ) {
                     FoundryTankLiquidQuads.renderLiquidHorizontalFace(
                             Direction.DOWN,
                             consumer,
