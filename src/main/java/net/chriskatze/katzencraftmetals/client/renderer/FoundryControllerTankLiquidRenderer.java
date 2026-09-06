@@ -6,6 +6,7 @@ import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntit
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
+import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
@@ -47,11 +48,21 @@ final class FoundryControllerTankLiquidRenderer {
     private static final float INTERFACE_MIN_WAVE_AMPLITUDE = 0.05f * PIXEL;
 
     /*
+     * Real shader blur width around the moving wavy contact line.
+     *
+     * The normal side faces are carved away by the complete shader band extent,
+     * so this blur has no coplanar geometry underneath it.
+     */
+    private static final float INTERFACE_SHADER_BLUR_HALF_WIDTH =
+            0.35f * PIXEL;
+
+    /*
      * The liquid now sits 0.10 texture pixels away from the inner Tank shell.
      * Place the interface ribbon a small distance toward the glass so it draws
      * cleanly over the normal flat liquid side without becoming coplanar.
      */
     private static final float INTERFACE_SIDE_OFFSET = 0.04f * PIXEL;
+
 
     /*
      * Two broad world-space waves are combined. Their long wavelengths prevent
@@ -480,13 +491,48 @@ final class FoundryControllerTankLiquidRenderer {
         List<FoundryTankRenderedMetalLayer> neighborLayers = allLayers.get(neighborPos);
 
         if (neighborLayers == null) {
+            float visibleMinY =
+                    renderedLayer.minY();
+
+            float visibleMaxY =
+                    renderedLayer.maxY();
+
+            /*
+             * When the custom two-metal shader is active, carve its complete
+             * interface strip out of the normal exterior side geometry first.
+             *
+             * The shader strip will fill exactly this missing region later.
+             * Therefore:
+             *
+             * - no duplicate side geometry;
+             * - no coplanar shader/base faces;
+             * - no new z-fighting source.
+             *
+             * Internal Tank-to-Tank faces are deliberately left untouched.
+             */
+            if (FoundryMetalBlendRenderType.isAvailable()) {
+                InterfaceTrim trim =
+                        getShaderInterfaceTrim(
+                                tankPos,
+                                renderedLayer,
+                                allLayers
+                        );
+
+                visibleMinY += trim.bottom();
+                visibleMaxY -= trim.top();
+            }
+
+            if (visibleMaxY - visibleMinY <= LIQUID_EPSILON) {
+                return;
+            }
+
             FoundryTankLiquidQuads.renderLiquidSideSegment(
                     side,
                     consumer,
                     pose,
                     geometry,
-                    renderedLayer.minY(),
-                    renderedLayer.maxY(),
+                    visibleMinY,
+                    visibleMaxY,
                     false,
                     packedOverlay,
                     frameMinV,
@@ -495,6 +541,11 @@ final class FoundryControllerTankLiquidRenderer {
             return;
         }
 
+        /*
+         * Connected/internal side handling stays exactly as before. The shader
+         * interface is only rendered on the outside of the vessel, so carving
+         * shared Tank faces here would create holes.
+         */
         List<FoundryTankVerticalInterval> visible = new ArrayList<>();
         visible.add(
                 new FoundryTankVerticalInterval(
@@ -670,32 +721,13 @@ final class FoundryControllerTankLiquidRenderer {
             return;
         }
 
-        float lowerThickness =
-                Math.max(
-                        0.0f,
-                        lowerLayer.maxY() - lowerLayer.minY()
+        InterfaceMetrics metrics =
+                getInterfaceMetrics(
+                        lowerLayer,
+                        upperLayer
                 );
 
-        float upperThickness =
-                Math.max(
-                        0.0f,
-                        upperLayer.maxY() - upperLayer.minY()
-                );
-
-        /*
-         * Keep very thin layers readable by shrinking the decorative wave
-         * instead of allowing it to visually consume a large fraction of them.
-         */
-        float waveAmplitude =
-                Math.min(
-                        INTERFACE_MAX_WAVE_AMPLITUDE,
-                        Math.min(
-                                lowerThickness,
-                                upperThickness
-                        ) * 0.30f
-                );
-
-        if (waveAmplitude < INTERFACE_MIN_WAVE_AMPLITUDE) {
+        if (!metrics.active()) {
             return;
         }
 
@@ -706,17 +738,46 @@ final class FoundryControllerTankLiquidRenderer {
                         upperLayer.metal()
                 );
 
+        RenderType blendRenderType =
+                FoundryMetalBlendRenderType.get(
+                        lowerDefinition.animatedTexture(),
+                        upperDefinition.animatedTexture()
+                );
+
+        if (blendRenderType != null) {
+            VertexConsumer blendConsumer =
+                    bufferSource.getBuffer(blendRenderType);
+
+            for (Direction side : Direction.Plane.HORIZONTAL) {
+                if (structure.contains(tankPos.relative(side))) {
+                    continue;
+                }
+
+                renderInterfaceShaderBand(
+                        side,
+                        blendConsumer,
+                        pose,
+                        tankPos,
+                        minX,
+                        maxX,
+                        minZ,
+                        maxZ,
+                        boundaryY,
+                        metrics,
+                        interfaceSeed,
+                        gameTime,
+                        partialTick,
+                        frameMinV,
+                        frameMaxV
+                );
+            }
+
+            return;
+        }
+
         /*
-         * The flat slabs underneath remain the exact quantity representation.
-         *
-         * The correction rule is deliberately one-sided:
-         *
-         *   positive wave -> only the LOWER metal pushes upward
-         *   negative wave -> only the UPPER metal pushes downward
-         *
-         * Both materials therefore meet on one shared wavy line. The previous
-         * implementation drew a full ribbon from both metals across the true
-         * boundary, which created the detached/orphaned strip.
+         * Shader unavailable: fall back to the clean one-sided wavy correction
+         * that was already proven visually stable.
          */
         VertexConsumer lowerConsumer =
                 bufferSource.getBuffer(
@@ -741,7 +802,7 @@ final class FoundryControllerTankLiquidRenderer {
                     minZ,
                     maxZ,
                     boundaryY,
-                    waveAmplitude,
+                    metrics.waveAmplitude(),
                     interfaceSeed,
                     gameTime,
                     partialTick,
@@ -774,7 +835,7 @@ final class FoundryControllerTankLiquidRenderer {
                     minZ,
                     maxZ,
                     boundaryY,
-                    waveAmplitude,
+                    metrics.waveAmplitude(),
                     interfaceSeed,
                     gameTime,
                     partialTick,
@@ -958,6 +1019,626 @@ final class FoundryControllerTankLiquidRenderer {
                         frameMaxV
                 );
             }
+        }
+    }
+
+    /**
+     * Renders the one and only shader-owned interface strip.
+     *
+     * The normal molten side geometry has already been removed from
+     * boundary +/- bandHalfExtent, so this strip fills a real hole rather than
+     * sitting on top of another quad.
+     *
+     * The strip itself is flat at its outer edges; only the blend center moves
+     * with the existing world-continuous wave. That lets the shader create a
+     * real smooth transition around the wavy contact line.
+     */
+    private static void renderInterfaceShaderBand(
+            Direction side,
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            BlockPos tankPos,
+            float minX,
+            float maxX,
+            float minZ,
+            float maxZ,
+            float boundaryY,
+            InterfaceMetrics metrics,
+            long interfaceSeed,
+            long gameTime,
+            float partialTick,
+            float frameMinV,
+            float frameMaxV
+    ) {
+        float horizontalMin =
+                switch (side) {
+                    case NORTH, SOUTH -> minX;
+                    case WEST, EAST -> minZ;
+                    default -> throw new IllegalArgumentException(
+                            "Interface side must be horizontal."
+                    );
+                };
+
+        float horizontalMax =
+                switch (side) {
+                    case NORTH, SOUTH -> maxX;
+                    case WEST, EAST -> maxZ;
+                    default -> throw new IllegalArgumentException(
+                            "Interface side must be horizontal."
+                    );
+                };
+
+        float bottomY =
+                boundaryY - metrics.bandHalfExtent();
+
+        float topY =
+                boundaryY + metrics.bandHalfExtent();
+
+        for (int segment = 0; segment < INTERFACE_SEGMENTS_PER_BLOCK; segment++) {
+            float start =
+                    Mth.lerp(
+                            segment / (float) INTERFACE_SEGMENTS_PER_BLOCK,
+                            horizontalMin,
+                            horizontalMax
+                    );
+
+            float end =
+                    Mth.lerp(
+                            (segment + 1) / (float) INTERFACE_SEGMENTS_PER_BLOCK,
+                            horizontalMin,
+                            horizontalMax
+                    );
+
+            double worldXStart;
+            double worldZStart;
+            double worldXEnd;
+            double worldZEnd;
+
+            switch (side) {
+                case NORTH -> {
+                    worldXStart = tankPos.getX() + start;
+                    worldZStart = tankPos.getZ() + minZ;
+                    worldXEnd = tankPos.getX() + end;
+                    worldZEnd = tankPos.getZ() + minZ;
+                }
+                case SOUTH -> {
+                    worldXStart = tankPos.getX() + start;
+                    worldZStart = tankPos.getZ() + maxZ;
+                    worldXEnd = tankPos.getX() + end;
+                    worldZEnd = tankPos.getZ() + maxZ;
+                }
+                case WEST -> {
+                    worldXStart = tankPos.getX() + minX;
+                    worldZStart = tankPos.getZ() + start;
+                    worldXEnd = tankPos.getX() + minX;
+                    worldZEnd = tankPos.getZ() + end;
+                }
+                case EAST -> {
+                    worldXStart = tankPos.getX() + maxX;
+                    worldZStart = tankPos.getZ() + start;
+                    worldXEnd = tankPos.getX() + maxX;
+                    worldZEnd = tankPos.getZ() + end;
+                }
+                default -> throw new IllegalArgumentException(
+                        "Interface side must be horizontal."
+                );
+            }
+
+            float centerStart =
+                    boundaryY
+                            + sampleInterfaceWave(
+                            worldXStart,
+                            worldZStart,
+                            interfaceSeed,
+                            gameTime,
+                            partialTick,
+                            metrics.waveAmplitude()
+                    );
+
+            float centerEnd =
+                    boundaryY
+                            + sampleInterfaceWave(
+                            worldXEnd,
+                            worldZEnd,
+                            interfaceSeed,
+                            gameTime,
+                            partialTick,
+                            metrics.waveAmplitude()
+                    );
+
+            float bottomDistanceStart =
+                    (bottomY - centerStart)
+                            / metrics.blurHalfWidth();
+
+            float bottomDistanceEnd =
+                    (bottomY - centerEnd)
+                            / metrics.blurHalfWidth();
+
+            float topDistanceStart =
+                    (topY - centerStart)
+                            / metrics.blurHalfWidth();
+
+            float topDistanceEnd =
+                    (topY - centerEnd)
+                            / metrics.blurHalfWidth();
+
+            renderInterfaceShaderBandSideQuad(
+                    side,
+                    consumer,
+                    pose,
+                    start,
+                    end,
+                    minX,
+                    maxX,
+                    minZ,
+                    maxZ,
+                    bottomY,
+                    topY,
+                    bottomDistanceStart,
+                    bottomDistanceEnd,
+                    topDistanceStart,
+                    topDistanceEnd,
+                    frameMinV,
+                    frameMaxV
+            );
+        }
+    }
+
+    private static void renderInterfaceShaderBandSideQuad(
+            Direction side,
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            float start,
+            float end,
+            float minX,
+            float maxX,
+            float minZ,
+            float maxZ,
+            float bottomY,
+            float topY,
+            float bottomDistanceStart,
+            float bottomDistanceEnd,
+            float topDistanceStart,
+            float topDistanceEnd,
+            float frameMinV,
+            float frameMaxV
+    ) {
+        switch (side) {
+            case NORTH -> {
+                float z = minZ - INTERFACE_SIDE_OFFSET;
+
+                addShaderBandVertex(
+                        consumer, pose,
+                        start, topY, z,
+                        start, topDistanceStart,
+                        0.0f, 0.0f, -1.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        end, topY, z,
+                        end, topDistanceEnd,
+                        0.0f, 0.0f, -1.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        end, bottomY, z,
+                        end, bottomDistanceEnd,
+                        0.0f, 0.0f, -1.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        start, bottomY, z,
+                        start, bottomDistanceStart,
+                        0.0f, 0.0f, -1.0f,
+                        frameMinV, frameMaxV
+                );
+            }
+
+            case SOUTH -> {
+                float z = maxZ + INTERFACE_SIDE_OFFSET;
+
+                addShaderBandVertex(
+                        consumer, pose,
+                        end, topY, z,
+                        1.0f - end, topDistanceEnd,
+                        0.0f, 0.0f, 1.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        start, topY, z,
+                        1.0f - start, topDistanceStart,
+                        0.0f, 0.0f, 1.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        start, bottomY, z,
+                        1.0f - start, bottomDistanceStart,
+                        0.0f, 0.0f, 1.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        end, bottomY, z,
+                        1.0f - end, bottomDistanceEnd,
+                        0.0f, 0.0f, 1.0f,
+                        frameMinV, frameMaxV
+                );
+            }
+
+            case WEST -> {
+                float x = minX - INTERFACE_SIDE_OFFSET;
+
+                addShaderBandVertex(
+                        consumer, pose,
+                        x, topY, end,
+                        1.0f - end, topDistanceEnd,
+                        -1.0f, 0.0f, 0.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        x, topY, start,
+                        1.0f - start, topDistanceStart,
+                        -1.0f, 0.0f, 0.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        x, bottomY, start,
+                        1.0f - start, bottomDistanceStart,
+                        -1.0f, 0.0f, 0.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        x, bottomY, end,
+                        1.0f - end, bottomDistanceEnd,
+                        -1.0f, 0.0f, 0.0f,
+                        frameMinV, frameMaxV
+                );
+            }
+
+            case EAST -> {
+                float x = maxX + INTERFACE_SIDE_OFFSET;
+
+                addShaderBandVertex(
+                        consumer, pose,
+                        x, topY, start,
+                        start, topDistanceStart,
+                        1.0f, 0.0f, 0.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        x, topY, end,
+                        end, topDistanceEnd,
+                        1.0f, 0.0f, 0.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        x, bottomY, end,
+                        end, bottomDistanceEnd,
+                        1.0f, 0.0f, 0.0f,
+                        frameMinV, frameMaxV
+                );
+                addShaderBandVertex(
+                        consumer, pose,
+                        x, bottomY, start,
+                        start, bottomDistanceStart,
+                        1.0f, 0.0f, 0.0f,
+                        frameMinV, frameMaxV
+                );
+            }
+
+            default -> {
+            }
+        }
+    }
+
+    /**
+     * Stores signed distance to the wavy contact line in UV1.x.
+     *
+     * -1 means one blur-half-width into the lower metal.
+     * +1 means one blur-half-width into the upper metal.
+     *
+     * Values outside +/-1 are already pure source metal. We encode a wider
+     * +/-2 range so the strip edges remain safely saturated.
+     */
+    private static void addShaderBandVertex(
+            VertexConsumer consumer,
+            PoseStack.Pose pose,
+            float x,
+            float y,
+            float z,
+            float u,
+            float signedDistance,
+            float normalX,
+            float normalY,
+            float normalZ,
+            float frameMinV,
+            float frameMaxV
+    ) {
+        float textureV =
+                Mth.lerp(
+                        1.0f - y,
+                        frameMinV,
+                        frameMaxV
+                );
+
+        float encoded =
+                Mth.clamp(
+                        (signedDistance + 2.0f) / 4.0f,
+                        0.0f,
+                        1.0f
+                );
+
+        int distanceCoordinate =
+                Mth.clamp(
+                        Math.round(encoded * 32767.0f),
+                        0,
+                        32767
+                );
+
+        consumer.addVertex(
+                        pose.pose(),
+                        x,
+                        y,
+                        z
+                )
+                .setColor(0xFFFFFFFF)
+                .setUv(
+                        u,
+                        textureV
+                )
+                .setUv1(
+                        distanceCoordinate,
+                        0
+                )
+                .setLight(
+                        LightTexture.FULL_BRIGHT
+                )
+                .setNormal(
+                        pose,
+                        normalX,
+                        normalY,
+                        normalZ
+                );
+    }
+
+    private static InterfaceTrim getShaderInterfaceTrim(
+            BlockPos tankPos,
+            FoundryTankRenderedMetalLayer layer,
+            Map<BlockPos, List<FoundryTankRenderedMetalLayer>> allLayers
+    ) {
+        float bottom = 0.0f;
+        float top = 0.0f;
+
+        FoundryTankRenderedMetalLayer below =
+                getDifferentMetalDirectlyBelow(
+                        tankPos,
+                        layer,
+                        allLayers
+                );
+
+        if (below != null) {
+            InterfaceMetrics metrics =
+                    getInterfaceMetrics(
+                            below,
+                            layer
+                    );
+
+            if (metrics.active()) {
+                bottom = metrics.bandHalfExtent();
+            }
+        }
+
+        FoundryTankRenderedMetalLayer above =
+                getDifferentMetalDirectlyAbove(
+                        tankPos,
+                        layer,
+                        allLayers
+                );
+
+        if (above != null) {
+            InterfaceMetrics metrics =
+                    getInterfaceMetrics(
+                            layer,
+                            above
+                    );
+
+            if (metrics.active()) {
+                top = metrics.bandHalfExtent();
+            }
+        }
+
+        return new InterfaceTrim(
+                bottom,
+                top
+        );
+    }
+
+    private static InterfaceMetrics getInterfaceMetrics(
+            FoundryTankRenderedMetalLayer lower,
+            FoundryTankRenderedMetalLayer upper
+    ) {
+        float lowerThickness =
+                Math.max(
+                        0.0f,
+                        lower.maxY() - lower.minY()
+                );
+
+        float upperThickness =
+                Math.max(
+                        0.0f,
+                        upper.maxY() - upper.minY()
+                );
+
+        float thinnerLayer =
+                Math.min(
+                        lowerThickness,
+                        upperThickness
+                );
+
+        float waveAmplitude =
+                Math.min(
+                        INTERFACE_MAX_WAVE_AMPLITUDE,
+                        thinnerLayer * 0.30f
+                );
+
+        if (waveAmplitude < INTERFACE_MIN_WAVE_AMPLITUDE) {
+            return InterfaceMetrics.INACTIVE;
+        }
+
+        /*
+         * For normal-sized layers this reaches 0.35 texture pixels each side,
+         * giving about 0.70 pixels of actual crossfade.
+         *
+         * Very thin layers automatically receive less blur.
+         */
+        float blurHalfWidth =
+                Math.min(
+                        INTERFACE_SHADER_BLUR_HALF_WIDTH,
+                        thinnerLayer * 0.12f
+                );
+
+        if (blurHalfWidth <= LIQUID_EPSILON) {
+            return InterfaceMetrics.INACTIVE;
+        }
+
+        float bandHalfExtent =
+                waveAmplitude + blurHalfWidth;
+
+        return new InterfaceMetrics(
+                waveAmplitude,
+                blurHalfWidth,
+                bandHalfExtent
+        );
+    }
+
+    private static FoundryTankRenderedMetalLayer getDifferentMetalDirectlyBelow(
+            BlockPos tankPos,
+            FoundryTankRenderedMetalLayer layer,
+            Map<BlockPos, List<FoundryTankRenderedMetalLayer>> allLayers
+    ) {
+        List<FoundryTankRenderedMetalLayer> localLayers =
+                allLayers.getOrDefault(
+                        tankPos,
+                        List.of()
+                );
+
+        for (FoundryTankRenderedMetalLayer candidate : localLayers) {
+            if (candidate == layer) {
+                continue;
+            }
+
+            if (
+                    Math.abs(candidate.maxY() - layer.minY())
+                            <= LIQUID_EPSILON
+                            && !candidate.metal().equals(layer.metal())
+            ) {
+                return candidate;
+            }
+        }
+
+        if (layer.minY() > LIQUID_EPSILON) {
+            return null;
+        }
+
+        List<FoundryTankRenderedMetalLayer> belowLayers =
+                allLayers.get(tankPos.below());
+
+        if (belowLayers == null || belowLayers.isEmpty()) {
+            return null;
+        }
+
+        FoundryTankRenderedMetalLayer below =
+                belowLayers.getLast();
+
+        if (
+                below.maxY() >= 1.0f - LIQUID_EPSILON
+                        && !below.metal().equals(layer.metal())
+        ) {
+            return below;
+        }
+
+        return null;
+    }
+
+    private static FoundryTankRenderedMetalLayer getDifferentMetalDirectlyAbove(
+            BlockPos tankPos,
+            FoundryTankRenderedMetalLayer layer,
+            Map<BlockPos, List<FoundryTankRenderedMetalLayer>> allLayers
+    ) {
+        List<FoundryTankRenderedMetalLayer> localLayers =
+                allLayers.getOrDefault(
+                        tankPos,
+                        List.of()
+                );
+
+        for (FoundryTankRenderedMetalLayer candidate : localLayers) {
+            if (candidate == layer) {
+                continue;
+            }
+
+            if (
+                    Math.abs(candidate.minY() - layer.maxY())
+                            <= LIQUID_EPSILON
+                            && !candidate.metal().equals(layer.metal())
+            ) {
+                return candidate;
+            }
+        }
+
+        if (layer.maxY() < 1.0f - LIQUID_EPSILON) {
+            return null;
+        }
+
+        List<FoundryTankRenderedMetalLayer> aboveLayers =
+                allLayers.get(tankPos.above());
+
+        if (aboveLayers == null || aboveLayers.isEmpty()) {
+            return null;
+        }
+
+        FoundryTankRenderedMetalLayer above =
+                aboveLayers.getFirst();
+
+        if (
+                above.minY() <= LIQUID_EPSILON
+                        && !above.metal().equals(layer.metal())
+        ) {
+            return above;
+        }
+
+        return null;
+    }
+
+    private record InterfaceTrim(
+            float bottom,
+            float top
+    ) {
+    }
+
+    private record InterfaceMetrics(
+            float waveAmplitude,
+            float blurHalfWidth,
+            float bandHalfExtent
+    ) {
+        private static final InterfaceMetrics INACTIVE =
+                new InterfaceMetrics(
+                        0.0f,
+                        0.0f,
+                        0.0f
+                );
+
+        boolean active() {
+            return bandHalfExtent > LIQUID_EPSILON;
         }
     }
 
@@ -1207,8 +1888,8 @@ final class FoundryControllerTankLiquidRenderer {
 
     /**
      * Returns true when this layer ends exactly where another, different molten
-     * metal begins. In that case the visible boundary is provided by the wavy
-     * interface ribbon rather than by a flat horizontal quad.
+     * metal begins. In that case the visible boundary is provided by the
+     * interface system rather than by a flat horizontal quad.
      */
     private static boolean hasDifferentMetalDirectlyAbove(
             BlockPos tankPos,
@@ -1216,36 +1897,11 @@ final class FoundryControllerTankLiquidRenderer {
             List<FoundryTankRenderedMetalLayer> localLayers,
             Map<BlockPos, List<FoundryTankRenderedMetalLayer>> allLayers
     ) {
-        for (FoundryTankRenderedMetalLayer candidate : localLayers) {
-            if (candidate == layer) {
-                continue;
-            }
-
-            if (
-                    Math.abs(candidate.minY() - layer.maxY())
-                            <= LIQUID_EPSILON
-                            && !candidate.metal().equals(layer.metal())
-            ) {
-                return true;
-            }
-        }
-
-        if (layer.maxY() < 1.0f - LIQUID_EPSILON) {
-            return false;
-        }
-
-        List<FoundryTankRenderedMetalLayer> aboveLayers =
-                allLayers.get(tankPos.above());
-
-        if (aboveLayers == null || aboveLayers.isEmpty()) {
-            return false;
-        }
-
-        FoundryTankRenderedMetalLayer firstAbove =
-                aboveLayers.getFirst();
-
-        return firstAbove.minY() <= LIQUID_EPSILON
-                && !firstAbove.metal().equals(layer.metal());
+        return getDifferentMetalDirectlyAbove(
+                tankPos,
+                layer,
+                allLayers
+        ) != null;
     }
 
     private static boolean hasExposedHorizontalSide(
