@@ -44,7 +44,7 @@ final class FoundryControllerTankLiquidRenderer {
      * This keeps one continuous wavy boundary and prevents detached strips.
      */
     private static final int INTERFACE_SEGMENTS_PER_BLOCK = 8;
-    private static final float INTERFACE_MAX_WAVE_AMPLITUDE = 0.60f * PIXEL;
+    private static final float INTERFACE_MAX_WAVE_AMPLITUDE = 1.35f * PIXEL;
     private static final float INTERFACE_MIN_WAVE_AMPLITUDE = 0.05f * PIXEL;
 
     /*
@@ -68,10 +68,10 @@ final class FoundryControllerTankLiquidRenderer {
      * Two broad world-space waves are combined. Their long wavelengths prevent
      * the interface from looking noisy or like a separate wave per Tank block.
      */
-    private static final double INTERFACE_PRIMARY_WAVELENGTH = 6.50D;
-    private static final double INTERFACE_SECONDARY_WAVELENGTH = 4.25D;
-    private static final double INTERFACE_PRIMARY_SPEED = 0.145D;
-    private static final double INTERFACE_SECONDARY_SPEED = -0.090D;
+    private static final double INTERFACE_PRIMARY_WAVELENGTH = 5.00D;
+    private static final double INTERFACE_SECONDARY_WAVELENGTH = 3.25D;
+    private static final double INTERFACE_PRIMARY_SPEED = 0.88D;
+    private static final double INTERFACE_SECONDARY_SPEED = -0.50D;
 
     private final FoundryControllerLiquidSmoother smoother =
             new FoundryControllerLiquidSmoother();
