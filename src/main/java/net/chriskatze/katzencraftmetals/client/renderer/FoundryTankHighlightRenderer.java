@@ -27,8 +27,7 @@ import net.neoforged.neoforge.client.event.RenderHighlightEvent;
  */
 @EventBusSubscriber(
         modid = KatzencraftMetalsMod.MODID,
-        value = Dist.CLIENT,
-        bus = EventBusSubscriber.Bus.GAME
+        value = Dist.CLIENT
 )
 public final class FoundryTankHighlightRenderer {
 
