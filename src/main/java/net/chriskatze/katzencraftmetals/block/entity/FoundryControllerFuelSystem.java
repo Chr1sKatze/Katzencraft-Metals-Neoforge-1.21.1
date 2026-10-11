@@ -7,6 +7,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -23,6 +24,9 @@ import java.util.Set;
 final class FoundryControllerFuelSystem {
 
     static final int FUEL_SLOT_COUNT = 4;
+
+    private static final String FUEL_INVENTORY_TAG =
+            "FuelInventory";
 
     /*
      * Kept for compatibility with older callers and saves that still use the
@@ -482,9 +486,25 @@ final class FoundryControllerFuelSystem {
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
+        /*
+         * Preserve the exact fuel-slot index for both disk persistence and
+         * BlockEntity client update tags.
+         *
+         * Using SimpleContainer#createTag()/fromTag() here has the same slot
+         * compaction problem as the Controller input inventory.
+         */
+        CompoundTag fuelInventoryTag =
+                new CompoundTag();
+
+        ContainerHelper.saveAllItems(
+                fuelInventoryTag,
+                inventory.getItems(),
+                registries
+        );
+
         tag.put(
-                "FuelInventory",
-                inventory.createTag(registries)
+                FUEL_INVENTORY_TAG,
+                fuelInventoryTag
         );
 
         tag.putInt(
@@ -502,17 +522,37 @@ final class FoundryControllerFuelSystem {
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
-        inventory.removeAllItems();
+        inventory.clearContent();
 
         if (
                 tag.contains(
-                        "FuelInventory",
+                        FUEL_INVENTORY_TAG,
+                        Tag.TAG_COMPOUND
+                )
+        ) {
+            /*
+             * New slot-preserving format.
+             */
+            ContainerHelper.loadAllItems(
+                    tag.getCompound(
+                            FUEL_INVENTORY_TAG
+                    ),
+                    inventory.getItems(),
+                    registries
+            );
+        } else if (
+                tag.contains(
+                        FUEL_INVENTORY_TAG,
                         Tag.TAG_LIST
                 )
         ) {
+            /*
+             * Compatibility with old Controller saves. The next save upgrades
+             * this legacy list to the slot-preserving format above.
+             */
             inventory.fromTag(
                     tag.getList(
-                            "FuelInventory",
+                            FUEL_INVENTORY_TAG,
                             Tag.TAG_COMPOUND
                     ),
                     registries

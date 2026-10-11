@@ -3,6 +3,7 @@ package net.chriskatze.katzencraftmetals.block.entity;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.world.ContainerHelper;
 
 import java.util.UUID;
 
@@ -45,12 +46,36 @@ final class FoundryControllerPersistence {
                         tag
                 );
 
+        /*
+         * IMPORTANT:
+         *
+         * SimpleContainer#createTag / fromTag are NOT suitable for a machine
+         * inventory where the exact slot index matters. They serialize the
+         * stacks as a compact list and restore them by adding/merging stacks,
+         * which can collapse slot 1 into slot 0, close gaps, etc.
+         *
+         * ContainerHelper stores the slot index for every non-empty stack.
+         * That means the same serialization is safe for:
+         *
+         * - normal chunk/world saves; and
+         * - BlockEntity update tags sent to the client.
+         *
+         * This directly prevents the Foundry menu from visually merging input
+         * slots whenever the Controller sends a client update.
+         */
+        CompoundTag inputInventoryTag =
+                new CompoundTag();
+
+        ContainerHelper.saveAllItems(
+                inputInventoryTag,
+                controller.getInputInventory()
+                        .getItems(),
+                registries
+        );
+
         tag.put(
                 INPUT_INVENTORY_TAG,
-                controller.getInputInventory()
-                        .createTag(
-                                registries
-                        )
+                inputInventoryTag
         );
 
         controller.getFuelSystem()
@@ -100,14 +125,41 @@ final class FoundryControllerPersistence {
                 );
 
         controller.getInputInventory()
-                .removeAllItems();
+                .clearContent();
 
         if (
+                tag.contains(
+                        INPUT_INVENTORY_TAG,
+                        Tag.TAG_COMPOUND
+                )
+        ) {
+            /*
+             * New slot-preserving format.
+             */
+            ContainerHelper.loadAllItems(
+                    tag.getCompound(
+                            INPUT_INVENTORY_TAG
+                    ),
+                    controller.getInputInventory()
+                            .getItems(),
+                    registries
+            );
+        } else if (
                 tag.contains(
                         INPUT_INVENTORY_TAG,
                         Tag.TAG_LIST
                 )
         ) {
+            /*
+             * One-time compatibility with existing worlds.
+             *
+             * Old Controller saves used SimpleContainer#createTag(), which
+             * produced a bare list without explicit slot ownership. There is
+             * no way to reconstruct gaps that were already lost in an old
+             * save, so load it exactly as the old code did once. The next save
+             * immediately upgrades it to the slot-preserving CompoundTag
+             * format above.
+             */
             controller.getInputInventory()
                     .fromTag(
                             tag.getList(
