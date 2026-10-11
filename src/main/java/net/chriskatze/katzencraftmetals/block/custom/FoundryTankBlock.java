@@ -225,11 +225,16 @@ public class FoundryTankBlock extends Block {
         super.onRemove(state, level, pos, newState, movedByPiston);
 
         if (removedTank) {
-            /*
-             * Never resolve the structure, rewrite Tanks, or send Tank states
-             * here. Vanilla remains the sole owner of the actual block removal.
-             */
-            FoundryTankNetwork.handleTankPlaced(level, pos, pos);
+            destroyAttachedFaucets(
+                    level,
+                    pos
+            );
+
+            FoundryTankNetwork.handleTankPlaced(
+                    level,
+                    pos,
+                    pos
+            );
         }
     }
 
@@ -451,6 +456,52 @@ public class FoundryTankBlock extends Block {
         }
 
         return false;
+    }
+
+    private static void destroyAttachedFaucets(
+            Level level,
+            BlockPos tankPos
+    ) {
+        for (Direction direction : Direction.values()) {
+            BlockPos faucetPos =
+                    tankPos.relative(direction);
+
+            BlockState faucetState =
+                    level.getBlockState(faucetPos);
+
+            if (
+                    !(faucetState.getBlock()
+                            instanceof FoundryFaucetBlock)
+                            || !faucetState.hasProperty(
+                            FoundryFaucetBlock.FACING
+                    )
+            ) {
+                continue;
+            }
+
+            Direction faucetFacing =
+                    faucetState.getValue(
+                            FoundryFaucetBlock.FACING
+                    );
+
+            /*
+             * The Faucet must point away from THIS Tank.
+             *
+             * Example:
+             *
+             * [Tank][Faucet]
+             *
+             * If the Faucet is east of the Tank, its FACING must be EAST.
+             */
+            if (faucetFacing != direction) {
+                continue;
+            }
+
+            level.destroyBlock(
+                    faucetPos,
+                    true
+            );
+        }
     }
 
     private static boolean isTank(LevelAccessor level, BlockPos pos) {
