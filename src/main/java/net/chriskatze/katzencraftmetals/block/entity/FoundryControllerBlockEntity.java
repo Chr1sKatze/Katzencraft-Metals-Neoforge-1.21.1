@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
+import net.chriskatze.katzencraftmetals.block.custom.FoundryControllerBlock;
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyRecipe;
@@ -350,15 +351,43 @@ public class FoundryControllerBlockEntity
             controller.discoverCurrentTankMetals();
         }
 
+        boolean ranMeltingTick;
+
         if (controller.alloying.hasActiveJob()) {
+            ranMeltingTick = false;
+
             controller.alloying.tick(
                     level,
                     pos
             );
         } else {
+            ranMeltingTick = true;
+
             controller.processing.tick(
                     level,
                     pos
+            );
+        }
+
+        /*
+         * The visible "on" state means the Foundry actually advanced through
+         * the melting path this tick and that path ended in STATUS_MELTING.
+         *
+         * Keeping ranMeltingTick separate matters when an alloy job finishes:
+         * processing did not run on that tick, so an old STATUS_MELTING value
+         * must not briefly relight the Controller.
+         *
+         * It deliberately does NOT follow remaining fuel burn time. Fuel may
+         * continue burning while the Tank is full, there is no input, or an
+         * alloy job is active; those states keep the Controller visually off.
+         */
+        if (!level.isClientSide()) {
+            controller.updateLitState(
+                    level,
+                    pos,
+                    ranMeltingTick
+                            && controller.processing.getStatusCode()
+                            == FoundryControllerProcessing.STATUS_MELTING
             );
         }
 
@@ -370,6 +399,44 @@ public class FoundryControllerBlockEntity
             FoundryTankIntakeHatch.processOpenHatches(controller);
             controller.discoverCurrentTankMetals();
         }
+    }
+
+    private void updateLitState(
+            Level level,
+            BlockPos pos,
+            boolean shouldBeLit
+    ) {
+        BlockState currentState =
+                level.getBlockState(
+                        pos
+                );
+
+        if (
+                !currentState.hasProperty(
+                        FoundryControllerBlock.LIT
+                )
+                        || currentState.getValue(
+                        FoundryControllerBlock.LIT
+                ) == shouldBeLit
+        ) {
+            return;
+        }
+
+        /*
+         * This is the same block with a different visual state, so the
+         * BlockEntity and its inventories/storage remain untouched.
+         *
+         * UPDATE_CLIENTS is sufficient here: no neighboring block logic depends
+         * on whether the Controller's furnace face is glowing.
+         */
+        level.setBlock(
+                pos,
+                currentState.setValue(
+                        FoundryControllerBlock.LIT,
+                        shouldBeLit
+                ),
+                Block.UPDATE_CLIENTS
+        );
     }
 
     // =========================

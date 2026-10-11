@@ -2,6 +2,7 @@ package net.chriskatze.katzencraftmetals.datagen;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
+import net.chriskatze.katzencraftmetals.block.custom.FoundryControllerBlock;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryTankBlock;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -52,9 +53,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
         blockWithItem(ModBlocks.CRUSHER.get());
         blockWithItem(ModBlocks.FUEL_CHAMBER.get());
 
-        ModelFile controllerModel = cubeAll(ModBlocks.FOUNDRY_CONTROLLER.get());
-        horizontalBlock(ModBlocks.FOUNDRY_CONTROLLER.get(), controllerModel);
-        simpleBlockItem(ModBlocks.FOUNDRY_CONTROLLER.get(), controllerModel);
+        foundryControllerBlock();
 
         foundryTankBlock();
 
@@ -68,6 +67,83 @@ public class ModBlockStateProvider extends BlockStateProvider {
         ModelFile faucetModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_faucet"));
         horizontalBlock(ModBlocks.FOUNDRY_FAUCET.get(), faucetModel);
         simpleBlockItem(ModBlocks.FOUNDRY_FAUCET.get(), faucetModel);
+    }
+
+
+    private void foundryControllerBlock() {
+        Block controller =
+                ModBlocks.FOUNDRY_CONTROLLER.get();
+
+        ModelFile controllerOff =
+                models().withExistingParent(
+                                "foundry_controller",
+                                mcLoc("block/orientable")
+                        )
+                        .texture(
+                                "front",
+                                mcLoc("block/blast_furnace_front")
+                        )
+                        .texture(
+                                "side",
+                                mcLoc("block/blast_furnace_side")
+                        )
+                        .texture(
+                                "top",
+                                mcLoc("block/blast_furnace_top")
+                        );
+
+        ModelFile controllerOn =
+                models().withExistingParent(
+                                "foundry_controller_on",
+                                mcLoc("block/orientable")
+                        )
+                        .texture(
+                                "front",
+                                mcLoc("block/blast_furnace_front_on")
+                        )
+                        .texture(
+                                "side",
+                                mcLoc("block/blast_furnace_side")
+                        )
+                        .texture(
+                                "top",
+                                mcLoc("block/blast_furnace_top")
+                        );
+
+        getVariantBuilder(controller)
+                .forAllStates(state -> {
+                    Direction facing =
+                            state.getValue(
+                                    FoundryControllerBlock.FACING
+                            );
+
+                    boolean lit =
+                            state.getValue(
+                                    FoundryControllerBlock.LIT
+                            );
+
+                    int rotationY =
+                            switch (facing) {
+                                case EAST -> 90;
+                                case SOUTH -> 180;
+                                case WEST -> 270;
+                                default -> 0;
+                            };
+
+                    return ConfiguredModel.builder()
+                            .modelFile(
+                                    lit
+                                            ? controllerOn
+                                            : controllerOff
+                            )
+                            .rotationY(rotationY)
+                            .build();
+                });
+
+        simpleBlockItem(
+                controller,
+                controllerOff
+        );
     }
 
 

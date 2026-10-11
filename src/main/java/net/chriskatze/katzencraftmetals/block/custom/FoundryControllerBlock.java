@@ -21,6 +21,7 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import org.jetbrains.annotations.Nullable;
@@ -35,6 +36,15 @@ public class FoundryControllerBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING =
             BlockStateProperties.HORIZONTAL_FACING;
 
+    /*
+     * Mirrors vanilla furnace-style blocks.
+     *
+     * LIT describes active Foundry melting, not merely stored/burning fuel.
+     * The BlockEntity updates it after processing each server tick.
+     */
+    public static final BooleanProperty LIT =
+            BlockStateProperties.LIT;
+
     public FoundryControllerBlock(
             Properties properties
     ) {
@@ -47,6 +57,10 @@ public class FoundryControllerBlock extends BaseEntityBlock {
                         .setValue(
                                 FACING,
                                 Direction.NORTH
+                        )
+                        .setValue(
+                                LIT,
+                                false
                         )
         );
     }
@@ -216,6 +230,10 @@ public class FoundryControllerBlock extends BaseEntityBlock {
                         FACING,
                         context.getHorizontalDirection()
                                 .getOpposite()
+                )
+                .setValue(
+                        LIT,
+                        false
                 );
     }
 
@@ -227,7 +245,8 @@ public class FoundryControllerBlock extends BaseEntityBlock {
                     > builder
     ) {
         builder.add(
-                FACING
+                FACING,
+                LIT
         );
     }
 }
