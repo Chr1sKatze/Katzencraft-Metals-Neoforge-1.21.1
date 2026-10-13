@@ -12,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.Level;
+import net.chriskatze.katzencraftmetals.sound.ModSounds;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -66,6 +67,10 @@ public class KatzencraftMetalsMod {
 
         NeoForge.EVENT_BUS.register(
                 this
+        );
+
+        ModSounds.register(
+                modEventBus
         );
 
         modContainer.registerConfig(

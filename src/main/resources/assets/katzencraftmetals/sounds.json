@@ -1,0 +1,16 @@
+{
+  "foundry_smelting_start": {
+    "sounds": [
+      {
+        "name": "katzencraftmetals:foundry/foundry_smelting_start"
+      }
+    ]
+  },
+  "foundry_smelting_loop": {
+    "sounds": [
+      {
+        "name": "katzencraftmetals:foundry/foundry_smelting_loop"
+      }
+    ]
+  }
+}
