@@ -18,20 +18,23 @@ public final class ModSounds {
 
     public static final DeferredHolder<SoundEvent, SoundEvent>
             FOUNDRY_SMELTING_START =
-            register(
-                    "foundry_smelting_start"
+            registerFixedRange(
+                    "foundry_smelting_start",
+                    6.0F
             );
 
     public static final DeferredHolder<SoundEvent, SoundEvent>
             FOUNDRY_SMELTING_LOOP =
-            register(
-                    "foundry_smelting_loop"
+            registerFixedRange(
+                    "foundry_smelting_loop",
+                    6.0F
             );
 
     private ModSounds() {
     }
 
-    private static DeferredHolder<SoundEvent, SoundEvent> register(
+    private static DeferredHolder<SoundEvent, SoundEvent>
+    registerVariableRange(
             String name
     ) {
         ResourceLocation id =
@@ -44,6 +47,26 @@ public final class ModSounds {
                 name,
                 () -> SoundEvent.createVariableRangeEvent(
                         id
+                )
+        );
+    }
+
+    private static DeferredHolder<SoundEvent, SoundEvent>
+    registerFixedRange(
+            String name,
+            float range
+    ) {
+        ResourceLocation id =
+                ResourceLocation.fromNamespaceAndPath(
+                        KatzencraftMetalsMod.MODID,
+                        name
+                );
+
+        return SOUND_EVENTS.register(
+                name,
+                () -> SoundEvent.createFixedRangeEvent(
+                        id,
+                        range
                 )
         );
     }
