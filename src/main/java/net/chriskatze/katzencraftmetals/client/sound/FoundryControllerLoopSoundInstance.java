@@ -67,11 +67,6 @@ final class FoundryControllerLoopSoundInstance
     }
 
     @Override
-    public boolean canPlaySound() {
-        return isStillMelting();
-    }
-
-    @Override
     public void tick() {
         if (isStillMelting()) {
             volume =

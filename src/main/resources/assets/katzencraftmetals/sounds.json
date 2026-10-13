@@ -9,7 +9,8 @@
   "foundry_smelting_loop": {
     "sounds": [
       {
-        "name": "katzencraftmetals:foundry/foundry_smelting_loop"
+        "name": "katzencraftmetals:foundry/foundry_smelting_loop",
+        "stream": true
       }
     ]
   }
