@@ -354,15 +354,11 @@ public class FoundryControllerBlockEntity
         boolean ranMeltingTick;
 
         if (controller.alloying.hasActiveJob()) {
-            ranMeltingTick = false;
-
             controller.alloying.tick(
                     level,
                     pos
             );
         } else {
-            ranMeltingTick = true;
-
             controller.processing.tick(
                     level,
                     pos
@@ -370,24 +366,17 @@ public class FoundryControllerBlockEntity
         }
 
         /*
-         * The visible "on" state means the Foundry actually advanced through
-         * the melting path this tick and that path ended in STATUS_MELTING.
+         * The visible "on" state follows the active fuel burn cycle.
          *
-         * Keeping ranMeltingTick separate matters when an alloy job finishes:
-         * processing did not run on that tick, so an old STATUS_MELTING value
-         * must not briefly relight the Controller.
-         *
-         * It deliberately does NOT follow remaining fuel burn time. Fuel may
-         * continue burning while the Tank is full, there is no input, or an
-         * alloy job is active; those states keep the Controller visually off.
+         * Once fuel has been ignited for a valid Foundry operation, the Controller
+         * remains lit until that burn time is exhausted, even if no item is currently
+         * melting.
          */
         if (!level.isClientSide()) {
             controller.updateLitState(
                     level,
                     pos,
-                    ranMeltingTick
-                            && controller.processing.getStatusCode()
-                            == FoundryControllerProcessing.STATUS_MELTING
+                    controller.isBurning()
             );
         }
 
