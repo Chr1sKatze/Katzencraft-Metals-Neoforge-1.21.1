@@ -101,6 +101,11 @@ final class FoundryTankRenderConstants {
     static final float LIQUID_MAX_INSET =
             15.80f / 16.0f;
 
+    // Exposed X/Z faces meet the glass panel's inner plane (0.12 / 15.88).
+    // Keep vertical fill interpolation and its headroom independent of wall depth.
+    static final float LIQUID_SIDE_INSET = 0.12f / 16.0f;
+    static final float LIQUID_SIDE_MAX = 15.88f / 16.0f;
+
     static final float LIQUID_EPSILON =
             0.0001f;
 
@@ -120,7 +125,7 @@ final class FoundryTankRenderConstants {
     static final int HOT_SPOT_MIN_TARGET_COUNT = 2;
     static final int HOT_SPOT_MAX_TARGET_COUNT = 6;
     static final float HOT_SPOT_MIN_SIZE = 4.75f * PIXEL;
-    static final float HOT_SPOT_MAX_SIZE = 16.0f * PIXEL;
+    static final float HOT_SPOT_MAX_SIZE = 32.0f * PIXEL;
     static final float HOT_SPOT_MARGIN = 5.25f * PIXEL;
     static final float HOT_SPOT_Y_OFFSET = 0.0030f;
     static final float HOT_SPOT_MAX_ALPHA = 0.90f;

@@ -7,6 +7,7 @@ import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.renderer.LightTexture;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
@@ -24,6 +25,8 @@ import java.util.TreeMap;
 
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_EPSILON;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_INSET;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_SIDE_INSET;
+import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_SIDE_MAX;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_MAX_INSET;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.PIXEL;
 
@@ -140,6 +143,7 @@ final class FoundryControllerTankLiquidRenderer {
                         controllerPos.asLong()
                 );
 
+        List<FoundryTankJunctionMaterial.Face> junctionFrames = new ArrayList<>();
         for (BlockPos tankPos : structure) {
             List<FoundryTankRenderedMetalLayer> localLayers =
                     renderedLayers.getOrDefault(tankPos, List.of());
@@ -150,16 +154,16 @@ final class FoundryControllerTankLiquidRenderer {
 
             float minX = structure.contains(tankPos.west())
                     ? 0.0f
-                    : LIQUID_INSET;
+                    : LIQUID_SIDE_INSET;
             float maxX = structure.contains(tankPos.east())
                     ? 1.0f
-                    : LIQUID_MAX_INSET;
+                    : LIQUID_SIDE_MAX;
             float minZ = structure.contains(tankPos.north())
                     ? 0.0f
-                    : LIQUID_INSET;
+                    : LIQUID_SIDE_INSET;
             float maxZ = structure.contains(tankPos.south())
                     ? 1.0f
-                    : LIQUID_MAX_INSET;
+                    : LIQUID_SIDE_MAX;
 
             poseStack.pushPose();
             poseStack.translate(
@@ -195,6 +199,9 @@ final class FoundryControllerTankLiquidRenderer {
                                 renderedLayer.renderTop(),
                                 renderedLayer.renderBottom()
                         );
+
+                VertexConsumer junctionConsumer = FoundryTankJunctionMaterial.wrap(consumer, junctionFrames,
+                        () -> LevelRenderer.getLightColor(level, tankPos), tankPos, renderedLayer, renderedLayers);
 
                 /*
                  * Do not render the old perfectly flat horizontal face when a
@@ -233,26 +240,8 @@ final class FoundryControllerTankLiquidRenderer {
                     );
                 }
 
-                /*
-                 * Only the true bottom of the complete liquid volume is emitted
-                 * here. Internal metal-to-metal boundaries are closed later by
-                 * renderMetalInterfaceSeam() with matching wavy UP/DOWN meshes.
-                 */
-                if (renderedLayer.renderBottom()) {
-                    FoundryTankLiquidQuads.renderLiquidHorizontalFace(
-                            Direction.DOWN,
-                            consumer,
-                            pose,
-                            minX,
-                            maxX,
-                            renderedLayer.minY(),
-                            minZ,
-                            maxZ,
-                            packedOverlay,
-                            animationFrame.minV(),
-                            animationFrame.maxV()
-                    );
-                }
+                renderLayerBottom(tankPos, renderedLayer, geometry, renderedLayers,
+                        junctionConsumer, pose, packedOverlay, animationFrame.minV(), animationFrame.maxV());
 
                 for (Direction side : Direction.Plane.HORIZONTAL) {
                     renderLayerSide(
@@ -261,7 +250,7 @@ final class FoundryControllerTankLiquidRenderer {
                             renderedLayer,
                             geometry,
                             renderedLayers,
-                            consumer,
+                            junctionConsumer,
                             pose,
                             packedOverlay,
                             animationFrame.minV(),
@@ -269,27 +258,7 @@ final class FoundryControllerTankLiquidRenderer {
                     );
                 }
 
-                boolean isExposedTopSurface =
-                        renderedLayer == localLayers.getLast()
-                                && allLayersEmpty(
-                                renderedLayers.get(tankPos.above())
-                        );
 
-                if (renderedLayer.renderTop() && isExposedTopSurface) {
-                    surfaceEffects.renderAndSpawn(
-                            controller,
-                            tankPos,
-                            structure,
-                            definition,
-                            geometry,
-                            partialTick,
-                            pose,
-                            bufferSource,
-                            packedOverlay,
-                            animationFrame.minV(),
-                            animationFrame.maxV()
-                    );
-                }
             }
 
             /*
@@ -316,6 +285,42 @@ final class FoundryControllerTankLiquidRenderer {
                     animationFrame.maxV()
             );
 
+            poseStack.popPose();
+        }
+        // Hotspots can span neighboring cells. Complete their liquid backing
+        // before submitting any surface effects, without extra world queries.
+        // Submit replacement material after liquid buffers are finished, avoiding
+        // stale consumers and duplicate coplanar liquid/frame submissions.
+        for (boolean bottom : new boolean[]{false, true}) {
+            if (junctionFrames.stream().noneMatch(face -> face.bottom() == bottom)) continue;
+            ResourceLocation texture = bottom ? FoundryTankRenderConstants.TOP_TEXTURE
+                    : ResourceLocation.fromNamespaceAndPath("katzencraftmetals", "textures/block/foundry_tank_frame.png");
+            VertexConsumer frameConsumer = bufferSource.getBuffer(RenderType.entityCutout(texture));
+            for (FoundryTankJunctionMaterial.Face face : junctionFrames) {
+                if (face.bottom() == bottom) FoundryTankJunctionMaterial.emitFrame(frameConsumer, face);
+            }
+        }
+
+        for (BlockPos tankPos : structure) {
+            List<FoundryTankRenderedMetalLayer> layers = renderedLayers.getOrDefault(tankPos, List.of());
+            if (layers.isEmpty() || !allLayersEmpty(renderedLayers.get(tankPos.above()))) continue;
+            FoundryTankRenderedMetalLayer layer = layers.getLast();
+            if (!layer.renderTop()) continue;
+            MoltenMetalDefinition definition = ModMoltenMetals.get(layer.metal()).orElse(null);
+            if (definition == null) continue;
+            FoundryTankLiquidGeometry geometry = new FoundryTankLiquidGeometry(
+                    structure.contains(tankPos.west()) ? 0 : LIQUID_SIDE_INSET,
+                    structure.contains(tankPos.east()) ? 1 : LIQUID_SIDE_MAX,
+                    layer.minY(), layer.maxY(),
+                    structure.contains(tankPos.north()) ? 0 : LIQUID_SIDE_INSET,
+                    structure.contains(tankPos.south()) ? 1 : LIQUID_SIDE_MAX,
+                    true, layer.renderBottom());
+            poseStack.pushPose();
+            poseStack.translate(tankPos.getX() - controllerPos.getX(), tankPos.getY() - controllerPos.getY(),
+                    tankPos.getZ() - controllerPos.getZ());
+            surfaceEffects.renderAndSpawn(controller, tankPos, structure, definition, geometry, renderedLayers,
+                    partialTick, poseStack.last(), bufferSource, packedOverlay,
+                    animationFrame.minV(), animationFrame.maxV());
             poseStack.popPose();
         }
     }
@@ -472,6 +477,49 @@ final class FoundryControllerTankLiquidRenderer {
         return List.copyOf(result);
     }
 
+    /** Retain exposed underside margins where the lower cell covers only part of the footprint. */
+    private static void renderLayerBottom(
+            BlockPos tankPos, FoundryTankRenderedMetalLayer layer, FoundryTankLiquidGeometry geometry,
+            Map<BlockPos, List<FoundryTankRenderedMetalLayer>> allLayers,
+            VertexConsumer consumer, PoseStack.Pose pose, int overlay, float minV, float maxV
+    ) {
+        if (layer.renderBottom()) {
+            bottomRect(consumer, pose, geometry.minX(), geometry.maxX(), layer.minY(),
+                    geometry.minZ(), geometry.maxZ(), overlay, minV, maxV);
+            return;
+        }
+        // Higher local layers are enclosed metal-to-metal interfaces, not vessel bottoms.
+        if (layer.minY() > LIQUID_EPSILON) return;
+        BlockPos below = tankPos.below();
+        List<FoundryTankRenderedMetalLayer> belowLayers = allLayers.getOrDefault(below, List.of());
+        if (belowLayers.isEmpty() || belowLayers.getLast().maxY() < 1.0f - LIQUID_EPSILON) {
+            bottomRect(consumer, pose, geometry.minX(), geometry.maxX(), layer.minY(),
+                    geometry.minZ(), geometry.maxZ(), overlay, minV, maxV);
+            return;
+        }
+        float coveredMinX = Math.max(geometry.minX(), allLayers.containsKey(below.west()) ? 0 : LIQUID_SIDE_INSET);
+        float coveredMaxX = Math.min(geometry.maxX(), allLayers.containsKey(below.east()) ? 1 : LIQUID_SIDE_MAX);
+        float coveredMinZ = Math.max(geometry.minZ(), allLayers.containsKey(below.north()) ? 0 : LIQUID_SIDE_INSET);
+        float coveredMaxZ = Math.min(geometry.maxZ(), allLayers.containsKey(below.south()) ? 1 : LIQUID_SIDE_MAX);
+        // Four disjoint rectangles, so corner pixels have one coverage only.
+        bottomRect(consumer, pose, geometry.minX(), coveredMinX, layer.minY(),
+                geometry.minZ(), geometry.maxZ(), overlay, minV, maxV);
+        bottomRect(consumer, pose, coveredMaxX, geometry.maxX(), layer.minY(),
+                geometry.minZ(), geometry.maxZ(), overlay, minV, maxV);
+        bottomRect(consumer, pose, coveredMinX, coveredMaxX, layer.minY(),
+                geometry.minZ(), coveredMinZ, overlay, minV, maxV);
+        bottomRect(consumer, pose, coveredMinX, coveredMaxX, layer.minY(),
+                coveredMaxZ, geometry.maxZ(), overlay, minV, maxV);
+    }
+
+    private static void bottomRect(VertexConsumer consumer, PoseStack.Pose pose,
+                                   float minX, float maxX, float y, float minZ, float maxZ,
+                                   int overlay, float minV, float maxV) {
+        if (maxX <= minX || maxZ <= minZ) return;
+        FoundryTankLiquidQuads.renderLiquidHorizontalFace(Direction.DOWN, consumer, pose,
+                minX, maxX, y, minZ, maxZ, overlay, minV, maxV);
+    }
+
     private static void renderLayerSide(
             BlockPos tankPos,
             Direction side,
@@ -539,10 +587,37 @@ final class FoundryControllerTankLiquidRenderer {
         }
 
         /*
-         * Connected/internal side handling stays exactly as before. The shader
-         * interface is only rendered on the outside of the vessel, so carving
-         * shared Tank faces here would create holes.
+         * A neighbor can cover only part of this side horizontally: at an L
+         * corner its perpendicular exterior wall is inset. Culling the whole
+         * width by Y alone removes the narrow exposed return at the corner.
+         * Keep those returns, then subtract Y coverage only in the overlap.
          */
+        boolean alongX = side == Direction.NORTH || side == Direction.SOUTH;
+        float localMin = alongX ? geometry.minX() : geometry.minZ();
+        float localMax = alongX ? geometry.maxX() : geometry.maxZ();
+        float neighborMin = allLayers.containsKey(neighborPos.relative(alongX ? Direction.WEST : Direction.NORTH))
+                ? 0.0f : LIQUID_SIDE_INSET;
+        float neighborMax = allLayers.containsKey(neighborPos.relative(alongX ? Direction.EAST : Direction.SOUTH))
+                ? 1.0f : LIQUID_SIDE_MAX;
+        if (neighborLayers.isEmpty()) {
+            FoundryTankLiquidQuads.renderLiquidSideSegment(side, consumer, pose, geometry,
+                    renderedLayer.minY(), renderedLayer.maxY(), true, packedOverlay, frameMinV, frameMaxV);
+            return;
+        }
+        float overlapMin = Math.max(localMin, neighborMin);
+        float overlapMax = Math.min(localMax, neighborMax);
+        if (localMin < overlapMin) {
+            FoundryTankLiquidQuads.renderLiquidSideSegment(side, consumer, pose,
+                    sideWidth(geometry, alongX, localMin, overlapMin),
+                    renderedLayer.minY(), renderedLayer.maxY(), true, packedOverlay, frameMinV, frameMaxV);
+        }
+        if (overlapMax < localMax) {
+            FoundryTankLiquidQuads.renderLiquidSideSegment(side, consumer, pose,
+                    sideWidth(geometry, alongX, overlapMax, localMax),
+                    renderedLayer.minY(), renderedLayer.maxY(), true, packedOverlay, frameMinV, frameMaxV);
+        }
+        FoundryTankLiquidGeometry overlap = localMin == overlapMin && localMax == overlapMax
+                ? geometry : sideWidth(geometry, alongX, overlapMin, overlapMax);
         List<FoundryTankVerticalInterval> visible = new ArrayList<>();
         visible.add(
                 new FoundryTankVerticalInterval(
@@ -570,7 +645,7 @@ final class FoundryControllerTankLiquidRenderer {
                     side,
                     consumer,
                     pose,
-                    geometry,
+                    overlap,
                     interval.minY(),
                     interval.maxY(),
                     true,
@@ -579,6 +654,16 @@ final class FoundryControllerTankLiquidRenderer {
                     frameMaxV
             );
         }
+    }
+
+    private static FoundryTankLiquidGeometry sideWidth(
+            FoundryTankLiquidGeometry geometry, boolean alongX, float min, float max
+    ) {
+        return new FoundryTankLiquidGeometry(
+                alongX ? min : geometry.minX(), alongX ? max : geometry.maxX(),
+                geometry.minY(), geometry.surfaceY(),
+                alongX ? geometry.minZ() : min, alongX ? geometry.maxZ() : max,
+                geometry.renderTop(), geometry.renderBottom());
     }
 
     /**
@@ -607,14 +692,8 @@ final class FoundryControllerTankLiquidRenderer {
             float frameMinV,
             float frameMaxV
     ) {
-        /*
-         * Do not early-out when this Tank is surrounded horizontally.
-         *
-         * The old interface system only drew side ribbons, so an interior Tank
-         * had nothing to render. The interface now also contains horizontal
-         * closure meshes, which must exist in every Tank cell so the complete
-         * liquid stack is closed when viewed from above or below.
-         */
+        // Interfaces contribute only exterior side ribbons. The complete
+        // liquid volume owns its exposed horizontal top and bottom faces.
         for (int index = 0; index + 1 < localLayers.size(); index++) {
             FoundryTankRenderedMetalLayer lower = localLayers.get(index);
             FoundryTankRenderedMetalLayer upper = localLayers.get(index + 1);
@@ -735,86 +814,10 @@ final class FoundryControllerTankLiquidRenderer {
                         upperLayer.metal()
                 );
 
-        /*
-         * Close the metal-to-metal boundary from BOTH viewing directions.
-         *
-         * IMPORTANT BUFFERING RULE:
-         *
-         * MultiBufferSource may finish the currently active BufferBuilder when
-         * another RenderType is requested. Never keep a VertexConsumer from one
-         * molten-metal RenderType, request another RenderType, and then return
-         * to the old consumer. That stale consumer throws "Not building!".
-         *
-         * Therefore every interface pass is deliberately:
-         *
-         *   getBuffer(...) -> emit ALL vertices for that pass -> move on
-         *
-         * The lower metal receives an UP-facing wavy mesh and the upper metal
-         * receives the exact same geometry with opposite winding as a
-         * DOWN-facing mesh.
-         */
-        float horizontalWaveAmplitude =
-                metrics.active()
-                        ? metrics.waveAmplitude()
-                        : 0.0f;
-
-        VertexConsumer lowerHorizontalConsumer =
-                bufferSource.getBuffer(
-                        RenderType.entityTranslucentCull(
-                                lowerDefinition.animatedTexture()
-                        )
-                );
-
-        renderInterfaceHorizontalSurface(
-                Direction.UP,
-                lowerHorizontalConsumer,
-                pose,
-                tankPos,
-                minX,
-                maxX,
-                minZ,
-                maxZ,
-                boundaryY,
-                horizontalWaveAmplitude,
-                interfaceSeed,
-                gameTime,
-                partialTick,
-                packedOverlay,
-                frameMinV,
-                frameMaxV
-        );
-
-        VertexConsumer upperHorizontalConsumer =
-                bufferSource.getBuffer(
-                        RenderType.entityTranslucentCull(
-                                upperDefinition.animatedTexture()
-                        )
-                );
-
-        renderInterfaceHorizontalSurface(
-                Direction.DOWN,
-                upperHorizontalConsumer,
-                pose,
-                tankPos,
-                minX,
-                maxX,
-                minZ,
-                maxZ,
-                boundaryY,
-                horizontalWaveAmplitude,
-                interfaceSeed,
-                gameTime,
-                partialTick,
-                packedOverlay,
-                frameMinV,
-                frameMaxV
-        );
-
-        /*
-         * Extremely thin interfaces may deliberately disable the animated side
-         * treatment. Their horizontal closure still exists above as a flat,
-         * correctly culled pair of faces.
-         */
+        // A metal-to-metal contact is inside the pooled volume, not an
+        // exposed surface. Emit only its exterior side treatment below;
+        // horizontal UP/DOWN closures would expose submerged sheets to a
+        // camera inside the tank. Keep exposed top texture animation separate.
         if (!metrics.active()) {
             return;
         }
@@ -860,9 +863,8 @@ final class FoundryControllerTankLiquidRenderer {
          * Shader unavailable: fall back to the clean one-sided wavy correction
          * that was already proven visually stable.
          *
-         * Re-acquire the lower consumer here instead of reusing the horizontal
-         * pass consumer, because later getBuffer() calls may already have ended
-         * that BufferBuilder.
+         * Finish each material pass before requesting the next buffer: a
+         * getBuffer() switch may finish the current BufferBuilder.
          */
         VertexConsumer lowerConsumer =
                 bufferSource.getBuffer(
@@ -932,165 +934,6 @@ final class FoundryControllerTankLiquidRenderer {
                     frameMinV,
                     frameMaxV
             );
-        }
-    }
-
-    /**
-     * Builds one horizontal side of the internal material boundary.
-     *
-     * The mesh is subdivided with the same resolution as the side wave. Every
-     * vertex samples sampleInterfaceWave() in world space, which gives:
-     *
-     * - seamless continuation across neighboring Tank cells;
-     * - an outer perimeter that lands on the exact same wave used by the side
-     *   shader/correction;
-     * - no flat internal edge that can show through the glass.
-     *
-     * UP and DOWN are emitted with opposite winding but the same diagonal for
-     * every quad. Their triangles therefore occupy identical geometry while
-     * culling makes the appropriate metal visible from each viewing direction.
-     */
-    private static void renderInterfaceHorizontalSurface(
-            Direction face,
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            BlockPos tankPos,
-            float minX,
-            float maxX,
-            float minZ,
-            float maxZ,
-            float boundaryY,
-            float waveAmplitude,
-            long interfaceSeed,
-            long gameTime,
-            float partialTick,
-            int packedOverlay,
-            float frameMinV,
-            float frameMaxV
-    ) {
-        if (face != Direction.UP && face != Direction.DOWN) {
-            throw new IllegalArgumentException(
-                    "Interface horizontal face must be UP or DOWN."
-            );
-        }
-
-        for (int xIndex = 0; xIndex < INTERFACE_SEGMENTS_PER_BLOCK; xIndex++) {
-            float x0 =
-                    Mth.lerp(
-                            xIndex / (float) INTERFACE_SEGMENTS_PER_BLOCK,
-                            minX,
-                            maxX
-                    );
-
-            float x1 =
-                    Mth.lerp(
-                            (xIndex + 1) / (float) INTERFACE_SEGMENTS_PER_BLOCK,
-                            minX,
-                            maxX
-                    );
-
-            for (int zIndex = 0; zIndex < INTERFACE_SEGMENTS_PER_BLOCK; zIndex++) {
-                float z0 =
-                        Mth.lerp(
-                                zIndex / (float) INTERFACE_SEGMENTS_PER_BLOCK,
-                                minZ,
-                                maxZ
-                        );
-
-                float z1 =
-                        Mth.lerp(
-                                (zIndex + 1) / (float) INTERFACE_SEGMENTS_PER_BLOCK,
-                                minZ,
-                                maxZ
-                        );
-
-                float y00 =
-                        boundaryY
-                                + sampleInterfaceWave(
-                                tankPos.getX() + x0,
-                                tankPos.getZ() + z0,
-                                interfaceSeed,
-                                gameTime,
-                                partialTick,
-                                waveAmplitude
-                        );
-
-                float y01 =
-                        boundaryY
-                                + sampleInterfaceWave(
-                                tankPos.getX() + x0,
-                                tankPos.getZ() + z1,
-                                interfaceSeed,
-                                gameTime,
-                                partialTick,
-                                waveAmplitude
-                        );
-
-                float y11 =
-                        boundaryY
-                                + sampleInterfaceWave(
-                                tankPos.getX() + x1,
-                                tankPos.getZ() + z1,
-                                interfaceSeed,
-                                gameTime,
-                                partialTick,
-                                waveAmplitude
-                        );
-
-                float y10 =
-                        boundaryY
-                                + sampleInterfaceWave(
-                                tankPos.getX() + x1,
-                                tankPos.getZ() + z0,
-                                interfaceSeed,
-                                gameTime,
-                                partialTick,
-                                waveAmplitude
-                        );
-
-                if (face == Direction.UP) {
-                    /*
-                     * 00 -> 01 -> 11 -> 10 winds toward +Y.
-                     */
-                    FoundryTankLiquidQuads.renderLiquidQuad(
-                            consumer,
-                            pose,
-                            x0, y00, z0,
-                            x0, y01, z1,
-                            x1, y11, z1,
-                            x1, y10, z0,
-                            x0, z0,
-                            x0, z1,
-                            x1, z1,
-                            x1, z0,
-                            0.0f, 1.0f, 0.0f,
-                            packedOverlay,
-                            frameMinV,
-                            frameMaxV
-                    );
-                } else {
-                    /*
-                     * 00 -> 10 -> 11 -> 01 winds toward -Y and preserves the
-                     * same 00-to-11 triangle diagonal as the UP face.
-                     */
-                    FoundryTankLiquidQuads.renderLiquidQuad(
-                            consumer,
-                            pose,
-                            x0, y00, z0,
-                            x1, y10, z0,
-                            x1, y11, z1,
-                            x0, y01, z1,
-                            x0, z0,
-                            x1, z0,
-                            x1, z1,
-                            x0, z1,
-                            0.0f, -1.0f, 0.0f,
-                            packedOverlay,
-                            frameMinV,
-                            frameMaxV
-                    );
-                }
-            }
         }
     }
 

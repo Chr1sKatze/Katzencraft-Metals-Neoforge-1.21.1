@@ -804,21 +804,21 @@ public class ModBlockStateProvider extends BlockStateProvider {
      * and selects them only when diagonal topology requires a frame that the
      * six direct-neighbor BlockState properties cannot describe.
      *
-     * Correction planes sit 0.02 model units (~0.00125 block) outward from the
-     * baked Tank plane. That prevents z-fighting at a junction where one edge
-     * is static and the diagonal-aware edge is dynamic-model geometry.
+     * Correction planes match the baked frame planes exactly. The connected
+     * model trims coplanar intersections instead of separating adjoining
+     * surfaces with an outward epsilon.
      */
     private void generateFoundryTankConnectedCorrectionModels() {
-        final float O = 0.02f;
+        final float O = 0.0f;
 
         // -------------------------
         // Vertical side-face edges
         // -------------------------
         correctionSideModel("foundry_tank_correction_side_north_top",
-                Direction.NORTH, 0.0f, 15.0f, -O, 16.0f, 16.0f, 0.08f,
+                Direction.NORTH, 0.0f, 15.0f, -O, 16.0f, 16.0f, 0.1f,
                 0.0f, 0.0f, 16.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_side_north_bottom",
-                Direction.NORTH, 0.0f, 0.0f, -O, 16.0f, 1.0f, 0.08f,
+                Direction.NORTH, 0.0f, 0.0f, -O, 16.0f, 1.0f, 0.1f,
                 0.0f, 15.0f, 16.0f, 16.0f);
         correctionMarkerRailModel(
                 "foundry_tank_correction_side_north_west",
@@ -834,10 +834,10 @@ public class ModBlockStateProvider extends BlockStateProvider {
         );
 
         correctionSideModel("foundry_tank_correction_side_south_top",
-                Direction.SOUTH, 0.0f, 15.0f, 15.92f, 16.0f, 16.0f, 16.0f + O,
+                Direction.SOUTH, 0.0f, 15.0f, 15.9f, 16.0f, 16.0f, 16.0f + O,
                 0.0f, 0.0f, 16.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_side_south_bottom",
-                Direction.SOUTH, 0.0f, 0.0f, 15.92f, 16.0f, 1.0f, 16.0f + O,
+                Direction.SOUTH, 0.0f, 0.0f, 15.9f, 16.0f, 1.0f, 16.0f + O,
                 0.0f, 15.0f, 16.0f, 16.0f);
         /*
          * SOUTH local-left is EAST and local-right is WEST.
@@ -856,10 +856,10 @@ public class ModBlockStateProvider extends BlockStateProvider {
         );
 
         correctionSideModel("foundry_tank_correction_side_west_top",
-                Direction.WEST, -O, 15.0f, 0.0f, 0.08f, 16.0f, 16.0f,
+                Direction.WEST, -O, 15.0f, 0.0f, 0.1f, 16.0f, 16.0f,
                 0.0f, 0.0f, 16.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_side_west_bottom",
-                Direction.WEST, -O, 0.0f, 0.0f, 0.08f, 1.0f, 16.0f,
+                Direction.WEST, -O, 0.0f, 0.0f, 0.1f, 1.0f, 16.0f,
                 0.0f, 15.0f, 16.0f, 16.0f);
         /*
          * WEST local-left is SOUTH and local-right is NORTH.
@@ -878,10 +878,10 @@ public class ModBlockStateProvider extends BlockStateProvider {
         );
 
         correctionSideModel("foundry_tank_correction_side_east_top",
-                Direction.EAST, 15.92f, 15.0f, 0.0f, 16.0f + O, 16.0f, 16.0f,
+                Direction.EAST, 15.9f, 15.0f, 0.0f, 16.0f + O, 16.0f, 16.0f,
                 0.0f, 0.0f, 16.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_side_east_bottom",
-                Direction.EAST, 15.92f, 0.0f, 0.0f, 16.0f + O, 1.0f, 16.0f,
+                Direction.EAST, 15.9f, 0.0f, 0.0f, 16.0f + O, 1.0f, 16.0f,
                 0.0f, 15.0f, 16.0f, 16.0f);
         /*
          * EAST local-left is NORTH and local-right is SOUTH.
@@ -903,29 +903,29 @@ public class ModBlockStateProvider extends BlockStateProvider {
         // UP / DOWN perimeter edges
         // -------------------------
         correctionTopModel("foundry_tank_correction_up_north",
-                Direction.UP, 0.0f, 15.92f, 0.0f, 16.0f, 16.0f + O, 1.0f,
+                Direction.UP, 0.0f, 15.9f, 0.0f, 16.0f, 16.0f + O, 1.0f,
                 0.0f, 0.0f, 16.0f, 1.0f);
         correctionTopModel("foundry_tank_correction_up_south",
-                Direction.UP, 0.0f, 15.92f, 15.0f, 16.0f, 16.0f + O, 16.0f,
+                Direction.UP, 0.0f, 15.9f, 15.0f, 16.0f, 16.0f + O, 16.0f,
                 0.0f, 15.0f, 16.0f, 16.0f);
         correctionTopModel("foundry_tank_correction_up_west",
-                Direction.UP, 0.0f, 15.92f, 0.0f, 1.0f, 16.0f + O, 16.0f,
+                Direction.UP, 0.0f, 15.9f, 0.0f, 1.0f, 16.0f + O, 16.0f,
                 0.0f, 0.0f, 1.0f, 16.0f);
         correctionTopModel("foundry_tank_correction_up_east",
-                Direction.UP, 15.0f, 15.92f, 0.0f, 16.0f, 16.0f + O, 16.0f,
+                Direction.UP, 15.0f, 15.9f, 0.0f, 16.0f, 16.0f + O, 16.0f,
                 15.0f, 0.0f, 16.0f, 16.0f);
 
         correctionTopModel("foundry_tank_correction_down_north",
-                Direction.DOWN, 0.0f, -O, 0.0f, 16.0f, 0.08f, 1.0f,
+                Direction.DOWN, 0.0f, -O, 0.0f, 16.0f, 0.1f, 1.0f,
                 0.0f, 0.0f, 16.0f, 1.0f);
         correctionTopModel("foundry_tank_correction_down_south",
-                Direction.DOWN, 0.0f, -O, 15.0f, 16.0f, 0.08f, 16.0f,
+                Direction.DOWN, 0.0f, -O, 15.0f, 16.0f, 0.1f, 16.0f,
                 0.0f, 15.0f, 16.0f, 16.0f);
         correctionTopModel("foundry_tank_correction_down_west",
-                Direction.DOWN, 0.0f, -O, 0.0f, 1.0f, 0.08f, 16.0f,
+                Direction.DOWN, 0.0f, -O, 0.0f, 1.0f, 0.1f, 16.0f,
                 0.0f, 0.0f, 1.0f, 16.0f);
         correctionTopModel("foundry_tank_correction_down_east",
-                Direction.DOWN, 15.0f, -O, 0.0f, 16.0f, 0.08f, 16.0f,
+                Direction.DOWN, 15.0f, -O, 0.0f, 16.0f, 0.1f, 16.0f,
                 15.0f, 0.0f, 16.0f, 16.0f);
 
         // ------------------------------------------
@@ -951,58 +951,58 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
         // NORTH: local left = WEST (low X), local right = EAST (high X).
         correctionSideModel("foundry_tank_correction_join_north_left_above",
-                Direction.NORTH, 1.0f, 15.0f, -O, 2.0f, 16.0f, 0.08f,
+                Direction.NORTH, 1.0f, 15.0f, -O, 2.0f, 16.0f, 0.1f,
                 1.0f, 0.0f, 2.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_join_north_right_above",
-                Direction.NORTH, 14.0f, 15.0f, -O, 15.0f, 16.0f, 0.08f,
+                Direction.NORTH, 14.0f, 15.0f, -O, 15.0f, 16.0f, 0.1f,
                 14.0f, 0.0f, 15.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_join_north_left_below",
-                Direction.NORTH, 1.0f, 0.0f, -O, 3.0f, 1.0f, 0.08f,
+                Direction.NORTH, 1.0f, 0.0f, -O, 3.0f, 1.0f, 0.1f,
                 1.0f, 15.0f, 3.0f, 16.0f);
         correctionSideModel("foundry_tank_correction_join_north_right_below",
-                Direction.NORTH, 13.0f, 0.0f, -O, 15.0f, 1.0f, 0.08f,
+                Direction.NORTH, 13.0f, 0.0f, -O, 15.0f, 1.0f, 0.1f,
                 13.0f, 15.0f, 15.0f, 16.0f);
 
         // SOUTH: local left = EAST (high X), local right = WEST (low X).
         correctionSideModel("foundry_tank_correction_join_south_left_above",
-                Direction.SOUTH, 14.0f, 15.0f, 15.92f, 15.0f, 16.0f, 16.0f + O,
+                Direction.SOUTH, 14.0f, 15.0f, 15.9f, 15.0f, 16.0f, 16.0f + O,
                 1.0f, 0.0f, 2.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_join_south_right_above",
-                Direction.SOUTH, 1.0f, 15.0f, 15.92f, 2.0f, 16.0f, 16.0f + O,
+                Direction.SOUTH, 1.0f, 15.0f, 15.9f, 2.0f, 16.0f, 16.0f + O,
                 14.0f, 0.0f, 15.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_join_south_left_below",
-                Direction.SOUTH, 13.0f, 0.0f, 15.92f, 15.0f, 1.0f, 16.0f + O,
+                Direction.SOUTH, 13.0f, 0.0f, 15.9f, 15.0f, 1.0f, 16.0f + O,
                 1.0f, 15.0f, 3.0f, 16.0f);
         correctionSideModel("foundry_tank_correction_join_south_right_below",
-                Direction.SOUTH, 1.0f, 0.0f, 15.92f, 3.0f, 1.0f, 16.0f + O,
+                Direction.SOUTH, 1.0f, 0.0f, 15.9f, 3.0f, 1.0f, 16.0f + O,
                 13.0f, 15.0f, 15.0f, 16.0f);
 
         // WEST: local left = SOUTH (high Z), local right = NORTH (low Z).
         correctionSideModel("foundry_tank_correction_join_west_left_above",
-                Direction.WEST, -O, 15.0f, 14.0f, 0.08f, 16.0f, 15.0f,
+                Direction.WEST, -O, 15.0f, 14.0f, 0.1f, 16.0f, 15.0f,
                 1.0f, 0.0f, 2.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_join_west_right_above",
-                Direction.WEST, -O, 15.0f, 1.0f, 0.08f, 16.0f, 2.0f,
+                Direction.WEST, -O, 15.0f, 1.0f, 0.1f, 16.0f, 2.0f,
                 14.0f, 0.0f, 15.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_join_west_left_below",
-                Direction.WEST, -O, 0.0f, 13.0f, 0.08f, 1.0f, 15.0f,
+                Direction.WEST, -O, 0.0f, 13.0f, 0.1f, 1.0f, 15.0f,
                 1.0f, 15.0f, 3.0f, 16.0f);
         correctionSideModel("foundry_tank_correction_join_west_right_below",
-                Direction.WEST, -O, 0.0f, 1.0f, 0.08f, 1.0f, 3.0f,
+                Direction.WEST, -O, 0.0f, 1.0f, 0.1f, 1.0f, 3.0f,
                 13.0f, 15.0f, 15.0f, 16.0f);
 
         // EAST: local left = NORTH (low Z), local right = SOUTH (high Z).
         correctionSideModel("foundry_tank_correction_join_east_left_above",
-                Direction.EAST, 15.92f, 15.0f, 1.0f, 16.0f + O, 16.0f, 2.0f,
+                Direction.EAST, 15.9f, 15.0f, 1.0f, 16.0f + O, 16.0f, 2.0f,
                 1.0f, 0.0f, 2.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_join_east_right_above",
-                Direction.EAST, 15.92f, 15.0f, 14.0f, 16.0f + O, 16.0f, 15.0f,
+                Direction.EAST, 15.9f, 15.0f, 14.0f, 16.0f + O, 16.0f, 15.0f,
                 14.0f, 0.0f, 15.0f, 1.0f);
         correctionSideModel("foundry_tank_correction_join_east_left_below",
-                Direction.EAST, 15.92f, 0.0f, 1.0f, 16.0f + O, 1.0f, 3.0f,
+                Direction.EAST, 15.9f, 0.0f, 1.0f, 16.0f + O, 1.0f, 3.0f,
                 1.0f, 15.0f, 3.0f, 16.0f);
         correctionSideModel("foundry_tank_correction_join_east_right_below",
-                Direction.EAST, 15.92f, 0.0f, 13.0f, 16.0f + O, 1.0f, 15.0f,
+                Direction.EAST, 15.9f, 0.0f, 13.0f, 16.0f + O, 1.0f, 15.0f,
                 13.0f, 15.0f, 15.0f, 16.0f);
 
         // -----------------------------------
@@ -1030,43 +1030,43 @@ public class ModBlockStateProvider extends BlockStateProvider {
         correctionSolidCapModel("foundry_tank_correction_cap_north_top_west",
                 Direction.NORTH,
                 0.0f, 15.0f, -O,
-                1.0f, 16.0f, 0.08f
+                1.0f, 16.0f, 0.1f
         );
         correctionSolidCapModel("foundry_tank_correction_cap_north_top_east",
                 Direction.NORTH,
                 15.0f, 15.0f, -O,
-                16.0f, 16.0f, 0.08f
+                16.0f, 16.0f, 0.1f
         );
         correctionSolidCapModel("foundry_tank_correction_cap_north_bottom_west",
                 Direction.NORTH,
                 0.0f, 0.0f, -O,
-                1.0f, 1.0f, 0.08f
+                1.0f, 1.0f, 0.1f
         );
         correctionSolidCapModel("foundry_tank_correction_cap_north_bottom_east",
                 Direction.NORTH,
                 15.0f, 0.0f, -O,
-                16.0f, 1.0f, 0.08f
+                16.0f, 1.0f, 0.1f
         );
 
         // SOUTH: local left = EAST, local right = WEST.
         correctionSolidCapModel("foundry_tank_correction_cap_south_top_east",
                 Direction.SOUTH,
-                15.0f, 15.0f, 15.92f,
+                15.0f, 15.0f, 15.9f,
                 16.0f, 16.0f, 16.0f + O
         );
         correctionSolidCapModel("foundry_tank_correction_cap_south_top_west",
                 Direction.SOUTH,
-                0.0f, 15.0f, 15.92f,
+                0.0f, 15.0f, 15.9f,
                 1.0f, 16.0f, 16.0f + O
         );
         correctionSolidCapModel("foundry_tank_correction_cap_south_bottom_east",
                 Direction.SOUTH,
-                15.0f, 0.0f, 15.92f,
+                15.0f, 0.0f, 15.9f,
                 16.0f, 1.0f, 16.0f + O
         );
         correctionSolidCapModel("foundry_tank_correction_cap_south_bottom_west",
                 Direction.SOUTH,
-                0.0f, 0.0f, 15.92f,
+                0.0f, 0.0f, 15.9f,
                 1.0f, 1.0f, 16.0f + O
         );
 
@@ -1074,43 +1074,43 @@ public class ModBlockStateProvider extends BlockStateProvider {
         correctionSolidCapModel("foundry_tank_correction_cap_west_top_south",
                 Direction.WEST,
                 -O, 15.0f, 15.0f,
-                0.08f, 16.0f, 16.0f
+                0.1f, 16.0f, 16.0f
         );
         correctionSolidCapModel("foundry_tank_correction_cap_west_top_north",
                 Direction.WEST,
                 -O, 15.0f, 0.0f,
-                0.08f, 16.0f, 1.0f
+                0.1f, 16.0f, 1.0f
         );
         correctionSolidCapModel("foundry_tank_correction_cap_west_bottom_south",
                 Direction.WEST,
                 -O, 0.0f, 15.0f,
-                0.08f, 1.0f, 16.0f
+                0.1f, 1.0f, 16.0f
         );
         correctionSolidCapModel("foundry_tank_correction_cap_west_bottom_north",
                 Direction.WEST,
                 -O, 0.0f, 0.0f,
-                0.08f, 1.0f, 1.0f
+                0.1f, 1.0f, 1.0f
         );
 
         // EAST: local left = NORTH, local right = SOUTH.
         correctionSolidCapModel("foundry_tank_correction_cap_east_top_north",
                 Direction.EAST,
-                15.92f, 15.0f, 0.0f,
+                15.9f, 15.0f, 0.0f,
                 16.0f + O, 16.0f, 1.0f
         );
         correctionSolidCapModel("foundry_tank_correction_cap_east_top_south",
                 Direction.EAST,
-                15.92f, 15.0f, 15.0f,
+                15.9f, 15.0f, 15.0f,
                 16.0f + O, 16.0f, 16.0f
         );
         correctionSolidCapModel("foundry_tank_correction_cap_east_bottom_north",
                 Direction.EAST,
-                15.92f, 0.0f, 0.0f,
+                15.9f, 0.0f, 0.0f,
                 16.0f + O, 1.0f, 1.0f
         );
         correctionSolidCapModel("foundry_tank_correction_cap_east_bottom_south",
                 Direction.EAST,
-                15.92f, 0.0f, 15.0f,
+                15.9f, 0.0f, 15.0f,
                 16.0f + O, 1.0f, 16.0f
         );
 
@@ -1118,22 +1118,22 @@ public class ModBlockStateProvider extends BlockStateProvider {
         // 1x1 UP / DOWN concave caps
         // -------------------------
         correctionCap("foundry_tank_correction_cap_up_north_west",
-                Direction.UP, 0.0f, 15.92f, 0.0f, 1.0f, 16.0f + O, 1.0f);
+                Direction.UP, 0.0f, 15.9f, 0.0f, 1.0f, 16.0f + O, 1.0f);
         correctionCap("foundry_tank_correction_cap_up_north_east",
-                Direction.UP, 15.0f, 15.92f, 0.0f, 16.0f, 16.0f + O, 1.0f);
+                Direction.UP, 15.0f, 15.9f, 0.0f, 16.0f, 16.0f + O, 1.0f);
         correctionCap("foundry_tank_correction_cap_up_south_west",
-                Direction.UP, 0.0f, 15.92f, 15.0f, 1.0f, 16.0f + O, 16.0f);
+                Direction.UP, 0.0f, 15.9f, 15.0f, 1.0f, 16.0f + O, 16.0f);
         correctionCap("foundry_tank_correction_cap_up_south_east",
-                Direction.UP, 15.0f, 15.92f, 15.0f, 16.0f, 16.0f + O, 16.0f);
+                Direction.UP, 15.0f, 15.9f, 15.0f, 16.0f, 16.0f + O, 16.0f);
 
         correctionCap("foundry_tank_correction_cap_down_north_west",
-                Direction.DOWN, 0.0f, -O, 0.0f, 1.0f, 0.08f, 1.0f);
+                Direction.DOWN, 0.0f, -O, 0.0f, 1.0f, 0.1f, 1.0f);
         correctionCap("foundry_tank_correction_cap_down_north_east",
-                Direction.DOWN, 15.0f, -O, 0.0f, 16.0f, 0.08f, 1.0f);
+                Direction.DOWN, 15.0f, -O, 0.0f, 16.0f, 0.1f, 1.0f);
         correctionCap("foundry_tank_correction_cap_down_south_west",
-                Direction.DOWN, 0.0f, -O, 15.0f, 1.0f, 0.08f, 16.0f);
+                Direction.DOWN, 0.0f, -O, 15.0f, 1.0f, 0.1f, 16.0f);
         correctionCap("foundry_tank_correction_cap_down_south_east",
-                Direction.DOWN, 15.0f, -O, 15.0f, 16.0f, 0.08f, 16.0f);
+                Direction.DOWN, 15.0f, -O, 15.0f, 16.0f, 0.1f, 16.0f);
     }
 
     /**
@@ -1330,22 +1330,22 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 fromX = minHorizontal;
                 toX = maxHorizontal;
                 fromZ = -outwardOffset;
-                toZ = 0.08f;
+                toZ = 0.1f;
             }
             case SOUTH -> {
                 fromX = 16.0f - maxHorizontal;
                 toX = 16.0f - minHorizontal;
-                fromZ = 15.92f;
+                fromZ = 15.9f;
                 toZ = 16.0f + outwardOffset;
             }
             case WEST -> {
                 fromX = -outwardOffset;
-                toX = 0.08f;
+                toX = 0.1f;
                 fromZ = 16.0f - maxHorizontal;
                 toZ = 16.0f - minHorizontal;
             }
             case EAST -> {
-                fromX = 15.92f;
+                fromX = 15.9f;
                 toX = 16.0f + outwardOffset;
                 fromZ = minHorizontal;
                 toZ = maxHorizontal;

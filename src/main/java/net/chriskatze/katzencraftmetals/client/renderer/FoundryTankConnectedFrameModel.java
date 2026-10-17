@@ -2,6 +2,7 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
+import net.chriskatze.katzencraftmetals.block.custom.FoundryTankBlock;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.block.BlockModelShaper;
 import net.minecraft.client.renderer.block.model.BakedQuad;
@@ -14,6 +15,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.ChunkRenderTypeSet;
 import net.neoforged.neoforge.client.model.BakedModelWrapper;
 import net.neoforged.neoforge.client.model.data.ModelData;
 import net.neoforged.neoforge.client.model.data.ModelProperty;
@@ -23,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Chunk-rendered diagonal/concave frame corrections for Foundry Tanks.
@@ -47,6 +50,12 @@ public final class FoundryTankConnectedFrameModel
     private static final ModelProperty<Long> CORRECTION_MASK =
             new ModelProperty<>();
 
+    private static final ModelProperty<Integer> INTERIOR_JOINS = new ModelProperty<>();
+    private final java.util.concurrent.ConcurrentMap<Integer, List<BakedQuad>> interiorQuads =
+            new java.util.concurrent.ConcurrentHashMap<>();
+    private record MeshKey(long corrections, int joins) {}
+    private final java.util.concurrent.ConcurrentMap<MeshKey, List<BakedQuad>> cutoutMeshes =
+            new java.util.concurrent.ConcurrentHashMap<>();
     private final EnumMap<CorrectionPart, BakedModel> correctionModels;
 
     private FoundryTankConnectedFrameModel(
@@ -133,7 +142,7 @@ public final class FoundryTankConnectedFrameModel
          * only in the side == null pass; otherwise the same correction could be
          * emitted again during directional cull passes.
          */
-        if (state == null || side != null) {
+        if (state == null || side != null || (renderType != null && renderType != RenderType.cutout())) {
             return base;
         }
 
@@ -145,12 +154,17 @@ public final class FoundryTankConnectedFrameModel
                         ? 0L
                         : maskObject;
 
-        if (mask == 0L) {
+        int joins = modelData.get(INTERIOR_JOINS) == null ? 0 : modelData.get(INTERIOR_JOINS);
+        if (mask == 0L && joins == 0) {
             return base;
         }
 
-        ArrayList<BakedQuad> result =
-                new ArrayList<>(base);
+        MeshKey key = new MeshKey(mask, joins);
+        if (renderType != null) {
+            List<BakedQuad> cached = cutoutMeshes.get(key);
+            if (cached != null) return cached;
+        }
+        ArrayList<BakedQuad> result = new ArrayList<>(base);
 
         for (CorrectionPart part : CorrectionPart.values()) {
             if ((mask & part.bit()) == 0L) {
@@ -175,7 +189,26 @@ public final class FoundryTankConnectedFrameModel
             );
         }
 
+        if (joins != 0) {
+            BakedModel frame = correctionModels.get(CorrectionPart.CAP_NORTH_TOP_WEST);
+            if (frame != null) result.addAll(interiorQuads.computeIfAbsent(joins,
+                    joinMask -> FoundryTankInteriorFrameJoins.bake(joinMask, frame.getParticleIcon())));
+        }
+        if (renderType != null) {
+            List<BakedQuad> joined = FoundryTankFrameQuadJoiner.join(result);
+            cutoutMeshes.putIfAbsent(key, joined);
+            return joined;
+        }
         return result;
+    }
+
+    @Override
+    public ChunkRenderTypeSet getRenderTypes(BlockState state, RandomSource rand, ModelData data) {
+        ChunkRenderTypeSet base = originalModel.getRenderTypes(state, rand, data);
+        Long mask = data.get(CORRECTION_MASK);
+        Integer joins = data.get(INTERIOR_JOINS);
+        return (mask != null && mask != 0L) || (joins != null && joins != 0)
+                ? ChunkRenderTypeSet.union(base, ChunkRenderTypeSet.of(RenderType.cutout())) : base;
     }
 
     @Override
@@ -197,23 +230,25 @@ public final class FoundryTankConnectedFrameModel
             return base;
         }
 
-        long mask =
-                computeCorrectionMask(
-                        level,
-                        pos
-                );
-
-        if (mask == 0L) {
-            return base;
-        }
-
+        Set<BlockPos> neighborhood = FoundryTankFrameConnections.collect(pos, (from, direction) -> {
+            BlockState first = level.getBlockState(from);
+            BlockState second = level.getBlockState(from.relative(direction));
+            return first.is(ModBlocks.FOUNDRY_TANK.get()) && second.is(ModBlocks.FOUNDRY_TANK.get())
+                    && first.getValue(connectionProperty(direction))
+                    && second.getValue(connectionProperty(direction.getOpposite()));
+        });
+        long mask = computeCorrectionMask(neighborhood, pos);
+        int joins = FoundryTankInteriorFrameJoins.mask(neighborhood::contains,
+                direction -> state.getValue(connectionProperty(direction)), pos);
+        // Write zero too: model data may carry a previous topology's corrections.
         return base.derive()
                 .with(CORRECTION_MASK, mask)
+                .with(INTERIOR_JOINS, joins)
                 .build();
     }
 
     private static long computeCorrectionMask(
-            BlockAndTintGetter level,
+            Set<BlockPos> level,
             BlockPos pos
     ) {
         long mask = 0L;
@@ -336,7 +371,7 @@ public final class FoundryTankConnectedFrameModel
     }
 
     private static long sideFaceMask(
-            BlockAndTintGetter level,
+            Set<BlockPos> level,
             BlockPos pos,
             Direction face,
             Direction left,
@@ -568,7 +603,7 @@ public final class FoundryTankConnectedFrameModel
     }
 
     private static long horizontalFaceMask(
-            BlockAndTintGetter level,
+            Set<BlockPos> level,
             BlockPos pos,
             Direction face,
             CorrectionPart northPart,
@@ -623,39 +658,46 @@ public final class FoundryTankConnectedFrameModel
         }
 
         /*
-         * Original top/bottom concave-corner rule:
-         * both orthogonal neighbors exist, but the diagonal Tank does not.
+         * Top/bottom use the same single-owner corner rule as vertical faces.
+         * Also restore the pixel at a raised/lowered diagonal footprint: the
+         * diagonal exists but protrudes through this face, and neither of its
+         * two neighbors continues through the face. Existing cap models fill
+         * only the missing 1x1 square; no enlarged or overlapping rail is added.
          */
-        if (needsHorizontalConcaveCap(
+        if (needsHorizontalCornerCap(
                 level,
                 pos,
+                face,
                 Direction.NORTH,
                 Direction.WEST
         )) {
             mask |= northWestCap.bit();
         }
 
-        if (needsHorizontalConcaveCap(
+        if (needsHorizontalCornerCap(
                 level,
                 pos,
+                face,
                 Direction.NORTH,
                 Direction.EAST
         )) {
             mask |= northEastCap.bit();
         }
 
-        if (needsHorizontalConcaveCap(
+        if (needsHorizontalCornerCap(
                 level,
                 pos,
+                face,
                 Direction.SOUTH,
                 Direction.WEST
         )) {
             mask |= southWestCap.bit();
         }
 
-        if (needsHorizontalConcaveCap(
+        if (needsHorizontalCornerCap(
                 level,
                 pos,
+                face,
                 Direction.SOUTH,
                 Direction.EAST
         )) {
@@ -666,7 +708,7 @@ public final class FoundryTankConnectedFrameModel
     }
 
     private static boolean needsDiagonalBoundaryCorrection(
-            BlockAndTintGetter level,
+            Set<BlockPos> level,
             BlockPos pos,
             Direction face,
             Direction edge
@@ -694,7 +736,7 @@ public final class FoundryTankConnectedFrameModel
     }
 
     private static boolean hasAdjacentExposedFace(
-            BlockAndTintGetter level,
+            Set<BlockPos> level,
             BlockPos pos,
             Direction face,
             Direction edge
@@ -709,29 +751,19 @@ public final class FoundryTankConnectedFrameModel
         );
     }
 
-    private static boolean needsHorizontalConcaveCap(
-            BlockAndTintGetter level,
+    private static boolean needsHorizontalCornerCap(
+            Set<BlockPos> level,
             BlockPos pos,
+            Direction face,
             Direction first,
             Direction second
     ) {
-        return isTank(
-                level,
-                pos.relative(first)
-        )
-                && isTank(
-                level,
-                pos.relative(second)
-        )
-                && !isTank(
-                level,
-                pos.relative(first)
-                        .relative(second)
-        );
+        return needsSideConcaveCap(level, pos, first, second)
+                || needsSideProtrusionBaseCap(level, pos, face, first, second);
     }
 
     private static boolean needsSideConcaveCap(
-            BlockAndTintGetter level,
+            Set<BlockPos> level,
             BlockPos pos,
             Direction vertical,
             Direction horizontal
@@ -775,7 +807,7 @@ public final class FoundryTankConnectedFrameModel
      * same-face CAP_* model, so no new geometry can overlap or z-fight.
      */
     private static boolean needsSideProtrusionBaseCap(
-            BlockAndTintGetter level,
+            Set<BlockPos> level,
             BlockPos pos,
             Direction face,
             Direction vertical,
@@ -831,11 +863,21 @@ public final class FoundryTankConnectedFrameModel
     }
 
     private static boolean isTank(
-            BlockAndTintGetter level,
+            Set<BlockPos> level,
             BlockPos pos
     ) {
-        return level.getBlockState(pos)
-                .is(ModBlocks.FOUNDRY_TANK.get());
+        return level.contains(pos);
+    }
+
+    private static net.minecraft.world.level.block.state.properties.BooleanProperty connectionProperty(Direction direction) {
+        return switch (direction) {
+            case NORTH -> FoundryTankBlock.NORTH;
+            case SOUTH -> FoundryTankBlock.SOUTH;
+            case WEST -> FoundryTankBlock.WEST;
+            case EAST -> FoundryTankBlock.EAST;
+            case UP -> FoundryTankBlock.UP;
+            case DOWN -> FoundryTankBlock.DOWN;
+        };
     }
 
     private enum CorrectionPart {

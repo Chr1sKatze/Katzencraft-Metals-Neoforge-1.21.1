@@ -10,11 +10,13 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -89,6 +91,36 @@ final class FoundryControllerSurfaceEffectsRenderer {
     private static final float FULL_TANK_HOT_SPOT_SEPARATION =
             0.004f * (1.0f / 16.0f);
 
+    // Warm, low-saturation heat highlights; neutral textures preserve these tints.
+    private static final int DEFAULT_RIM_TINT = 0xFFD080;
+    private static final Map<ResourceLocation, Integer> CONTACT_RIM_TINTS = Map.of(
+            ResourceLocation.parse("minecraft:copper"), 0xFFE3BC,
+            ResourceLocation.parse("minecraft:gold"), 0xFFF0CC,
+            ResourceLocation.parse("katzencraftmetals:mythril"), 0xFFE9D0,
+            ResourceLocation.parse("katzencraftmetals:platinum"), 0xFFE5D3
+    );
+
+    // Derive a slightly brighter core from the same warm palette once at startup.
+    // Opacity and the soft hotspot texture mask remain independent of tint.
+    private static final Map<ResourceLocation, Integer> HOT_SPOT_TINTS =
+            CONTACT_RIM_TINTS.entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(
+                    Map.Entry::getKey, entry -> brighterHotSpotTint(entry.getValue())));
+    private static final int DEFAULT_HOT_SPOT_TINT = brighterHotSpotTint(DEFAULT_RIM_TINT);
+
+    private static int brighterHotSpotTint(int rimTint) {
+        int green = (rimTint >> 8) & 255;
+        int blue = rimTint & 255;
+        return (rimTint & 0xFF0000) | ((green + (255 - green) / 8) << 8)
+                | (blue + (255 - blue) / 8);
+    }
+
+    private static final float ENHANCED_RIM_MAX_ALPHA = 0.30f;
+
+    private static int contactRimTint(ResourceLocation metal) {
+        Integer tint = CONTACT_RIM_TINTS.get(metal);
+        return tint == null ? DEFAULT_RIM_TINT : tint;
+    }
+
     private final Map<FoundryControllerBlockEntity, SmokeTickState> smokeTickStates =
             new WeakHashMap<>();
 
@@ -98,6 +130,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
             Set<BlockPos> structure,
             MoltenMetalDefinition definition,
             FoundryTankLiquidGeometry geometry,
+            Map<BlockPos, List<FoundryTankRenderedMetalLayer>> renderedLayers,
             float partialTick,
             PoseStack.Pose pose,
             MultiBufferSource bufferSource,
@@ -121,6 +154,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
                 geometry,
                 pose,
                 bufferSource,
+                contactRimTint(definition.id()),
                 packedOverlay
         );
 
@@ -129,6 +163,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
                 structure,
                 definition,
                 geometry,
+                renderedLayers,
                 partialTick,
                 pose,
                 bufferSource,
@@ -159,6 +194,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
             FoundryTankLiquidGeometry geometry,
             PoseStack.Pose pose,
             MultiBufferSource bufferSource,
+            int color,
             int packedOverlay
     ) {
         float glassHeadroom =
@@ -182,11 +218,14 @@ final class FoundryControllerSurfaceEffectsRenderer {
                         1.0f
                 );
 
+        // Preserve iron/steel's original blend exactly; only palette overrides
+        // need stronger blending against their bright/similarly colored liquid.
+        float maxAlpha = color == DEFAULT_RIM_TINT ? CONTACT_RIM_MAX_ALPHA : ENHANCED_RIM_MAX_ALPHA;
         int outerAlpha =
                 Mth.clamp(
                         Math.round(
                                 255.0f
-                                        * CONTACT_RIM_MAX_ALPHA
+                                        * maxAlpha
                                         * glassFade
                         ),
                         0,
@@ -222,424 +261,74 @@ final class FoundryControllerSurfaceEffectsRenderer {
                         )
                 );
 
-        boolean northBoundary =
-                !structure.contains(tankPos.north());
+        renderContactRimMesh(consumer, pose, tankPos, structure, geometry,
+                rimWidth, y, outerAlpha, color, packedOverlay);
+    }
 
-        boolean southBoundary =
-                !structure.contains(tankPos.south());
+    /** Non-overlapping miter joins share both positions and alpha along each diagonal. */
+    private static void renderContactRimMesh(
+            VertexConsumer consumer, PoseStack.Pose pose, BlockPos tankPos,
+            Set<BlockPos> structure, FoundryTankLiquidGeometry geometry,
+            float width, float y, int alpha, int color, int overlay
+    ) {
+        boolean north = !structure.contains(tankPos.north());
+        boolean south = !structure.contains(tankPos.south());
+        boolean west = !structure.contains(tankPos.west());
+        boolean east = !structure.contains(tankPos.east());
+        float x0 = geometry.minX(), x1 = geometry.maxX();
+        float z0 = geometry.minZ(), z1 = geometry.maxZ();
+        float ix0 = x0 + (west ? width : 0), ix1 = x1 - (east ? width : 0);
+        float iz0 = z0 + (north ? width : 0), iz1 = z1 - (south ? width : 0);
+        if (north) rimFace(consumer, pose, y, color, overlay,
+                x0,z0,alpha, ix0,iz0,0, ix1,iz0,0, x1,z0,alpha);
+        if (south) rimFace(consumer, pose, y, color, overlay,
+                ix0,iz1,0, x0,z1,alpha, x1,z1,alpha, ix1,iz1,0);
+        if (west) rimFace(consumer, pose, y, color, overlay,
+                x0,z0,alpha, x0,z1,alpha, ix0,iz1,0, ix0,iz0,0);
+        if (east) rimFace(consumer, pose, y, color, overlay,
+                ix1,iz0,0, ix1,iz1,0, x1,z1,alpha, x1,z0,alpha);
 
-        boolean westBoundary =
-                !structure.contains(tankPos.west());
-
-        boolean eastBoundary =
-                !structure.contains(tankPos.east());
-
-        if (northBoundary) {
-            renderNorthContactRim(
-                    consumer,
-                    pose,
-                    geometry,
-                    rimWidth,
-                    y,
-                    outerAlpha,
-                    packedOverlay
-            );
-        }
-
-        if (southBoundary) {
-            renderSouthContactRim(
-                    consumer,
-                    pose,
-                    geometry,
-                    rimWidth,
-                    y,
-                    outerAlpha,
-                    packedOverlay
-            );
-        }
-
-        /*
-         * North/south own the corner squares. Trim west/east away from those
-         * same squares so two translucent coplanar rim quads never overlap.
-         *
-         * The previous version rendered both strips across each corner, which
-         * is why the corner area shimmered / z-fought.
-         */
-        float verticalMinZ =
-                geometry.minZ()
-                        + (northBoundary ? rimWidth : 0.0f);
-
-        float verticalMaxZ =
-                geometry.maxZ()
-                        - (southBoundary ? rimWidth : 0.0f);
-
-        if (westBoundary && verticalMaxZ > verticalMinZ) {
-            renderWestContactRim(
-                    consumer,
-                    pose,
-                    geometry,
-                    rimWidth,
-                    verticalMinZ,
-                    verticalMaxZ,
-                    y,
-                    outerAlpha,
-                    packedOverlay
-            );
-        }
-
-        if (eastBoundary && verticalMaxZ > verticalMinZ) {
-            renderEastContactRim(
-                    consumer,
-                    pose,
-                    geometry,
-                    rimWidth,
-                    verticalMinZ,
-                    verticalMaxZ,
-                    y,
-                    outerAlpha,
-                    packedOverlay
-            );
+        // A missing diagonal with both cardinal neighbors is a reentrant corner.
+        // Its cell owns the join; neighboring straight strips stop at the cell edge.
+        for (int sx = -1; sx <= 1; sx += 2) {
+            for (int sz = -1; sz <= 1; sz += 2) {
+                if ((sx < 0 ? west : east)
+                        || (sz < 0 ? north : south)
+                        || structure.contains(tankPos.offset(sx, 0, sz))) continue;
+                float inset = FoundryTankRenderConstants.LIQUID_SIDE_INSET;
+                float cx = sx < 0 ? x0 : x1, cz = sz < 0 ? z0 : z1;
+                // The narrow plateau accounts for the adjacent wall's liquid inset.
+                for (int i = 0; i < 2; i++) for (int j = 0; j < 2; j++) {
+                    float u0 = i == 0 ? 0 : inset, u1 = i == 0 ? inset : inset + width;
+                    float v0 = j == 0 ? 0 : inset, v1 = j == 0 ? inset : inset + width;
+                    float left = sx < 0 ? cx + u0 : cx - u1;
+                    float right = sx < 0 ? cx + u1 : cx - u0;
+                    float top = sz < 0 ? cz + v0 : cz - v1;
+                    float bottom = sz < 0 ? cz + v1 : cz - v0;
+                    rimFace(consumer, pose, y, color, overlay,
+                            left,top,cornerAlpha(left,top,cx,cz,inset,width,alpha),
+                            left,bottom,cornerAlpha(left,bottom,cx,cz,inset,width,alpha),
+                            right,bottom,cornerAlpha(right,bottom,cx,cz,inset,width,alpha),
+                            right,top,cornerAlpha(right,top,cx,cz,inset,width,alpha));
+                }
+            }
         }
     }
 
-    private static void renderNorthContactRim(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            FoundryTankLiquidGeometry geometry,
-            float rimWidth,
-            float y,
-            int outerAlpha,
-            int packedOverlay
-    ) {
-        float innerZ =
-                Math.min(
-                        geometry.maxZ(),
-                        geometry.minZ() + rimWidth
-                );
-
-        renderContactRimQuad(
-                consumer,
-                pose,
-                geometry.minX(),
-                geometry.maxX(),
-                y,
-                geometry.minZ(),
-                innerZ,
-                true,
-                outerAlpha,
-                packedOverlay
-        );
+    private static int cornerAlpha(float x, float z, float cx, float cz,
+                                   float inset, float width, int alpha) {
+        return Math.round(alpha * Mth.clamp(1 - (Math.max(Math.abs(x - cx), Math.abs(z - cz))
+                - inset) / width, 0, 1));
     }
 
-    private static void renderSouthContactRim(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            FoundryTankLiquidGeometry geometry,
-            float rimWidth,
-            float y,
-            int outerAlpha,
-            int packedOverlay
-    ) {
-        float innerZ =
-                Math.max(
-                        geometry.minZ(),
-                        geometry.maxZ() - rimWidth
-                );
-
-        renderContactRimQuad(
-                consumer,
-                pose,
-                geometry.minX(),
-                geometry.maxX(),
-                y,
-                innerZ,
-                geometry.maxZ(),
-                false,
-                outerAlpha,
-                packedOverlay
-        );
-    }
-
-    private static void renderWestContactRim(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            FoundryTankLiquidGeometry geometry,
-            float rimWidth,
-            float minZ,
-            float maxZ,
-            float y,
-            int outerAlpha,
-            int packedOverlay
-    ) {
-        float innerX =
-                Math.min(
-                        geometry.maxX(),
-                        geometry.minX() + rimWidth
-                );
-
-        renderContactRimQuadWestEast(
-                consumer,
-                pose,
-                geometry.minX(),
-                innerX,
-                y,
-                minZ,
-                maxZ,
-                true,
-                outerAlpha,
-                packedOverlay
-        );
-    }
-
-    private static void renderEastContactRim(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            FoundryTankLiquidGeometry geometry,
-            float rimWidth,
-            float minZ,
-            float maxZ,
-            float y,
-            int outerAlpha,
-            int packedOverlay
-    ) {
-        float innerX =
-                Math.max(
-                        geometry.minX(),
-                        geometry.maxX() - rimWidth
-                );
-
-        renderContactRimQuadWestEast(
-                consumer,
-                pose,
-                innerX,
-                geometry.maxX(),
-                y,
-                minZ,
-                maxZ,
-                false,
-                outerAlpha,
-                packedOverlay
-        );
-    }
-
-    /*
-     * North/south-oriented strip: alpha fades across Z.
-     */
-    private static void renderContactRimQuad(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            float minX,
-            float maxX,
-            float y,
-            float minZ,
-            float maxZ,
-            boolean outerOnMinZ,
-            int outerAlpha,
-            int packedOverlay
-    ) {
-        int innerAlpha = 0;
-
-        if (outerOnMinZ) {
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    minX,
-                    y,
-                    minZ,
-                    0.0f,
-                    0.0f,
-                    outerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    minX,
-                    y,
-                    maxZ,
-                    0.0f,
-                    1.0f,
-                    innerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    maxX,
-                    y,
-                    maxZ,
-                    1.0f,
-                    1.0f,
-                    innerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    maxX,
-                    y,
-                    minZ,
-                    1.0f,
-                    0.0f,
-                    outerAlpha,
-                    packedOverlay
-            );
-        } else {
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    minX,
-                    y,
-                    minZ,
-                    0.0f,
-                    0.0f,
-                    innerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    minX,
-                    y,
-                    maxZ,
-                    0.0f,
-                    1.0f,
-                    outerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    maxX,
-                    y,
-                    maxZ,
-                    1.0f,
-                    1.0f,
-                    outerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    maxX,
-                    y,
-                    minZ,
-                    1.0f,
-                    0.0f,
-                    innerAlpha,
-                    packedOverlay
-            );
-        }
-    }
-
-    /*
-     * West/east-oriented strip: alpha fades across X.
-     */
-    private static void renderContactRimQuadWestEast(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            float minX,
-            float maxX,
-            float y,
-            float minZ,
-            float maxZ,
-            boolean outerOnMinX,
-            int outerAlpha,
-            int packedOverlay
-    ) {
-        int innerAlpha = 0;
-
-        if (outerOnMinX) {
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    minX,
-                    y,
-                    minZ,
-                    0.0f,
-                    0.0f,
-                    outerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    minX,
-                    y,
-                    maxZ,
-                    0.0f,
-                    1.0f,
-                    outerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    maxX,
-                    y,
-                    maxZ,
-                    1.0f,
-                    1.0f,
-                    innerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    maxX,
-                    y,
-                    minZ,
-                    1.0f,
-                    0.0f,
-                    innerAlpha,
-                    packedOverlay
-            );
-        } else {
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    minX,
-                    y,
-                    minZ,
-                    0.0f,
-                    0.0f,
-                    innerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    minX,
-                    y,
-                    maxZ,
-                    0.0f,
-                    1.0f,
-                    innerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    maxX,
-                    y,
-                    maxZ,
-                    1.0f,
-                    1.0f,
-                    outerAlpha,
-                    packedOverlay
-            );
-            addContactRimVertex(
-                    consumer,
-                    pose,
-                    maxX,
-                    y,
-                    minZ,
-                    1.0f,
-                    0.0f,
-                    outerAlpha,
-                    packedOverlay
-            );
-        }
+    private static void rimFace(VertexConsumer consumer, PoseStack.Pose pose,
+                                float y, int color, int overlay,
+                                float ax,float az,int aa, float bx,float bz,int ba,
+                                float cx,float cz,int ca, float dx,float dz,int da) {
+        addContactRimVertex(consumer, pose, ax,y,az,0,0,aa,color,overlay);
+        addContactRimVertex(consumer, pose, bx,y,bz,0,1,ba,color,overlay);
+        addContactRimVertex(consumer, pose, cx,y,cz,1,1,ca,color,overlay);
+        addContactRimVertex(consumer, pose, dx,y,dz,1,0,da,color,overlay);
     }
 
     private static void addContactRimVertex(
@@ -651,6 +340,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
             float u,
             float v,
             int alpha,
+            int color,
             int packedOverlay
     ) {
         consumer.addVertex(
@@ -660,9 +350,9 @@ final class FoundryControllerSurfaceEffectsRenderer {
                         z
                 )
                 .setColor(
-                        255,
-                        214,
-                        132,
+                        (color >> 16) & 255,
+                        (color >> 8) & 255,
+                        color & 255,
                         alpha
                 )
                 .setUv(
@@ -751,6 +441,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
             Set<BlockPos> structure,
             MoltenMetalDefinition definition,
             FoundryTankLiquidGeometry geometry,
+            Map<BlockPos, List<FoundryTankRenderedMetalLayer>> renderedLayers,
             float partialTick,
             PoseStack.Pose pose,
             MultiBufferSource bufferSource,
@@ -1042,10 +733,9 @@ final class FoundryControllerSurfaceEffectsRenderer {
             boolean foundNonOverlappingPosition = false;
 
             /*
-             * Multi-Tank surfaces use only one candidate per cell, and
-             * HOT_SPOT_MARGIN is larger than the maximum radius, so spots in
-             * neighboring cells cannot overlap. A single Tank uses two
-             * candidates, so explicitly keep those two apart.
+             * Keep the existing candidate-placement and sibling-spacing rules.
+             * Large footprints may now cross cell boundaries; the rendering
+             * pass clips them to the exposed connected liquid surface.
              */
             for (int placementAttempt = 0; placementAttempt < 10; placementAttempt++) {
                 long placementSeed =
@@ -1135,29 +825,10 @@ final class FoundryControllerSurfaceEffectsRenderer {
             float halfSize =
                     size * 0.5f;
 
-            float minX =
-                    Math.max(
-                            geometry.minX(),
-                            centerX - halfSize
-                    );
-
-            float maxX =
-                    Math.min(
-                            geometry.maxX(),
-                            centerX + halfSize
-                    );
-
-            float minZ =
-                    Math.max(
-                            geometry.minZ(),
-                            centerZ - halfSize
-                    );
-
-            float maxZ =
-                    Math.min(
-                            geometry.maxZ(),
-                            centerZ + halfSize
-                    );
+            float minX = centerX - halfSize;
+            float maxX = centerX + halfSize;
+            float minZ = centerZ - halfSize;
+            float maxZ = centerZ + halfSize;
 
             int alpha =
                     Mth.clamp(
@@ -1176,9 +847,13 @@ final class FoundryControllerSurfaceEffectsRenderer {
                 continue;
             }
 
-            renderHotSpotQuad(
+            renderHotSpotAcrossCells(
                     consumer,
                     pose,
+                    tankPos,
+                    renderedLayers,
+                    definition.id(),
+                    geometry.surfaceY(),
                     minX,
                     maxX,
                     hotSpotY,
@@ -1194,6 +869,67 @@ final class FoundryControllerSurfaceEffectsRenderer {
         }
     }
 
+    private static void renderHotSpotAcrossCells(
+            VertexConsumer consumer, PoseStack.Pose pose, BlockPos origin,
+            Map<BlockPos, List<FoundryTankRenderedMetalLayer>> renderedLayers, ResourceLocation metal,
+            float surfaceY, float minX, float maxX, float y, float minZ, float maxZ,
+            int alpha, int packedOverlay
+    ) {
+        // The 2.12-block maximum animated diameter intersects at most 3x3 cells.
+        // Restrict fragments to a connected exposed surface inside that footprint.
+        int minDX = Mth.floor(minX), maxDX = Mth.floor(maxX);
+        int minDZ = Mth.floor(minZ), maxDZ = Mth.floor(maxZ);
+        int columns = maxDX - minDX + 1, rows = maxDZ - minDZ + 1;
+        long eligible = 0;
+        for (int dx = minDX; dx <= maxDX; dx++) {
+            for (int dz = minDZ; dz <= maxDZ; dz++) {
+                BlockPos cell = origin.offset(dx, 0, dz);
+                List<FoundryTankRenderedMetalLayer> layers = renderedLayers.get(cell);
+                if (layers == null || layers.isEmpty()) continue;
+                FoundryTankRenderedMetalLayer top = layers.getLast();
+                List<FoundryTankRenderedMetalLayer> above = renderedLayers.get(cell.above());
+                if (!top.renderTop() || !top.metal().equals(metal)
+                        || (above != null && !above.isEmpty())
+                        || Math.abs(top.maxY() - surfaceY) > FoundryTankRenderConstants.LIQUID_EPSILON) continue;
+                eligible |= 1L << ((dx - minDX) * rows + dz - minDZ);
+            }
+        }
+        if (minDX > 0 || maxDX < 0 || minDZ > 0 || maxDZ < 0) return;
+        long connected = eligible & (1L << (-minDX * rows - minDZ));
+        long previous;
+        do {
+            previous = connected;
+            for (int x = 0; x < columns; x++) {
+                for (int z = 0; z < rows; z++) {
+                    int i = x * rows + z;
+                    if ((connected & (1L << i)) == 0) continue;
+                    if (x > 0) connected |= eligible & (1L << (i - rows));
+                    if (x + 1 < columns) connected |= eligible & (1L << (i + rows));
+                    if (z > 0) connected |= eligible & (1L << (i - 1));
+                    if (z + 1 < rows) connected |= eligible & (1L << (i + 1));
+                }
+            }
+        } while (connected != previous);
+        // Use only the Controller's existing cached geometry; no network scans.
+        int tint = HOT_SPOT_TINTS.getOrDefault(metal, DEFAULT_HOT_SPOT_TINT);
+        for (int dx = minDX; dx <= maxDX; dx++) {
+            for (int dz = minDZ; dz <= maxDZ; dz++) {
+                if ((connected & (1L << ((dx - minDX) * rows + dz - minDZ))) == 0) continue;
+                BlockPos cell = origin.offset(dx, 0, dz);
+                float left = Math.max(minX, dx + (renderedLayers.containsKey(cell.west())
+                        ? 0 : FoundryTankRenderConstants.LIQUID_SIDE_INSET));
+                float right = Math.min(maxX, dx + (renderedLayers.containsKey(cell.east()) ? 1 : FoundryTankRenderConstants.LIQUID_SIDE_MAX));
+                float north = Math.max(minZ, dz + (renderedLayers.containsKey(cell.north())
+                        ? 0 : FoundryTankRenderConstants.LIQUID_SIDE_INSET));
+                float south = Math.min(maxZ, dz + (renderedLayers.containsKey(cell.south()) ? 1 : FoundryTankRenderConstants.LIQUID_SIDE_MAX));
+                if (left >= right || north >= south) continue;
+                renderHotSpotQuad(consumer, pose, left, right, y, north, south,
+                        (left - minX) / (maxX - minX), (right - minX) / (maxX - minX),
+                        (north - minZ) / (maxZ - minZ), (south - minZ) / (maxZ - minZ), alpha, tint, packedOverlay);
+            }
+        }
+    }
+
     private static void renderHotSpotQuad(
             VertexConsumer consumer,
             PoseStack.Pose pose,
@@ -1202,12 +938,14 @@ final class FoundryControllerSurfaceEffectsRenderer {
             float y,
             float minZ,
             float maxZ,
+            float minU, float maxU, float minV, float maxV,
             int alpha,
+            int tint,
             int packedOverlay
     ) {
         int color =
                 (alpha << 24)
-                        | 0x00FFFFFF;
+                        | tint;
 
         addHotSpotVertex(
                 consumer,
@@ -1215,8 +953,8 @@ final class FoundryControllerSurfaceEffectsRenderer {
                 minX,
                 y,
                 minZ,
-                0.0f,
-                0.0f,
+                minU,
+                minV,
                 color,
                 packedOverlay
         );
@@ -1227,8 +965,8 @@ final class FoundryControllerSurfaceEffectsRenderer {
                 minX,
                 y,
                 maxZ,
-                0.0f,
-                1.0f,
+                minU,
+                maxV,
                 color,
                 packedOverlay
         );
@@ -1239,8 +977,8 @@ final class FoundryControllerSurfaceEffectsRenderer {
                 maxX,
                 y,
                 maxZ,
-                1.0f,
-                1.0f,
+                maxU,
+                maxV,
                 color,
                 packedOverlay
         );
@@ -1251,8 +989,8 @@ final class FoundryControllerSurfaceEffectsRenderer {
                 maxX,
                 y,
                 minZ,
-                1.0f,
-                0.0f,
+                maxU,
+                minV,
                 color,
                 packedOverlay
         );
