@@ -5,7 +5,6 @@ import net.minecraft.client.gui.GuiGraphics;
 /** Coordinates the independently sized sections of the Controller UI. */
 final class FoundryControllerOverviewRenderer {
 
-    private final FoundryControllerHeaderStatusRenderer headerRenderer;
     private final FoundryControllerProcessRenderer processRenderer;
     private final FoundryControllerTankRenderer tankRenderer;
     private final FoundryControllerMetalsRenderer metalsRenderer;
@@ -14,9 +13,6 @@ final class FoundryControllerOverviewRenderer {
     FoundryControllerOverviewRenderer(
             FoundryControllerScreen screen
     ) {
-        this.headerRenderer =
-                new FoundryControllerHeaderStatusRenderer(screen);
-
         this.processRenderer =
                 new FoundryControllerProcessRenderer(screen);
 
@@ -35,10 +31,9 @@ final class FoundryControllerOverviewRenderer {
             int mouseX,
             int mouseY
     ) {
-        headerRenderer.render(graphics);
         processRenderer.render(graphics);
         tankRenderer.render(graphics);
-        metalsRenderer.render(graphics);
+        metalsRenderer.render(graphics, mouseX, mouseY);
         alloysRenderer.render(
                 graphics,
                 mouseX,
@@ -88,6 +83,17 @@ final class FoundryControllerOverviewRenderer {
                 mouseY,
                 scrollDelta
         );
+    }
+
+    boolean mouseDragged(double mouseY, int button) {
+        return metalsRenderer.mouseDragged(mouseY, button)
+                || alloysRenderer.mouseDragged(mouseY, button);
+    }
+
+    boolean mouseReleased(int button) {
+        boolean metalsReleased = metalsRenderer.mouseReleased(button);
+        boolean alloysReleased = alloysRenderer.mouseReleased(button);
+        return metalsReleased || alloysReleased;
     }
 
     void renderTooltips(

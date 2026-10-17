@@ -52,9 +52,7 @@ final class FoundryAlloyStarter {
                 holder.value();
 
         if (
-                recipe.requiredTier()
-                        > controller.getFoundryTier()
-                        || !controller.isAlloyRecipeUnlocked(
+                !controller.isAlloyRecipeUnlocked(
                         recipe
                 )
                         || !ModMoltenMetals.contains(
@@ -122,7 +120,6 @@ final class FoundryAlloyStarter {
                         || completeJobOutput <= 0
                         || recipe.outputAmount() <= 0
                         || recipe.processingTime() <= 0
-                        || recipe.experience() < 0
         ) {
             return false;
         }
@@ -148,8 +145,7 @@ final class FoundryAlloyStarter {
                 oneBatchRequirements,
                 recipe.outputAmount(),
                 requestedBatches,
-                recipe.processingTime(),
-                recipe.experience()
+                recipe.processingTime()
         );
 
         controller.setChanged();

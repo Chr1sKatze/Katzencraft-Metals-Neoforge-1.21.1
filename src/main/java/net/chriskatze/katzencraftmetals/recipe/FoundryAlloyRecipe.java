@@ -26,9 +26,7 @@ public record FoundryAlloyRecipe(
         List<FoundryAlloyIngredient> ingredients,
         ResourceLocation outputMetal,
         int outputAmount,
-        int processingTime,
-        int experience,
-        int requiredTier
+        int processingTime
 ) implements Recipe<SingleRecipeInput> {
 
     public FoundryAlloyRecipe {
@@ -49,9 +47,6 @@ public record FoundryAlloyRecipe(
         if (
                 outputAmount <= 0
                         || processingTime <= 0
-                        || experience < 0
-                        || requiredTier < 1
-                        || requiredTier > 4
         ) {
             throw new IllegalArgumentException(
                     "Invalid numeric value in Foundry alloy recipe."
@@ -119,13 +114,7 @@ public record FoundryAlloyRecipe(
                                                 .forGetter(FoundryAlloyRecipe::outputAmount),
                                         Codec.intRange(1, Integer.MAX_VALUE)
                                                 .optionalFieldOf("processing_time", 100)
-                                                .forGetter(FoundryAlloyRecipe::processingTime),
-                                        Codec.intRange(0, Integer.MAX_VALUE)
-                                                .optionalFieldOf("experience", 1)
-                                                .forGetter(FoundryAlloyRecipe::experience),
-                                        Codec.intRange(1, 4)
-                                                .optionalFieldOf("required_tier", 1)
-                                                .forGetter(FoundryAlloyRecipe::requiredTier)
+                                                .forGetter(FoundryAlloyRecipe::processingTime)
                                 ).apply(
                                         instance,
                                         FoundryAlloyRecipe::new
@@ -160,12 +149,6 @@ public record FoundryAlloyRecipe(
                             );
                             buffer.writeVarInt(
                                     recipe.processingTime()
-                            );
-                            buffer.writeVarInt(
-                                    recipe.experience()
-                            );
-                            buffer.writeVarInt(
-                                    recipe.requiredTier()
                             );
                         },
                         buffer -> {
@@ -202,8 +185,6 @@ public record FoundryAlloyRecipe(
                             return new FoundryAlloyRecipe(
                                     ingredients,
                                     buffer.readResourceLocation(),
-                                    buffer.readVarInt(),
-                                    buffer.readVarInt(),
                                     buffer.readVarInt(),
                                     buffer.readVarInt()
                             );

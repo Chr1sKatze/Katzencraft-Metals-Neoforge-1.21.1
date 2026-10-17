@@ -13,12 +13,6 @@ final class FoundryControllerProcessRenderer {
                     "textures/gui/foundry_controller_unlocked_slot.png"
             );
 
-    private static final ResourceLocation LOCKED_SLOT_TEXTURE =
-            ResourceLocation.fromNamespaceAndPath(
-                    KatzencraftMetalsMod.MODID,
-                    "textures/gui/foundry_controller_slot_locked.png"
-            );
-
     private static final ResourceLocation PROCESS_MASK_TEXTURE =
             ResourceLocation.fromNamespaceAndPath(
                     KatzencraftMetalsMod.MODID,
@@ -58,10 +52,6 @@ final class FoundryControllerProcessRenderer {
     private void renderSlotFrames(
             GuiGraphics graphics
     ) {
-        int unlockedInputs =
-                screen.controllerMenu()
-                        .getUnlockedInputSlotCount();
-
         for (
                 int slot = 0;
                 slot < FoundryControllerUiLayout.INPUT_SLOT_X.length;
@@ -70,22 +60,16 @@ final class FoundryControllerProcessRenderer {
             drawSlotFrame(
                     graphics,
                     FoundryControllerUiLayout.INPUT_SLOT_X[slot],
-                    FoundryControllerUiLayout.INPUT_SLOT_Y[slot],
-                    slot < unlockedInputs
+                    FoundryControllerUiLayout.INPUT_SLOT_Y[slot]
             );
         }
-
-        int unlockedFuelSlots =
-                screen.controllerMenu()
-                        .getUnlockedFuelSlotCount();
 
         for (int slot = 0; slot < 4; slot++) {
             drawSlotFrame(
                     graphics,
                     FoundryControllerUiLayout.FUEL_SLOT_START_X
                             + slot * FoundryControllerUiLayout.SLOT_SPACING,
-                    FoundryControllerUiLayout.FUEL_SLOT_Y,
-                    slot < unlockedFuelSlots
+                    FoundryControllerUiLayout.FUEL_SLOT_Y
             );
         }
     }
@@ -93,34 +77,18 @@ final class FoundryControllerProcessRenderer {
     private void drawSlotFrame(
             GuiGraphics graphics,
             int slotX,
-            int slotY,
-            boolean unlocked
+            int slotY
     ) {
-        if (unlocked) {
-            graphics.blit(
-                    UNLOCKED_SLOT_TEXTURE,
-                    screen.guiLeft() + slotX - 1,
-                    screen.guiTop() + slotY - 1,
-                    0.0f,
-                    0.0f,
-                    18,
-                    18,
-                    18,
-                    18
-            );
-            return;
-        }
-
         graphics.blit(
-                LOCKED_SLOT_TEXTURE,
-                screen.guiLeft() + slotX,
-                screen.guiTop() + slotY,
+                UNLOCKED_SLOT_TEXTURE,
+                screen.guiLeft() + slotX - 1,
+                screen.guiTop() + slotY - 1,
                 0.0f,
                 0.0f,
-                16,
-                16,
-                16,
-                16
+                18,
+                18,
+                18,
+                18
         );
     }
 
@@ -149,37 +117,7 @@ final class FoundryControllerProcessRenderer {
                         + FoundryControllerUiLayout.INPUT_SLOT_Y[activeSlot]
                         - 1;
 
-        graphics.fill(
-                left,
-                top,
-                left + 18,
-                top + 1,
-                FoundryControllerUiDrawing.ORANGE
-        );
-
-        graphics.fill(
-                left,
-                top,
-                left + 1,
-                top + 18,
-                FoundryControllerUiDrawing.ORANGE
-        );
-
-        graphics.fill(
-                left + 17,
-                top,
-                left + 18,
-                top + 18,
-                FoundryControllerUiDrawing.ORANGE_DARK
-        );
-
-        graphics.fill(
-                left,
-                top + 17,
-                left + 18,
-                top + 18,
-                FoundryControllerUiDrawing.ORANGE_DARK
-        );
+        FoundryControllerUiDrawing.drawActiveSlotOutline(graphics, left, top);
     }
 
     private void renderBurnTime(
@@ -291,8 +229,8 @@ final class FoundryControllerProcessRenderer {
                     texture,
                     screenX + slice,
                     screenY,
-                    relativeX + slice,
-                    relativeY,
+                    41 + slice,
+                    120,
                     1,
                     height,
                     FoundryControllerUiLayout.WIDTH,
@@ -354,8 +292,8 @@ final class FoundryControllerProcessRenderer {
                     texture,
                     screenX,
                     screenTop + slice,
-                    relativeX,
-                    relativeY + absoluteY,
+                    14,
+                    56 + FoundryControllerUiLayout.processMaskSourceY(absoluteY),
                     width,
                     1,
                     FoundryControllerUiLayout.WIDTH,

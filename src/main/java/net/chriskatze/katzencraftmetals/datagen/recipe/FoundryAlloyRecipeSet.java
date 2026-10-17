@@ -24,10 +24,6 @@ public final class FoundryAlloyRecipeSet {
     private int outputAmount;
     private int processingTime =
             100;
-    private int experience =
-            1;
-    private int requiredTier =
-            1;
     private String recipeName;
 
     private FoundryAlloyRecipeSet(
@@ -84,24 +80,6 @@ public final class FoundryAlloyRecipeSet {
         return this;
     }
 
-    public FoundryAlloyRecipeSet experience(
-            int experience
-    ) {
-        this.experience =
-                experience;
-
-        return this;
-    }
-
-    public FoundryAlloyRecipeSet requiredTier(
-            int tier
-    ) {
-        this.requiredTier =
-                tier;
-
-        return this;
-    }
-
     public FoundryAlloyRecipeSet recipeName(
             String recipeName
     ) {
@@ -128,12 +106,6 @@ public final class FoundryAlloyRecipeSet {
                 )
                         .processingTime(
                                 processingTime
-                        )
-                        .experience(
-                                experience
-                        )
-                        .requiredTier(
-                                requiredTier
                         );
 
         for (IngredientEntry ingredient : ingredients) {

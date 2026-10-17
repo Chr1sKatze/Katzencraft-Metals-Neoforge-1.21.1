@@ -162,11 +162,11 @@ final class FoundryControllerTankRenderer {
         for (int[] band : TANK_MASK_BANDS) {
             int bandTop =
                     tankTop
-                            + band[0];
+                            + band[0] * FoundryControllerUiLayout.TANK_GAUGE_HEIGHT / 72;
 
             int bandBottom =
                     tankTop
-                            + band[1];
+                            + band[1] * FoundryControllerUiLayout.TANK_GAUGE_HEIGHT / 72;
 
             int clippedTop =
                     Math.max(
@@ -272,7 +272,7 @@ final class FoundryControllerTankRenderer {
                         + FoundryControllerUiLayout.TANK_COUNT_Y,
                 FoundryControllerUiLayout.TANK_COUNT_WIDTH,
                 FoundryControllerUiLayout.TANK_COUNT_HEIGHT,
-                FoundryControllerUiDrawing.TEXT
+                FoundryControllerUiDrawing.HEADING_TEXT
         );
     }
 

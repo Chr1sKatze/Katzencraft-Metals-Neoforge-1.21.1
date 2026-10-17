@@ -24,7 +24,7 @@ final class FoundryControllerProcessing {
     static final int STATUS_ALLOYING = 5;
 
     private static final int BASE_SPEED_PERCENT = 100;
-    private static final int SPEED_PERCENT_PER_TIER = 25;
+    private static final int PROCESSING_SPEED_PERCENT = 175;
 
     private final FoundryControllerBlockEntity controller;
 
@@ -231,8 +231,8 @@ final class FoundryControllerProcessing {
         return job.matches(
                 inputSlot,
                 recipe,
-                getTierAdjustedProcessingTime(
-                        recipe
+                getProcessingTime(
+                        recipe.processingTime()
                 )
         );
     }
@@ -244,41 +244,24 @@ final class FoundryControllerProcessing {
         if (job.select(
                 inputSlot,
                 recipe,
-                getTierAdjustedProcessingTime(
-                        recipe
+                getProcessingTime(
+                        recipe.processingTime()
                 )
         )) {
             controller.setChanged();
         }
     }
 
-    private int getTierAdjustedProcessingTime(
-            FoundryMeltingRecipe recipe
+    static int getProcessingTime(
+            int baseTicks
     ) {
-        int tier =
-                Math.max(
-                        1,
-                        controller.getFoundryTier()
-                );
-
-        int speedPercent =
-                BASE_SPEED_PERCENT
-                        + (tier - 1)
-                        * SPEED_PERCENT_PER_TIER;
+        int speedPercent = PROCESSING_SPEED_PERCENT;
 
         long scaledProcessingTime =
-                (long) recipe.processingTime()
+                (long) baseTicks
                         * BASE_SPEED_PERCENT;
 
-        /*
-         * 25% faster means 125% work speed, not "remove 25% time".
-         *
-         * Example with an iron recipe of 100 ticks:
-         * Tier 1: 100 / 1.00 = 100 ticks
-         * Tier 2: 100 / 1.25 = 80 ticks
-         * Tier 3: 100 / 1.50 = 67 ticks
-         * Tier 4: 100 / 1.75 = 58 ticks
-         */
+        // Permanent full-speed operation: ceil(base ticks / 1.75).
         return Math.max(
                 1,
                 (int) (
@@ -378,7 +361,6 @@ final class FoundryControllerProcessing {
         inputStack.shrink(1);
         job.progress = 0;
 
-        controller.addFoundryExperience(1);
 
         controller.getInputInventory()
                 .setChanged();

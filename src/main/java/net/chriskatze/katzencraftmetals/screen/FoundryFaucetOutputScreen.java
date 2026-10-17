@@ -1,10 +1,12 @@
 package net.chriskatze.katzencraftmetals.screen;
 
+import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.menu.FoundryFaucetOutputMenu;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 
@@ -13,34 +15,37 @@ import java.util.List;
 public class FoundryFaucetOutputScreen
         extends AbstractContainerScreen<FoundryFaucetOutputMenu> {
 
-    private static final int PANEL = 0xFF171717;
-    private static final int PANEL_INNER = 0xFF0F0F0F;
-    private static final int BORDER_LIGHT = 0xFF2F2F2F;
-    private static final int BORDER_DARK = 0xFF050505;
+    private static final ResourceLocation FRAME_TEXTURE =
+            ResourceLocation.fromNamespaceAndPath(
+                    KatzencraftMetalsMod.MODID,
+                    "textures/gui/foundry_controller.png"
+            );
     private static final int HOVER_OVERLAY = 0x18FFFFFF;
-    private static final int TEXT = 0xFFE8E8E4;
+    private static final int TEXT = FoundryControllerUiDrawing.TEXT;
 
-    private static final int ROW_X = 7;
-    private static final int ROW_Y = 22;
+    private static final int ROW_X = 8;
+    private static final int ROW_Y = 28;
     private static final int ROW_WIDTH = 86;
     private static final int ROW_HEIGHT = 19;
     private static final int ROW_STRIDE = 21;
 
     /*
-     * The first visible row is always Default. This means the menu shows
-     * Default + three discovered metals before scrolling is needed.
+     * Default precedes the discovered metals. Four entries are visible at
+     * once; scrolling retains the existing combined-list behavior.
      */
     private static final int VISIBLE_ROWS = 4;
 
-    private static final int SCROLL_X = 95;
+    private static final int SCROLL_X = 96;
     private static final int SCROLL_WIDTH = 6;
     private static final int SCROLL_Y = ROW_Y;
-    private static final int SCROLL_HEIGHT =
-            VISIBLE_ROWS * ROW_STRIDE - 2;
+    private static final int MAX_HEIGHT = 118;
+    private static final int THUMB_HEIGHT = 17;
 
-    private static final int TITLE_Y = 7;
+    private static final int TITLE_Y = 8;
 
     private int scrollOffset;
+    private boolean draggingScrollbar;
+    private double thumbGrabOffset;
 
     public FoundryFaucetOutputScreen(
             FoundryFaucetOutputMenu menu,
@@ -53,14 +58,16 @@ public class FoundryFaucetOutputScreen
                 title
         );
 
-        imageWidth = 105;
-        imageHeight = 112;
+        imageWidth = 110;
+        imageHeight = MAX_HEIGHT;
     }
 
     @Override
     protected void init() {
         super.init();
 
+        updateLayout();
+        draggingScrollbar = false;
         titleLabelX = -1000;
         inventoryLabelX = -1000;
     }
@@ -72,6 +79,7 @@ public class FoundryFaucetOutputScreen
             int mouseY,
             float partialTick
     ) {
+        updateLayout();
         renderBackground(
                 graphics,
                 mouseX,
@@ -122,64 +130,88 @@ public class FoundryFaucetOutputScreen
                     graphics,
                     leftPos + SCROLL_X,
                     topPos + SCROLL_Y,
-                    SCROLL_HEIGHT,
+                    getScrollHeight(),
                     getTotalRows(),
                     VISIBLE_ROWS,
                     scrollOffset
             );
+            renderScrollbarFinish(graphics);
+        } else {
+            FoundryControllerListDrawing.drawScrollbarTrack(
+                    graphics, leftPos + SCROLL_X, topPos + SCROLL_Y,
+                    getScrollHeight()
+            );
         }
+    }
+
+    private void renderScrollbarFinish(
+            GuiGraphics graphics
+    ) {
+        int left = leftPos + SCROLL_X;
+        int top = topPos + SCROLL_Y;
+        // Preserve the shared textured track and its existing 6 x 17 thumb.
+        graphics.renderOutline(left, top, SCROLL_WIDTH, getScrollHeight(),
+                FoundryControllerListDrawing.ROW_OUTLINE);
+        int thumbTop = getThumbTop();
+        graphics.renderOutline(left, thumbTop, SCROLL_WIDTH, THUMB_HEIGHT, 0xFF292929);
+        graphics.fill(left + 1, thumbTop + 1, left + SCROLL_WIDTH - 1, thumbTop + 2,
+                0xFF747474);
+        graphics.fill(left + 2, thumbTop + THUMB_HEIGHT / 2,
+                left + SCROLL_WIDTH - 2, thumbTop + THUMB_HEIGHT / 2 + 1,
+                0xFF383838);
     }
 
     private void renderPanel(
             GuiGraphics graphics
     ) {
+        // A two-pixel rim outside the unchanged menu bounds, without decoration.
+        graphics.renderOutline(leftPos - 2, topPos - 2,
+                imageWidth + 4, imageHeight + 4, 0xFF161616);
+        graphics.renderOutline(leftPos - 1, topPos - 1,
+                imageWidth + 2, imageHeight + 2, 0xFF626262);
+        // Match the Controller's outer metal surround and dark inset sections.
         graphics.fill(
                 leftPos,
                 topPos,
                 leftPos + imageWidth,
                 topPos + imageHeight,
-                PANEL
+                0xFF3B3B3B
         );
+        drawInsetFrame(graphics, leftPos + 2, topPos + 2, imageWidth - 4, 19);
+        drawInsetFrame(graphics, leftPos + 2, topPos + 23, imageWidth - 4, imageHeight - 25);
+    }
 
-        graphics.fill(
-                leftPos + 1,
-                topPos + 1,
-                leftPos + imageWidth - 1,
-                topPos + imageHeight - 1,
-                PANEL_INNER
-        );
-
-        graphics.fill(
-                leftPos,
-                topPos,
-                leftPos + imageWidth,
-                topPos + 1,
-                BORDER_LIGHT
-        );
-
-        graphics.fill(
-                leftPos,
-                topPos,
-                leftPos + 1,
-                topPos + imageHeight,
-                BORDER_LIGHT
-        );
-
-        graphics.fill(
-                leftPos,
-                topPos + imageHeight - 1,
-                leftPos + imageWidth,
-                topPos + imageHeight,
-                BORDER_DARK
-        );
-
-        graphics.fill(
-                leftPos + imageWidth - 1,
-                topPos,
-                leftPos + imageWidth,
-                topPos + imageHeight,
-                BORDER_DARK
-        );
+    private static void drawInsetFrame(
+            GuiGraphics graphics,
+            int left,
+            int top,
+            int width,
+            int height
+    ) {
+        // Nine-slice the Controller's empty status-bar frame. Preserve its
+        // four-pixel corners at native resolution; stretch only plain edges.
+        int[] sourceX = {2, 6, 168};
+        int[] sourceY = {21, 25, 33};
+        int[] sourceWidths = {4, 162, 4};
+        int[] sourceHeights = {4, 8, 4};
+        int[] targetWidths = {4, width - 8, 4};
+        int[] targetHeights = {4, height - 8, 4};
+        int y = top;
+        for (int row = 0; row < 3; row++) {
+            int x = left;
+            for (int column = 0; column < 3; column++) {
+                graphics.blit(
+                        FRAME_TEXTURE, x, y,
+                        targetWidths[column], targetHeights[row],
+                        (float) sourceX[column], (float) sourceY[row],
+                        sourceWidths[column], sourceHeights[row],
+                        FoundryControllerUiLayout.WIDTH,
+                        FoundryControllerUiLayout.HEIGHT
+                );
+                x += targetWidths[column];
+            }
+            y += targetHeights[row];
+        }
     }
 
     private void renderTitle(
@@ -209,7 +241,7 @@ public class FoundryFaucetOutputScreen
 
         for (
                 int visibleRow = 0;
-                visibleRow < VISIBLE_ROWS;
+                visibleRow < getVisibleRows();
                 visibleRow++
         ) {
             int rowIndex =
@@ -274,14 +306,12 @@ public class FoundryFaucetOutputScreen
                 true
         );
 
-        if (
-                !selected
-                        && isMouseOverVisibleRow(
-                        mouseX,
-                        mouseY,
-                        visibleRow
-                )
-        ) {
+        boolean hovered = isMouseOverVisibleRow(
+                mouseX,
+                mouseY,
+                visibleRow
+        );
+        if (hovered && !selected) {
             graphics.fill(
                     left + 2,
                     top + 1,
@@ -289,6 +319,19 @@ public class FoundryFaucetOutputScreen
                     top + ROW_HEIGHT - 1,
                     HOVER_OVERLAY
             );
+        }
+
+        if (selected) {
+            // Recolor the existing two-pixel inset strip, preserving the
+            // authored row texture's checker pattern and dark outer border.
+            for (int y = 1; y < ROW_HEIGHT - 1; y++) {
+                for (int x = 1; x <= 2; x++) {
+                    graphics.fill(
+                            left + x, top + y, left + x + 1, top + y + 1,
+                            (x + y) % 2 == 0 ? 0xFF4C361C : 0xFFB88432
+                    );
+                }
+            }
         }
     }
 
@@ -298,14 +341,14 @@ public class FoundryFaucetOutputScreen
             int top
     ) {
         /*
-         * Selection is communicated by the card highlight only. The text stays
-         * neutral so selected rows do not get an extra green emphasis.
+         * Keep text neutral; the card highlight and amber inset show selection.
          */
         FoundryControllerMetalsRenderer.drawScaledListText(
                 graphics,
                 Component.literal("Default"),
-                left + 6,
-                top + 6,
+                left + Math.round((ROW_WIDTH - font.width("Default")
+                        * FoundryControllerMetalsRenderer.LIST_TEXT_SCALE) / 2.0F),
+                top + 7,
                 TEXT
         );
     }
@@ -352,8 +395,7 @@ public class FoundryFaucetOutputScreen
                 );
 
         /*
-         * Selection is communicated by the card highlight only. The text stays
-         * neutral so selected rows do not get an extra green emphasis.
+         * Keep text neutral; the card highlight and amber inset show selection.
          */
         FoundryControllerMetalsRenderer.drawScaledListText(
                 graphics,
@@ -370,6 +412,16 @@ public class FoundryFaucetOutputScreen
             double mouseY,
             int button
     ) {
+        updateLayout();
+        if (button == 0 && getTotalRows() > VISIBLE_ROWS
+                && mouseX >= leftPos + SCROLL_X
+                && mouseX < leftPos + SCROLL_X + SCROLL_WIDTH
+                && mouseY >= getThumbTop()
+                && mouseY < getThumbTop() + THUMB_HEIGHT) {
+            draggingScrollbar = true;
+            thumbGrabOffset = mouseY - getThumbTop();
+            return true;
+        }
         if (button == 0) {
             int clickedRow =
                     getClickedRow(
@@ -405,12 +457,41 @@ public class FoundryFaucetOutputScreen
     }
 
     @Override
+    public boolean mouseDragged(
+            double mouseX, double mouseY, int button,
+            double dragX, double dragY
+    ) {
+        updateLayout();
+        if (button == 0 && draggingScrollbar) {
+            int maxOffset = getTotalRows() - VISIBLE_ROWS;
+            int travel = getScrollHeight() - THUMB_HEIGHT;
+            scrollOffset = (int) Math.round(
+                    (mouseY - topPos - SCROLL_Y - thumbGrabOffset)
+                            * maxOffset / travel
+            );
+            clampScroll();
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, dragX, dragY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        if (button == 0 && draggingScrollbar) {
+            draggingScrollbar = false;
+            return true;
+        }
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
     public boolean mouseScrolled(
             double mouseX,
             double mouseY,
             double scrollX,
             double scrollY
     ) {
+        updateLayout();
         int maxOffset =
                 Math.max(
                         0,
@@ -535,7 +616,7 @@ public class FoundryFaucetOutputScreen
 
         if (
                 visibleRow < 0
-                        || visibleRow >= VISIBLE_ROWS
+                        || visibleRow >= getVisibleRows()
         ) {
             return -1;
         }
@@ -567,7 +648,7 @@ public class FoundryFaucetOutputScreen
                 && mouseX < leftPos + ROW_X + ROW_WIDTH
                 && mouseY >= topPos + ROW_Y
                 && mouseY < topPos + ROW_Y
-                + VISIBLE_ROWS * ROW_STRIDE;
+                + getScrollHeight();
     }
 
     private boolean isMouseOverScrollableArea(
@@ -578,11 +659,39 @@ public class FoundryFaucetOutputScreen
                 && mouseX < leftPos + SCROLL_X + SCROLL_WIDTH
                 && mouseY >= topPos + ROW_Y
                 && mouseY < topPos + ROW_Y
-                + VISIBLE_ROWS * ROW_STRIDE;
+                + getScrollHeight();
     }
 
     private int getTotalRows() {
         return menu.getMetals().size() + 1;
+    }
+
+    private int getVisibleRows() {
+        return Math.min(VISIBLE_ROWS, getTotalRows());
+    }
+
+    private int getScrollHeight() {
+        return getVisibleRows() * ROW_STRIDE - 2;
+    }
+
+    private int getThumbTop() {
+        int maxOffset = Math.max(0, getTotalRows() - VISIBLE_ROWS);
+        return topPos + SCROLL_Y + (maxOffset == 0 ? 0
+                : (getScrollHeight() - THUMB_HEIGHT) * scrollOffset / maxOffset);
+    }
+
+    private void updateLayout() {
+        int newHeight = MAX_HEIGHT - (VISIBLE_ROWS - getVisibleRows()) * ROW_STRIDE;
+        if (imageHeight != newHeight) {
+            imageHeight = newHeight;
+            draggingScrollbar = false;
+        }
+        leftPos = (width - imageWidth) / 2;
+        topPos = (height - imageHeight) / 2;
+        clampScroll();
+        if (getTotalRows() <= VISIBLE_ROWS) {
+            draggingScrollbar = false;
+        }
     }
 
     private void clampScroll() {

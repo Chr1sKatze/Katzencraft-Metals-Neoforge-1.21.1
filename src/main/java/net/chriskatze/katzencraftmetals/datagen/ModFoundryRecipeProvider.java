@@ -280,7 +280,7 @@ public final class ModFoundryRecipeProvider {
             RecipeOutput recipeOutput
     ) {
         /*
-         * Temporary Foundry progression:
+         * Foundry alloy recipes:
          *
          * Steel is currently a refinement-style alloy recipe because the alloy
          * system only accepts molten metal ingredients. We can add carbon/coal
@@ -292,9 +292,6 @@ public final class ModFoundryRecipeProvider {
                 .ingredient(
                         ModMoltenMetals.IRON,
                         6
-                )
-                .experience(
-                        1
                 )
                 .save(
                         recipeOutput
@@ -310,9 +307,6 @@ public final class ModFoundryRecipeProvider {
                 .ingredient(
                         ModMoltenMetals.GOLD,
                         3
-                )
-                .experience(
-                        2
                 )
                 .save(
                         recipeOutput
@@ -331,12 +325,6 @@ public final class ModFoundryRecipeProvider {
                 )
                 .processingTime(
                         140
-                )
-                .experience(
-                        3
-                )
-                .requiredTier(
-                        2
                 )
                 .save(
                         recipeOutput

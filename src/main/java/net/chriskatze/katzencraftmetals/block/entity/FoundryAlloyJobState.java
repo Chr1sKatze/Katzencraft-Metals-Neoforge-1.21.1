@@ -55,11 +55,6 @@ final class FoundryAlloyJobState {
      */
     int maxProgress = 1;
 
-    /**
-     * Experience granted by one completed batch.
-     */
-    int experience;
-
     int statusCode =
             FoundryControllerProcessing.STATUS_READY;
 
@@ -69,8 +64,7 @@ final class FoundryAlloyJobState {
             Map<ResourceLocation, Integer> requiredIngredients,
             int outputAmount,
             int batchCount,
-            int maxProgress,
-            int experience
+            int maxProgress
     ) {
         this.activeRecipeId = recipeId;
         this.outputMetal = outputMetal;
@@ -85,7 +79,6 @@ final class FoundryAlloyJobState {
         this.completedBatches = 0;
         this.progress = 0;
         this.maxProgress = maxProgress;
-        this.experience = experience;
 
         this.statusCode =
                 FoundryControllerProcessing.STATUS_ALLOYING;
@@ -102,7 +95,6 @@ final class FoundryAlloyJobState {
         completedBatches = 0;
         progress = 0;
         maxProgress = 1;
-        experience = 0;
 
         statusCode =
                 FoundryControllerProcessing.STATUS_READY;
@@ -172,11 +164,6 @@ final class FoundryAlloyJobState {
         tag.putInt(
                 "ActiveAlloyMaxProgress",
                 maxProgress
-        );
-
-        tag.putInt(
-                "ActiveAlloyExperience",
-                experience
         );
 
         tag.put(
@@ -262,14 +249,6 @@ final class FoundryAlloyJobState {
                 Math.min(
                         progress,
                         maxProgress
-                );
-
-        experience =
-                Math.max(
-                        0,
-                        tag.getInt(
-                                "ActiveAlloyExperience"
-                        )
                 );
 
         FoundryAlloyAmounts.readAmounts(

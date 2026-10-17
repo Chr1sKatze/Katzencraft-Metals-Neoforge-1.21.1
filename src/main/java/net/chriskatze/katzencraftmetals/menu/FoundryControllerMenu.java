@@ -62,20 +62,25 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
      * 18 x 18 frames. The frame itself begins one pixel above and left.
      */
     private static final int[] INPUT_SLOT_X = {
-            41, 41, 60, 60, 79, 79, 98, 98
+            38, 38, 57, 57, 76, 76, 95, 95
     };
+
+    public static final int INPUT_FIRST_ROW_Y = 40;
 
     private static final int[] INPUT_SLOT_Y = {
-            56, 75, 56, 75, 56, 75, 56, 75
+            INPUT_FIRST_ROW_Y, INPUT_FIRST_ROW_Y + 19,
+            INPUT_FIRST_ROW_Y, INPUT_FIRST_ROW_Y + 19,
+            INPUT_FIRST_ROW_Y, INPUT_FIRST_ROW_Y + 19,
+            INPUT_FIRST_ROW_Y, INPUT_FIRST_ROW_Y + 19
     };
 
-    private static final int FUEL_SLOT_START_X = 41;
-    private static final int FUEL_SLOT_Y = 99;
+    private static final int FUEL_SLOT_START_X = 38;
+    public static final int FUEL_SLOT_Y = INPUT_FIRST_ROW_Y + 43;
     private static final int SLOT_SPACING = 19;
 
     private static final int PLAYER_INVENTORY_X = 7;
-    private static final int PLAYER_INVENTORY_Y = 155;
-    private static final int PLAYER_HOTBAR_Y = 209;
+    public static final int PLAYER_INVENTORY_Y = 141;
+    private static final int PLAYER_HOTBAR_Y = PLAYER_INVENTORY_Y + 54;
 
     private final FoundryControllerBlockEntity blockEntity;
     private final Container inputContainer;
@@ -299,68 +304,12 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
         );
     }
 
-    public int getFoundryTier() {
-        return data.get(
-                FoundryControllerBlockEntity.TIER_DATA_INDEX
-        );
-    }
-
-    public int getFoundryExperience() {
-        return data.get(
-                FoundryControllerBlockEntity.EXPERIENCE_DATA_INDEX
-        );
-    }
-
-    public int getTierExperience() {
-        return data.get(
-                FoundryControllerBlockEntity.TIER_EXPERIENCE_DATA_INDEX
-        );
-    }
-
-    public int getTierExperienceNeeded() {
-        return Math.max(
-                1,
-                data.get(
-                        FoundryControllerBlockEntity
-                                .TIER_EXPERIENCE_NEEDED_DATA_INDEX
-                )
-        );
-    }
-
-    public int getScaledExperience(int width) {
-        if (getFoundryTier() >= 4) {
-            return width;
-        }
-
-        return Math.max(
-                0,
-                Math.min(
-                        width,
-                        getTierExperience()
-                                * width
-                                / getTierExperienceNeeded()
-                )
-        );
-    }
-
     public int getUnlockedInputSlotCount() {
-        return Math.min(
-                INPUT_SLOT_COUNT,
-                Math.max(
-                        2,
-                        getFoundryTier() * 2
-                )
-        );
+        return INPUT_SLOT_COUNT;
     }
 
     public int getUnlockedFuelSlotCount() {
-        return Math.min(
-                FUEL_SLOT_COUNT,
-                Math.max(
-                        1,
-                        getFoundryTier()
-                )
-        );
+        return FUEL_SLOT_COUNT;
     }
 
     public boolean isInputSlotUnlocked(int slot) {
@@ -516,7 +465,6 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
         if (
                 recipe == null
                         || !isAlloyRecipeUnlocked(recipe)
-                        || recipe.requiredTier() > getFoundryTier()
                         || blockEntity.getLevel() == null
                         || ModMoltenMetals.get(recipe.outputMetal()).isEmpty()
         ) {

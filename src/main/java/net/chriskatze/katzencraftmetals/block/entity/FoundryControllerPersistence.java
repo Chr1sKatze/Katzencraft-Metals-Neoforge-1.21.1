@@ -90,11 +90,6 @@ final class FoundryControllerPersistence {
                         registries
                 );
 
-        controller.getProgressionForPersistence()
-                .save(
-                        tag
-                );
-
         controller.getAlloyingForPersistence()
                 .save(
                         tag
@@ -174,11 +169,6 @@ final class FoundryControllerPersistence {
                 .load(
                         tag,
                         registries
-                );
-
-        controller.getProgressionForPersistence()
-                .load(
-                        tag
                 );
 
         controller.getProcessingForPersistence()

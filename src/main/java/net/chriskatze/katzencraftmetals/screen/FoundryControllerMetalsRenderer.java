@@ -22,11 +22,13 @@ final class FoundryControllerMetalsRenderer {
     static final int LIST_TEXT_X_OFFSET = 25;
     static final int LIST_TEXT_WIDTH = 58;
 
-    private static final int METAL_NAME_Y_OFFSET = 4;
-    private static final int METAL_AMOUNT_Y_OFFSET = 12;
+    private static final int METAL_NAME_Y_OFFSET = 3;
+    private static final int METAL_AMOUNT_Y_OFFSET = 11;
 
     private final FoundryControllerScreen screen;
     private int scrollOffset;
+    private boolean draggingScrollbar;
+    private double thumbGrabOffset;
 
     FoundryControllerMetalsRenderer(
             FoundryControllerScreen screen
@@ -35,7 +37,9 @@ final class FoundryControllerMetalsRenderer {
     }
 
     void render(
-            GuiGraphics graphics
+            GuiGraphics graphics,
+            int mouseX,
+            int mouseY
     ) {
         List<MoltenMetalDefinition> entries = buildEntries();
         clampScroll(entries.size());
@@ -54,23 +58,20 @@ final class FoundryControllerMetalsRenderer {
             renderEntry(
                     graphics,
                     entries.get(index),
-                    visibleRow
+                    visibleRow,
+                    mouseX,
+                    mouseY
             );
         }
 
-        if (entries.size() > FoundryControllerUiLayout.VISIBLE_METAL_ROWS) {
-            FoundryControllerListDrawing.drawScrollbar(
-                    graphics,
-                    screen.guiLeft()
-                            + FoundryControllerUiLayout.METAL_SCROLL_X,
-                    screen.guiTop()
-                            + FoundryControllerUiLayout.METAL_SCROLL_Y,
-                    FoundryControllerUiLayout.METAL_SCROLL_HEIGHT,
-                    entries.size(),
-                    FoundryControllerUiLayout.VISIBLE_METAL_ROWS,
-                    scrollOffset
-            );
-        }
+        FoundryControllerListDrawing.drawAdaptiveScrollbar(
+                graphics,
+                screen.guiLeft() + FoundryControllerUiLayout.METAL_SCROLL_X,
+                screen.guiTop() + FoundryControllerUiLayout.METAL_SCROLL_Y,
+                entries.size(), FoundryControllerUiLayout.VISIBLE_METAL_ROWS,
+                FoundryControllerUiLayout.METAL_ROW_HEIGHT,
+                FoundryControllerUiLayout.METAL_ROW_STRIDE, scrollOffset
+        );
     }
 
     boolean mouseClicked(
@@ -78,6 +79,20 @@ final class FoundryControllerMetalsRenderer {
             double mouseY,
             int button
     ) {
+        int count = buildEntries().size();
+        clampScroll(count);
+        int maxOffset = count - FoundryControllerUiLayout.VISIBLE_METAL_ROWS;
+        int thumbTop = screen.guiTop() + FoundryControllerUiLayout.METAL_SCROLL_Y
+                + (maxOffset <= 0 ? 0 : (FoundryControllerUiLayout.METAL_SCROLL_HEIGHT - 17)
+                * scrollOffset / maxOffset);
+        if (button == 0 && maxOffset > 0
+                && mouseX >= screen.guiLeft() + FoundryControllerUiLayout.METAL_SCROLL_X
+                && mouseX < screen.guiLeft() + FoundryControllerUiLayout.METAL_SCROLL_X + 6
+                && mouseY >= thumbTop && mouseY < thumbTop + 17) {
+            draggingScrollbar = true;
+            thumbGrabOffset = mouseY - thumbTop;
+            return true;
+        }
         if (button != 0) {
             return false;
         }
@@ -118,6 +133,31 @@ final class FoundryControllerMetalsRenderer {
             return screen.sendMenuButton(buttonId);
         }
 
+        return false;
+    }
+
+    boolean mouseDragged(double mouseY, int button) {
+        if (button != 0 || !draggingScrollbar) {
+            return false;
+        }
+        int maxOffset = buildEntries().size() - FoundryControllerUiLayout.VISIBLE_METAL_ROWS;
+        if (maxOffset <= 0) {
+            draggingScrollbar = false;
+            scrollOffset = 0;
+            return false;
+        }
+        double fraction = (mouseY - screen.guiTop()
+                - FoundryControllerUiLayout.METAL_SCROLL_Y - thumbGrabOffset)
+                / (FoundryControllerUiLayout.METAL_SCROLL_HEIGHT - 17);
+        scrollOffset = Math.max(0, Math.min(maxOffset, (int) Math.round(fraction * maxOffset)));
+        return true;
+    }
+
+    boolean mouseReleased(int button) {
+        if (button == 0 && draggingScrollbar) {
+            draggingScrollbar = false;
+            return true;
+        }
         return false;
     }
 
@@ -225,7 +265,9 @@ final class FoundryControllerMetalsRenderer {
     private void renderEntry(
             GuiGraphics graphics,
             MoltenMetalDefinition definition,
-            int visibleRow
+            int visibleRow,
+            int mouseX,
+            int mouseY
     ) {
         int left =
                 screen.guiLeft()
@@ -246,6 +288,10 @@ final class FoundryControllerMetalsRenderer {
                 top,
                 selected,
                 true
+        );
+        FoundryControllerListDrawing.drawMetalRowAccents(
+                graphics, left, top, selected,
+                isMouseOverRow(mouseX, mouseY, visibleRow)
         );
 
         ItemStack icon = getDisplayIcon(definition);
@@ -343,6 +389,9 @@ final class FoundryControllerMetalsRenderer {
     private void clampScroll(
             int count
     ) {
+        if (count <= FoundryControllerUiLayout.VISIBLE_METAL_ROWS) {
+            draggingScrollbar = false;
+        }
         scrollOffset =
                 Math.max(
                         0,

@@ -90,22 +90,6 @@ final class FoundryControllerMenuData
             return controller.getMaxBurnTime();
         }
 
-        if (index == FoundryControllerBlockEntity.TIER_DATA_INDEX) {
-            return controller.getFoundryTier();
-        }
-
-        if (index == FoundryControllerBlockEntity.EXPERIENCE_DATA_INDEX) {
-            return controller.getFoundryExperience();
-        }
-
-        if (index == FoundryControllerBlockEntity.TIER_EXPERIENCE_DATA_INDEX) {
-            return controller.getFoundryExperienceIntoTier();
-        }
-
-        if (index == FoundryControllerBlockEntity.TIER_EXPERIENCE_NEEDED_DATA_INDEX) {
-            return controller.getFoundryExperienceNeededForTier();
-        }
-
         if (index == FoundryControllerBlockEntity.ACTIVE_INPUT_SLOT_DATA_INDEX) {
             return controller.getMenuActiveInputSlot();
         }

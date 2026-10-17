@@ -23,11 +23,7 @@ public final class FoundryAlloyRecipeBuilder implements RecipeBuilder {
     private int processingTime =
             100;
 
-    private int experience =
-            1;
 
-    private int requiredTier =
-            1;
 
     private FoundryAlloyRecipeBuilder(
             ResourceLocation outputMetal,
@@ -73,24 +69,6 @@ public final class FoundryAlloyRecipeBuilder implements RecipeBuilder {
         return this;
     }
 
-    public FoundryAlloyRecipeBuilder experience(
-            int experience
-    ) {
-        this.experience =
-                experience;
-
-        return this;
-    }
-
-    public FoundryAlloyRecipeBuilder requiredTier(
-            int requiredTier
-    ) {
-        this.requiredTier =
-                requiredTier;
-
-        return this;
-    }
-
     @Override
     public RecipeBuilder unlockedBy(
             String name,
@@ -124,9 +102,7 @@ public final class FoundryAlloyRecipeBuilder implements RecipeBuilder {
                         ),
                         outputMetal,
                         outputAmount,
-                        processingTime,
-                        experience,
-                        requiredTier
+                        processingTime
                 ),
                 null
         );

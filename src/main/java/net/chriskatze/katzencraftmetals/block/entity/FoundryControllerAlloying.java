@@ -158,9 +158,6 @@ final class FoundryControllerAlloying {
         }
 
         job.completedBatches++;
-        controller.addFoundryExperience(
-                job.experience
-        );
 
         if (job.completedBatches >= job.batchCount) {
             job.clear();

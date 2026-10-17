@@ -33,17 +33,11 @@ final class FoundryControllerAlloysRenderer {
     private static final ResourceLocation MINUS_BUTTON_HOVER_TEXTURE =
             texture("foundry_controller_minus_button_hover.png");
 
-    private static final ResourceLocation MINUS_BUTTON_PRESSED_TEXTURE =
-            texture("foundry_controller_minus_button_pressed.png");
-
     private static final ResourceLocation PLUS_BUTTON_TEXTURE =
             texture("foundry_controller_plus_button.png");
 
     private static final ResourceLocation PLUS_BUTTON_HOVER_TEXTURE =
             texture("foundry_controller_plus_button_hover.png");
-
-    private static final ResourceLocation PLUS_BUTTON_PRESSED_TEXTURE =
-            texture("foundry_controller_plus_button_pressed.png");
 
     private static final ResourceLocation EDITBAR_TEXTURE =
             texture("foundry_controller_alloy_editbar.png");
@@ -54,13 +48,12 @@ final class FoundryControllerAlloysRenderer {
     private static final ResourceLocation START_BUTTON_HOVER_TEXTURE =
             texture("foundry_controller_alloy_button_hover.png");
 
-    private static final ResourceLocation START_BUTTON_PRESSED_TEXTURE =
-            texture("foundry_controller_alloy_button_pressed.png");
-
     private static final long PRESSED_DISPLAY_TIME_MS = 120L;
 
     private final FoundryControllerScreen screen;
     private int scrollOffset;
+    private boolean draggingScrollbar;
+    private double thumbGrabOffset;
 
     @Nullable
     private ResourceLocation focusedRecipeId;
@@ -98,23 +91,18 @@ final class FoundryControllerAlloysRenderer {
             renderEntry(
                     graphics,
                     entries.get(index),
-                    visibleRow
+                    visibleRow, mouseX, mouseY
             );
         }
 
-        if (entries.size() > FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS) {
-            FoundryControllerListDrawing.drawScrollbar(
-                    graphics,
-                    screen.guiLeft()
-                            + FoundryControllerUiLayout.ALLOY_SCROLL_X,
-                    screen.guiTop()
-                            + FoundryControllerUiLayout.ALLOY_SCROLL_Y,
-                    FoundryControllerUiLayout.ALLOY_SCROLL_HEIGHT,
-                    entries.size(),
-                    FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS,
-                    scrollOffset
-            );
-        }
+        FoundryControllerListDrawing.drawAdaptiveScrollbar(
+                graphics,
+                screen.guiLeft() + FoundryControllerUiLayout.ALLOY_SCROLL_X,
+                screen.guiTop() + FoundryControllerUiLayout.ALLOY_SCROLL_Y,
+                entries.size(), FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS,
+                FoundryControllerUiLayout.ALLOY_ROW_HEIGHT,
+                FoundryControllerUiLayout.ALLOY_ROW_STRIDE, scrollOffset
+        );
 
         Entry focused = findFocusedEntry(entries);
 
@@ -141,6 +129,20 @@ final class FoundryControllerAlloysRenderer {
             double mouseY,
             int button
     ) {
+        int count = buildEntries().size();
+        clampScroll(count);
+        int maxOffset = count - FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS;
+        int thumbTop = screen.guiTop() + FoundryControllerUiLayout.ALLOY_SCROLL_Y
+                + (maxOffset <= 0 ? 0 : (FoundryControllerUiLayout.ALLOY_SCROLL_HEIGHT - 17)
+                * scrollOffset / maxOffset);
+        if (button == 0 && maxOffset > 0
+                && mouseX >= screen.guiLeft() + FoundryControllerUiLayout.ALLOY_SCROLL_X
+                && mouseX < screen.guiLeft() + FoundryControllerUiLayout.ALLOY_SCROLL_X + 6
+                && mouseY >= thumbTop && mouseY < thumbTop + 17) {
+            draggingScrollbar = true;
+            thumbGrabOffset = mouseY - thumbTop;
+            return true;
+        }
         if (button != 0) {
             return false;
         }
@@ -276,6 +278,31 @@ final class FoundryControllerAlloysRenderer {
         return false;
     }
 
+    boolean mouseDragged(double mouseY, int button) {
+        if (button != 0 || !draggingScrollbar) {
+            return false;
+        }
+        int maxOffset = buildEntries().size() - FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS;
+        if (maxOffset <= 0) {
+            draggingScrollbar = false;
+            scrollOffset = 0;
+            return false;
+        }
+        double fraction = (mouseY - screen.guiTop()
+                - FoundryControllerUiLayout.ALLOY_SCROLL_Y - thumbGrabOffset)
+                / (FoundryControllerUiLayout.ALLOY_SCROLL_HEIGHT - 17);
+        scrollOffset = Math.max(0, Math.min(maxOffset, (int) Math.round(fraction * maxOffset)));
+        return true;
+    }
+
+    boolean mouseReleased(int button) {
+        if (button == 0 && draggingScrollbar) {
+            draggingScrollbar = false;
+            return true;
+        }
+        return false;
+    }
+
     boolean mouseScrolled(
             double mouseX,
             double mouseY,
@@ -352,12 +379,7 @@ final class FoundryControllerAlloysRenderer {
                     entry.holder().value();
 
             Component tooltip =
-                    isTierLocked(recipe)
-                            ? Component.literal(
-                            "Requires Foundry Tier "
-                                    + recipe.requiredTier()
-                    ).withStyle(ChatFormatting.RED)
-                            : Component.literal(
+                    Component.literal(
                             FoundryControllerMetalsRenderer.displayName(
                                     recipe.outputMetal()
                             )
@@ -469,7 +491,7 @@ final class FoundryControllerAlloysRenderer {
     private void renderEntry(
             GuiGraphics graphics,
             Entry entry,
-            int visibleRow
+            int visibleRow, int mouseX, int mouseY
     ) {
         int left =
                 screen.guiLeft()
@@ -490,9 +512,6 @@ final class FoundryControllerAlloysRenderer {
                         entry.holder().id()
                 );
 
-        boolean tierLocked =
-                isTierLocked(recipe);
-
         boolean craftable =
                 menu().getMaxCraftableBatches(recipe) > 0;
 
@@ -501,7 +520,12 @@ final class FoundryControllerAlloysRenderer {
                 left,
                 top,
                 selected,
-                tierLocked || craftable
+                true
+        );
+
+        FoundryControllerListDrawing.drawMetalRowAccents(
+                graphics, left, top, selected,
+                isMouseOverRow(mouseX, mouseY, visibleRow)
         );
 
         ItemStack icon =
@@ -547,9 +571,7 @@ final class FoundryControllerAlloysRenderer {
                         + FoundryControllerMetalsRenderer
                         .LIST_TEXT_X_OFFSET,
                 alloyNameY,
-                tierLocked
-                        ? FoundryControllerUiDrawing.RED
-                        : craftable
+                craftable
                         ? FoundryControllerUiDrawing.TEXT
                         : FoundryControllerUiDrawing.MUTED_TEXT
         );
@@ -656,6 +678,15 @@ final class FoundryControllerAlloysRenderer {
                 FoundryControllerUiLayout.ALLOY_RECIPE_SLOT_Y,
                 hasResult
         );
+
+        if (hasResult && menu().isAlloyJobActive()
+                && menu().getActiveAlloyOutput()
+                        .map(definition -> definition.id().equals(recipe.outputMetal()))
+                        .orElse(false)) {
+            FoundryControllerUiDrawing.drawActiveSlotOutline(graphics,
+                    screen.guiLeft() + FoundryControllerUiLayout.ALLOY_RESULT_SLOT_X - 1,
+                    screen.guiTop() + FoundryControllerUiLayout.ALLOY_RECIPE_SLOT_Y - 1);
+        }
 
         if (!hasResult) {
             return;
@@ -775,49 +806,51 @@ final class FoundryControllerAlloysRenderer {
                 FoundryControllerUiLayout.QUANTITY_EDITBAR_HEIGHT
         );
 
+        FoundryControllerUiDrawing.drawControlFrame(graphics,
+                screen.guiLeft() + FoundryControllerUiLayout.QUANTITY_EDITBAR_X,
+                screen.guiTop() + FoundryControllerUiLayout.QUANTITY_EDITBAR_Y,
+                FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH,
+                FoundryControllerUiLayout.QUANTITY_EDITBAR_HEIGHT, startEnabled,
+                startEnabled && FoundryControllerUiLayout.contains(mouseX, mouseY, screen.guiLeft(), screen.guiTop(),
+                        FoundryControllerUiLayout.QUANTITY_EDITBAR_X, FoundryControllerUiLayout.QUANTITY_EDITBAR_Y,
+                        FoundryControllerUiLayout.QUANTITY_EDITBAR_WIDTH, FoundryControllerUiLayout.QUANTITY_EDITBAR_HEIGHT),
+                false, true);
+
         drawControlButton(
                 graphics,
                 MINUS_BUTTON_TEXTURE,
                 MINUS_BUTTON_HOVER_TEXTURE,
-                MINUS_BUTTON_PRESSED_TEXTURE,
                 FoundryControllerUiLayout.QUANTITY_MINUS_X,
                 FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
                 FoundryControllerUiLayout.QUANTITY_MINUS_WIDTH,
                 FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT,
                 startEnabled,
-                isMouseOverMinus(mouseX, mouseY),
-                isPressed(ControlButton.MINUS)
+                isMouseOverMinus(mouseX, mouseY)
         );
 
         drawControlButton(
                 graphics,
                 PLUS_BUTTON_TEXTURE,
                 PLUS_BUTTON_HOVER_TEXTURE,
-                PLUS_BUTTON_PRESSED_TEXTURE,
                 FoundryControllerUiLayout.QUANTITY_PLUS_X,
                 FoundryControllerUiLayout.QUANTITY_BUTTON_Y,
                 FoundryControllerUiLayout.QUANTITY_PLUS_WIDTH,
                 FoundryControllerUiLayout.QUANTITY_BUTTON_HEIGHT,
                 startEnabled,
-                isMouseOverPlus(mouseX, mouseY),
-                isPressed(ControlButton.PLUS)
+                isMouseOverPlus(mouseX, mouseY)
         );
 
-        boolean startPressed =
-                isPressed(ControlButton.START);
 
         drawControlButton(
                 graphics,
                 START_BUTTON_TEXTURE,
                 START_BUTTON_HOVER_TEXTURE,
-                START_BUTTON_PRESSED_TEXTURE,
                 FoundryControllerUiLayout.START_X,
                 FoundryControllerUiLayout.START_Y,
                 FoundryControllerUiLayout.START_WIDTH,
                 FoundryControllerUiLayout.START_HEIGHT,
                 mainButtonEnabled,
-                isMouseOverStart(mouseX, mouseY),
-                startPressed
+                isMouseOverStart(mouseX, mouseY)
         );
 
         FoundryControllerUiDrawing.drawCentered(
@@ -831,19 +864,10 @@ final class FoundryControllerAlloysRenderer {
                 screen.guiLeft()
                         + FoundryControllerUiLayout.START_X,
                 screen.guiTop()
-                        + FoundryControllerUiLayout.START_TEXT_Y
-                        + (
-                        startPressed
-                                ? 1
-                                : 0
-                ),
+                        + FoundryControllerUiLayout.START_TEXT_Y,
                 FoundryControllerUiLayout.START_WIDTH,
                 FoundryControllerUiLayout.START_HEIGHT,
-                alloying
-                        ? FoundryControllerUiDrawing.RED
-                        : startEnabled
-                        ? FoundryControllerUiDrawing.GREEN
-                        : FoundryControllerUiDrawing.MUTED_TEXT
+                FoundryControllerUiDrawing.HEADING_TEXT
         );
     }
 
@@ -851,21 +875,14 @@ final class FoundryControllerAlloysRenderer {
             GuiGraphics graphics,
             ResourceLocation normalTexture,
             ResourceLocation hoverTexture,
-            ResourceLocation pressedTexture,
             int relativeX,
             int relativeY,
             int width,
             int height,
             boolean enabled,
-            boolean hovered,
-            boolean pressed
+            boolean hovered
     ) {
-        ResourceLocation texture =
-                pressed
-                        ? pressedTexture
-                        : hovered && enabled
-                        ? hoverTexture
-                        : normalTexture;
+        ResourceLocation texture = hovered && enabled ? hoverTexture : normalTexture;
 
         int left = screen.guiLeft() + relativeX;
         int top = screen.guiTop() + relativeY;
@@ -891,6 +908,8 @@ final class FoundryControllerAlloysRenderer {
                     0x66000000
             );
         }
+        FoundryControllerUiDrawing.drawControlFrame(graphics, left, top, width, height,
+                enabled, hovered && enabled, false, false);
     }
 
     private void configureControls(
@@ -1070,14 +1089,6 @@ final class FoundryControllerAlloysRenderer {
         return null;
     }
 
-    private boolean isTierLocked(
-            FoundryAlloyRecipe recipe
-    ) {
-        return recipe != null
-                && recipe.requiredTier()
-                > menu().getFoundryTier();
-    }
-
     private boolean isMouseOverRow(
             double mouseX,
             double mouseY,
@@ -1193,6 +1204,9 @@ final class FoundryControllerAlloysRenderer {
     private void clampScroll(
             int count
     ) {
+        if (count <= FoundryControllerUiLayout.VISIBLE_ALLOY_ROWS) {
+            draggingScrollbar = false;
+        }
         scrollOffset =
                 Math.max(
                         0,
