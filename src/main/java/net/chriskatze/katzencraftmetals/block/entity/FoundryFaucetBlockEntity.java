@@ -106,6 +106,8 @@ public class FoundryFaucetBlockEntity
             Inventory playerInventory,
             Player player
     ) {
+        if (player.isSpectator()) return null;
+
         return new FoundryFaucetOutputMenu(
                 containerId,
                 playerInventory,

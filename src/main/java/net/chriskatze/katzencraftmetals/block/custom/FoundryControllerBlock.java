@@ -192,6 +192,8 @@ public class FoundryControllerBlock extends BaseEntityBlock {
             Player player,
             BlockHitResult hitResult
     ) {
+        if (player.isSpectator()) return InteractionResult.PASS;
+
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }

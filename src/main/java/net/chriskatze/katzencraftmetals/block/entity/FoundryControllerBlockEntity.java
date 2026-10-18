@@ -423,6 +423,8 @@ public class FoundryControllerBlockEntity
             Inventory playerInventory,
             Player player
     ) {
+        if (player.isSpectator()) return null;
+
         return new FoundryControllerMenu(
                 containerId,
                 playerInventory,

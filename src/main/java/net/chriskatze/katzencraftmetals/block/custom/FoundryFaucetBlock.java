@@ -301,6 +301,8 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
     public BlockState getStateForPlacement(
             BlockPlaceContext context
     ) {
+        if (context.getPlayer() != null && context.getPlayer().isSpectator()) return null;
+
         Direction clickedFace =
                 context.getClickedFace();
 
@@ -383,6 +385,8 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             InteractionHand hand,
             BlockHitResult hitResult
     ) {
+        if (player.isSpectator()) return ItemInteractionResult.FAIL;
+
         /*
          * Shift-right-click must open the lock menu even when the player holds
          * a block or item. Returning SUCCESS consumes the item interaction before
@@ -418,6 +422,8 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             Player player,
             BlockHitResult hitResult
     ) {
+        if (player.isSpectator()) return InteractionResult.PASS;
+
         if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
@@ -585,6 +591,8 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             BlockPos pos,
             Player player
     ) {
+        if (player.isSpectator()) return false;
+
         if (level.isClientSide()) {
             return true;
         }

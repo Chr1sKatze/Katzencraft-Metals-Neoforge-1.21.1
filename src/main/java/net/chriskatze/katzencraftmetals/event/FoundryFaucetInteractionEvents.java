@@ -25,6 +25,8 @@ public final class FoundryFaucetInteractionEvents {
     public static void onRightClickBlock(
             PlayerInteractEvent.RightClickBlock event
     ) {
+        if (event.getEntity().isSpectator()) return;
+
         Player player =
                 event.getEntity();
 

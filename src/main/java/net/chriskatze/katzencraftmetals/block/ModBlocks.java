@@ -245,7 +245,7 @@ public class ModBlocks {
                                     .strength(8.0f, 12.0f)
                                     .requiresCorrectToolForDrops()
                                     .noOcclusion()
-                                    .sound(SoundType.METAL)
+                                    .sound(SoundType.GLASS)
                     )
             );
 

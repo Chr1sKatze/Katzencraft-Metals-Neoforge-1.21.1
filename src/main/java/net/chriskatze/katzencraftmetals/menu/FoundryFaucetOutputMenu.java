@@ -196,7 +196,10 @@ public class FoundryFaucetOutputMenu extends AbstractContainerMenu {
             Player player,
             int buttonId
     ) {
+        if (player.isSpectator() || !stillValid(player)) return false;
+
         if (buttonId == CLEAR_SELECTION_BUTTON) {
+
             faucet.clearSelectedOutputMetal();
             return true;
         }
@@ -225,6 +228,8 @@ public class FoundryFaucetOutputMenu extends AbstractContainerMenu {
     public boolean stillValid(
             Player player
     ) {
+        if (player.isSpectator()) return false;
+
         return stillValid(
                 access,
                 player,
@@ -237,6 +242,8 @@ public class FoundryFaucetOutputMenu extends AbstractContainerMenu {
             Player player,
             int index
     ) {
+        if (player.isSpectator()) return ItemStack.EMPTY;
+
         return ItemStack.EMPTY;
     }
 }

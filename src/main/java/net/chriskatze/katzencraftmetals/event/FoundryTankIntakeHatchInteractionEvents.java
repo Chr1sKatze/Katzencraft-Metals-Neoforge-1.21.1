@@ -30,6 +30,8 @@ public final class FoundryTankIntakeHatchInteractionEvents {
     public static void onRightClickBlock(
             PlayerInteractEvent.RightClickBlock event
     ) {
+        if (event.getEntity().isSpectator()) return;
+
         Player player = event.getEntity();
 
         if (

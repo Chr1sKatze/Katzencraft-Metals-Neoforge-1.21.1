@@ -4,9 +4,12 @@ import com.mojang.serialization.MapCodec;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.tags.FluidTags;
+import net.minecraft.world.level.material.FluidState;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.BlockAndTintGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelAccessor;
 import net.minecraft.world.level.block.Block;
@@ -98,6 +101,14 @@ public class FoundryTankBlock extends Block {
     }
 
     @Override
+    public boolean shouldDisplayFluidOverlay(BlockState state, BlockAndTintGetter level,
+                                             BlockPos pos, FluidState fluid) {
+        // Keep neighboring water visible through the glass. Like vanilla glass,
+        // request its still-water overlay instead of the flowing-water side sprite.
+        return fluid.is(FluidTags.WATER) || super.shouldDisplayFluidOverlay(state, level, pos, fluid);
+    }
+
+    @Override
     protected VoxelShape getVisualShape(
             BlockState state,
             BlockGetter level,
@@ -148,6 +159,8 @@ public class FoundryTankBlock extends Block {
     public BlockState getStateForPlacement(
             BlockPlaceContext context
     ) {
+        if (context.getPlayer() != null && context.getPlayer().isSpectator()) return null;
+
         Level level =
                 context.getLevel();
 

@@ -571,7 +571,10 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             Player player,
             int buttonId
     ) {
+        if (player.isSpectator() || !stillValid(player)) return false;
+
         if (buttonId == STOP_ALLOY_BUTTON_ID) {
+
             return blockEntity.stopAlloy();
         }
 
@@ -634,6 +637,8 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
+        if (player.isSpectator()) return false;
+
         return stillValid(
                 access,
                 player,
@@ -646,6 +651,8 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             Player player,
             int index
     ) {
+        if (player.isSpectator()) return ItemStack.EMPTY;
+
         Slot slot = slots.get(index);
 
         if (!slot.hasItem()) {
