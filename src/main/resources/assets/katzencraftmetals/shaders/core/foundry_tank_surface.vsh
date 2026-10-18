@@ -21,6 +21,7 @@ out vec4 rimColor;
 out vec2 texCoord0;
 out vec2 localXZ;
 flat out int edges;
+flat out int sideSurface;
 flat out float rimWidth;
 flat out float inset;
 void main() {
@@ -33,7 +34,8 @@ void main() {
     texCoord0 = UV0;
     localXZ = vec2(UV1) / 32767.0;
     edges = (UV2.x >> 8) & 255;
-    float cells = float((UV2.y >> 8) & 255);
+    sideSurface = (UV2.y >> 15) & 1;
+    float cells = float((UV2.y >> 8) & 127);
     rimWidth = cells <= RimCounts.x
         ? mix(RimWidths.y, RimWidths.z, clamp((cells - 1.0) / (RimCounts.x - 1.0), 0.0, 1.0))
         : mix(RimWidths.z, RimWidths.w, clamp((cells - RimCounts.x) / (RimCounts.y - RimCounts.x), 0.0, 1.0));

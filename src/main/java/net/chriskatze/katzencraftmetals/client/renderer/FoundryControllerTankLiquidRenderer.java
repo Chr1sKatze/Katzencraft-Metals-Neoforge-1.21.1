@@ -242,6 +242,15 @@ final class FoundryControllerTankLiquidRenderer {
                 renderLayerBottom(tankPos, renderedLayer, geometry, renderedLayers,
                         junctionConsumer, pose, packedOverlay, animationFrame.minV(), animationFrame.maxV());
 
+                if (renderedLayer.renderTop() && !differentMetalDirectlyAbove) {
+                    // Shade existing exposed sides only. Bottoms and frame-classified
+                    // junction pieces retain their original material and depth state.
+                    consumer = FoundryTankSurfaceRenderer.sideConsumer(bufferSource, consumer,
+                            geometry, definition, animationFrame.minV(), animationFrame.maxV());
+                    junctionConsumer = FoundryTankJunctionMaterial.wrap(consumer, junctionFrames,
+                            () -> LevelRenderer.getLightColor(level, tankPos), tankPos, renderedLayer, renderedLayers);
+                }
+
                 for (Direction side : Direction.Plane.HORIZONTAL) {
                     renderLayerSide(
                             tankPos,
