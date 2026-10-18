@@ -71,6 +71,25 @@ final class FoundryFaucetStreamRenderer {
         }
     }
 
+    /** Close the continuous downward column at its existing lower edge; drip meshes stay unchanged. */
+    static void renderDownwardEndCap(
+            VertexConsumer consumer, PoseStack.Pose pose,
+            FoundryFaucetStreamGeometry geometry, int packedOverlay,
+            float frameMinV, float frameMaxV, int alpha
+    ) {
+        if (geometry.renderBrokenDrips()
+                || geometry.streamBottomY() >= geometry.streamOuterTopY() - 0.0001f) return;
+        float y = geometry.streamBottomY();
+        addVertex(consumer, pose, STREAM_MIN_X, y, STREAM_MAX_Z,
+                0, STREAM_DEPTH_UV, 0, -1, 0, packedOverlay, frameMinV, frameMaxV, alpha);
+        addVertex(consumer, pose, STREAM_MIN_X, y, STREAM_MIN_Z,
+                0, 0, 0, -1, 0, packedOverlay, frameMinV, frameMaxV, alpha);
+        addVertex(consumer, pose, STREAM_MAX_X, y, STREAM_MIN_Z,
+                STREAM_WIDTH_UV, 0, 0, -1, 0, packedOverlay, frameMinV, frameMaxV, alpha);
+        addVertex(consumer, pose, STREAM_MAX_X, y, STREAM_MAX_Z,
+                STREAM_WIDTH_UV, STREAM_DEPTH_UV, 0, -1, 0, packedOverlay, frameMinV, frameMaxV, alpha);
+    }
+
     private static void renderBrokenDrips(
             VertexConsumer consumer,
             PoseStack.Pose pose,

@@ -4,6 +4,7 @@ import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryControllerBlock;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryTankBlock;
+import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.data.PackOutput;
@@ -65,7 +66,14 @@ public class ModBlockStateProvider extends BlockStateProvider {
         simpleBlockItem(ModBlocks.CASTING_CAULDRON.get(), castingCauldronModel);
 
         ModelFile faucetModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_faucet"));
-        horizontalBlock(ModBlocks.FOUNDRY_FAUCET.get(), faucetModel);
+        ModelFile bottomFaucetModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_faucet_down"));
+        getVariantBuilder(ModBlocks.FOUNDRY_FAUCET.get()).forAllStates(state -> {
+            Direction facing = state.getValue(FoundryFaucetBlock.FACING);
+            return ConfiguredModel.builder()
+                    .modelFile(facing == Direction.DOWN ? bottomFaucetModel : faucetModel)
+                    .rotationY(facing == Direction.DOWN ? 0 : ((int) facing.toYRot() + 180) % 360)
+                    .build();
+        });
         simpleBlockItem(ModBlocks.FOUNDRY_FAUCET.get(), faucetModel);
     }
 

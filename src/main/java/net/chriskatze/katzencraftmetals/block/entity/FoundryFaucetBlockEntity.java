@@ -127,6 +127,13 @@ public class FoundryFaucetBlockEntity
             return;
         }
 
+        // Also validate underside attachments after loading, even while idle.
+        if (state.getValue(FoundryFaucetBlock.FACING) == Direction.DOWN
+                && !state.canSurvive(level, pos)) {
+            level.destroyBlock(pos, true);
+            return;
+        }
+
         boolean automaticPourSignal =
                 FoundryTankLeverAutoPourControl
                         .isAutoPourEnabledForFaucet(

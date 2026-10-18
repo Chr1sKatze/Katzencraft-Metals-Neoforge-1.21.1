@@ -21,6 +21,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelReader;
+import net.minecraft.world.level.LevelAccessor;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.BaseEntityBlock;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.RenderShape;
@@ -29,7 +32,6 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.DirectionProperty;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -43,7 +45,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             simpleCodec(FoundryFaucetBlock::new);
 
     public static final DirectionProperty FACING =
-            BlockStateProperties.HORIZONTAL_FACING;
+            DirectionProperty.create("facing", direction -> direction != Direction.UP);
 
     // =========================
     // SHAPES
@@ -267,6 +269,9 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
                     16, 14, 12
             );
 
+    // Simple enclosure of the custom model, only for the downward orientation.
+    private static final VoxelShape SHAPE_DOWN = Block.box(4, 10, 5, 12, 16, 11);
+
     public FoundryFaucetBlock(Properties properties) {
         super(properties);
 
@@ -299,6 +304,11 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
         Direction clickedFace =
                 context.getClickedFace();
 
+        if (clickedFace == Direction.DOWN) {
+            BlockState state = defaultBlockState().setValue(FACING, Direction.DOWN);
+            return state.canSurvive(context.getLevel(), context.getClickedPos()) ? state : null;
+        }
+
         Direction facing =
                 clickedFace.getAxis().isHorizontal()
                         ? clickedFace
@@ -306,6 +316,22 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
 
         return defaultBlockState()
                 .setValue(FACING, facing);
+    }
+
+    @Override
+    protected boolean canSurvive(BlockState state, LevelReader level, BlockPos pos) {
+        return state.getValue(FACING) != Direction.DOWN
+                || level.getBlockState(pos.above()).is(ModBlocks.FOUNDRY_TANK.get());
+    }
+
+    @Override
+    protected BlockState updateShape(BlockState state, Direction direction, BlockState neighbor,
+                                     LevelAccessor level, BlockPos pos, BlockPos neighborPos) {
+        if (state.getValue(FACING) == Direction.DOWN && direction == Direction.UP
+                && !state.canSurvive(level, pos)) {
+            return Blocks.AIR.defaultBlockState();
+        }
+        return super.updateShape(state, direction, neighbor, level, pos, neighborPos);
     }
 
     @Override
@@ -610,6 +636,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             case SOUTH -> SELECTION_SHAPE_SOUTH;
             case EAST -> SELECTION_SHAPE_EAST;
             case WEST -> SELECTION_SHAPE_WEST;
+            case DOWN -> SHAPE_DOWN;
             default -> SELECTION_SHAPE_NORTH;
         };
     }
@@ -626,6 +653,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             case SOUTH -> SHAPE_SOUTH;
             case EAST -> SHAPE_EAST;
             case WEST -> SHAPE_WEST;
+            case DOWN -> SHAPE_DOWN;
             default -> SHAPE_NORTH;
         };
     }

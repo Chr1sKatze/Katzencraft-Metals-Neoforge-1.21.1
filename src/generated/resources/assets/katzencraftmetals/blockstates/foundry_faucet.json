@@ -1,5 +1,8 @@
 {
   "variants": {
+    "facing=down": {
+      "model": "katzencraftmetals:block/foundry_faucet_down"
+    },
     "facing=east": {
       "model": "katzencraftmetals:block/foundry_faucet",
       "y": 90

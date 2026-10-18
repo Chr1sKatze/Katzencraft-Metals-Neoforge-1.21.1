@@ -276,7 +276,7 @@ public final class FoundryTankNetwork {
         Set<BlockPos> faucets = new HashSet<>();
 
         for (BlockPos tankPos : tankSubset) {
-            for (Direction direction : Direction.Plane.HORIZONTAL) {
+            for (Direction direction : FoundryFaucetBlock.FACING.getPossibleValues()) {
                 BlockPos faucetPos = tankPos.relative(direction);
                 BlockState faucetState = level.getBlockState(faucetPos);
 

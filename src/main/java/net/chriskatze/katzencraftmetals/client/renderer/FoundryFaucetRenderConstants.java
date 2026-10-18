@@ -28,6 +28,15 @@ final class FoundryFaucetRenderConstants {
     static final float STREAM_OUTER_TOP_Y =
             CHANNEL_TOP_Y - 1.0f / 16.0f;
 
+    static final float DOWN_NOZZLE_Y = 10.0f / 16.0f;
+    static final float DOWN_CONNECTION_Y = 16.0f / 16.0f;
+    static final float DOWN_OPENING_MIN_X = 6.0f / 16.0f;
+    static final float DOWN_OPENING_MAX_X = 10.0f / 16.0f;
+    static final float DOWN_OPENING_MIN_Z = 7.0f / 16.0f;
+    static final float DOWN_OPENING_MAX_Z = 9.0f / 16.0f;
+    static final float DOWN_STREAM_Z_OFFSET =
+            0.5f - (STREAM_MIN_Z + STREAM_MAX_Z) * 0.5f;
+
     static final float CHANNEL_WIDTH_UV =
             CHANNEL_MAX_X - CHANNEL_MIN_X;
 

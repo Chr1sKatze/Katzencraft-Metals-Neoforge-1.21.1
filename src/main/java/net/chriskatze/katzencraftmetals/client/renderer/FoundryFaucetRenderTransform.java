@@ -13,6 +13,12 @@ final class FoundryFaucetRenderTransform {
             PoseStack poseStack,
             Direction facing
     ) {
+        if (facing == Direction.DOWN) {
+            // Existing vertical stream center is z=9/16; the underside nozzle is centered.
+            poseStack.translate(0, 0, FoundryFaucetRenderConstants.DOWN_STREAM_Z_OFFSET);
+            return;
+        }
+
         float rotationDegrees =
                 switch (facing) {
                     case NORTH -> 0.0f;

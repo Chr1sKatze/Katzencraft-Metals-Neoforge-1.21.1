@@ -290,7 +290,7 @@ final class FoundryFaucetPourParticleEffects {
                         facing,
                         STREAM_CENTER_X
                                 + centeredNoise(seed ^ 0x3001L) * 0.05f,
-                        OUTLET_Y
+                        outletY(facing)
                                 + centeredNoise(seed ^ 0x3002L) * 0.025f,
                         STREAM_CENTER_Z
                                 + centeredNoise(seed ^ 0x3003L) * 0.04f
@@ -318,7 +318,7 @@ final class FoundryFaucetPourParticleEffects {
                         facing,
                         STREAM_CENTER_X
                                 + centeredNoise(seed ^ 0x4001L) * 0.06f,
-                        OUTLET_Y
+                        outletY(facing)
                                 + 0.015f,
                         STREAM_CENTER_Z
                                 + centeredNoise(seed ^ 0x4002L) * 0.05f
@@ -422,6 +422,10 @@ final class FoundryFaucetPourParticleEffects {
                 <= LONG_DROP_SURFACE_Y_THRESHOLD;
     }
 
+    private static float outletY(Direction facing) {
+        return facing == Direction.DOWN ? FoundryFaucetRenderConstants.DOWN_NOZZLE_Y : OUTLET_Y;
+    }
+
     private static ParticlePoint localToWorld(
             BlockPos blockPos,
             Direction facing,
@@ -437,6 +441,10 @@ final class FoundryFaucetPourParticleEffects {
          * world particle coordinates instead of PoseStack geometry.
          */
         switch (facing) {
+            case DOWN -> {
+                rotatedX = localX;
+                rotatedZ = localZ + FoundryFaucetRenderConstants.DOWN_STREAM_Z_OFFSET;
+            }
             case EAST -> {
                 rotatedX = 1.0f - localZ;
                 rotatedZ = localX;

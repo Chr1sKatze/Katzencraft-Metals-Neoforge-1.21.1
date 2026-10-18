@@ -242,7 +242,7 @@ public final class FoundryControllerBlockEntityRenderer
                 minY,
                 minZ,
                 maxX + 1.0D,
-                maxY + 1.0D,
+                maxY + 18.0D / 16.0D, // Include the custom hatch above the tank.
                 maxZ + 1.0D
         );
     }

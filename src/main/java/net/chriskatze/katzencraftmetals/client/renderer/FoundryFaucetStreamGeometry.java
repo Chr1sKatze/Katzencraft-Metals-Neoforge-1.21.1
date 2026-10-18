@@ -16,11 +16,30 @@ record FoundryFaucetStreamGeometry(
         float dripFieldTopY
 ) {
 
+    static FoundryFaucetStreamGeometry resolveDown(
+            boolean pouring,
+            float animationProgress,
+            float shutdownStartProgress,
+            float cauldronSurfaceY
+    ) {
+        return resolve(pouring, animationProgress, shutdownStartProgress, cauldronSurfaceY, true);
+    }
+
     static FoundryFaucetStreamGeometry resolve(
             boolean pouring,
             float animationProgress,
             float shutdownStartProgress,
             float cauldronSurfaceY
+    ) {
+        return resolve(pouring, animationProgress, shutdownStartProgress, cauldronSurfaceY, false);
+    }
+
+    private static FoundryFaucetStreamGeometry resolve(
+            boolean pouring,
+            float animationProgress,
+            float shutdownStartProgress,
+            float cauldronSurfaceY,
+            boolean bottomMounted
     ) {
         float startupProgress =
                 pouring
@@ -130,6 +149,27 @@ record FoundryFaucetStreamGeometry(
                     );
         }
 
+        if (bottomMounted) {
+            channelOuterZ = CHANNEL_MIN_Z;
+            channelInnerZ = CHANNEL_MIN_Z;
+            // The bottom stream starts vertically immediately, without the side channel phase.
+            if (pouring) {
+                verticalProgress = Mth.clamp(startupProgress, 0.0f, 1.0f);
+            } else {
+                // Resume the existing nozzle-based drain at the visible length reached by
+                // the connection-based stream. A stop inside the assembly uses its early-drip fallback.
+                float initialBottomY = Mth.lerp(Mth.clamp(shutdownStartProgress, 0.0f, 1.0f),
+                        DOWN_CONNECTION_Y, cauldronSurfaceY);
+                shutdownInitialVerticalProgress = Mth.clamp(
+                        (DOWN_NOZZLE_Y - initialBottomY) / (DOWN_NOZZLE_Y - cauldronSurfaceY),
+                        0.0f, 1.0f);
+            }
+        }
+
+        float bottomOriginY = pouring ? DOWN_CONNECTION_Y : DOWN_NOZZLE_Y;
+        float innerTopY = bottomMounted ? bottomOriginY : STREAM_INNER_TOP_Y;
+        float outerTopY = bottomMounted ? bottomOriginY : STREAM_OUTER_TOP_Y;
+
         float streamBottomY;
         float streamInnerTopY;
         float streamOuterTopY;
@@ -146,24 +186,24 @@ record FoundryFaucetStreamGeometry(
             streamBottomY =
                     Mth.lerp(
                             verticalProgress,
-                            STREAM_OUTER_TOP_Y,
+                            outerTopY,
                             cauldronSurfaceY
                     );
 
             streamInnerTopY =
-                    STREAM_INNER_TOP_Y;
+                    innerTopY;
 
             streamOuterTopY =
-                    STREAM_OUTER_TOP_Y;
+                    outerTopY;
         } else {
             float initialStreamBottomY =
                     shutdownInitialVerticalProgress > 0.0001f
                             ? Mth.lerp(
                             shutdownInitialVerticalProgress,
-                            STREAM_OUTER_TOP_Y,
+                            outerTopY,
                             cauldronSurfaceY
                     )
-                            : STREAM_OUTER_TOP_Y
+                            : outerTopY
                             - MINIMUM_EARLY_DRIP_HEIGHT;
 
             if (verticalProgress < DRIP_BREAKUP_START) {
@@ -177,14 +217,14 @@ record FoundryFaucetStreamGeometry(
                 streamInnerTopY =
                         Mth.lerp(
                                 verticalProgress,
-                                STREAM_INNER_TOP_Y,
+                                innerTopY,
                                 streamBottomY
                         );
 
                 streamOuterTopY =
                         Mth.lerp(
                                 verticalProgress,
-                                STREAM_OUTER_TOP_Y,
+                                outerTopY,
                                 streamBottomY
                         );
             } else {
@@ -215,7 +255,7 @@ record FoundryFaucetStreamGeometry(
                 dripFieldTopY =
                         Mth.lerp(
                                 DRIP_BREAKUP_START,
-                                STREAM_OUTER_TOP_Y,
+                                outerTopY,
                                 dripFieldBottomY
                         );
 

@@ -14,7 +14,6 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.FAUCET_OVERLAY_OFFSET;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.FAUCET_OVERLAY_TEXTURE;
 
 /**
  * Renders the translucent Faucet entrance shadow on the Tank face behind an
@@ -60,10 +59,6 @@ final class FoundryTankFaucetOverlayRenderer {
                         FoundryFaucetBlock.FACING
                 );
 
-        if (!face.getAxis().isHorizontal()) {
-            return;
-        }
-
         BlockPos faucetPos =
                 faucet.getBlockPos();
 
@@ -81,6 +76,31 @@ final class FoundryTankFaucetOverlayRenderer {
             return;
         }
 
+        if (face == Direction.DOWN) {
+            FoundryTankIntakeHatchRenderer.renderBottomFaucetCap(
+                    bufferSource.getBuffer(RenderType.entityCutoutNoCullZOffset(
+                            FoundryTankRenderConstants.TOP_TEXTURE)),
+                    poseStack, LevelRenderer.getLightColor(level, tankPos), packedOverlay
+            );
+            if (!shouldKeepFaucetOverlayOpen(faucet, partialTick)) {
+                renderBottomOpening(
+                        bufferSource.getBuffer(FoundryFaucetOpeningRenderType.get()),
+                        poseStack, LevelRenderer.getLightColor(level, tankPos), packedOverlay);
+            }
+            return;
+        }
+        if (!face.getAxis().isHorizontal()) return;
+
+        // Like the bottom hatch cap, this belongs to the supported tank face, not the faucet model.
+        poseStack.pushPose();
+        poseStack.translate(tankPos.getX() - faucetPos.getX(),
+                tankPos.getY() - faucetPos.getY(), tankPos.getZ() - faucetPos.getZ());
+        renderSideConnection(face,
+                bufferSource.getBuffer(RenderType.entityCutoutNoCullZOffset(
+                        FoundryTankRenderConstants.SIDE_TEXTURE)),
+                poseStack.last(), LevelRenderer.getLightColor(level, tankPos), packedOverlay);
+        poseStack.popPose();
+
         /*
          * Preserve the original "door" behavior:
          * - idle faucet: shadow is closed/visible
@@ -96,9 +116,7 @@ final class FoundryTankFaucetOverlayRenderer {
 
         VertexConsumer overlayConsumer =
                 bufferSource.getBuffer(
-                        RenderType.entityTranslucent(
-                                FAUCET_OVERLAY_TEXTURE
-                        )
+                        FoundryFaucetOpeningRenderType.get()
                 );
 
         poseStack.pushPose();
@@ -120,6 +138,29 @@ final class FoundryTankFaucetOverlayRenderer {
                 packedOverlay
         );
 
+        poseStack.popPose();
+    }
+
+    static void renderSideConnection(Direction face, VertexConsumer consumer, PoseStack.Pose pose,
+                                     int packedLight, int packedOverlay) {
+        // Same small separation as the existing hatch cap; no duplicate coplanar frame faces.
+        FoundryTankCasingQuads.renderSideRect(face, consumer, pose,
+                0, 1, 0, 1, 0, 1, 0, 1, packedLight, packedOverlay, 0.003f);
+    }
+
+    /** The same entrance overlay, confined to the tank-side attachment opening. */
+    static void renderBottomOpening(VertexConsumer consumer, PoseStack poseStack,
+                                    int packedLight, int packedOverlay) {
+        poseStack.pushPose();
+        poseStack.translate(0, FoundryFaucetRenderConstants.DOWN_CONNECTION_Y, 0);
+        FoundryTankCasingQuads.renderHorizontalRect(Direction.DOWN, consumer, poseStack.last(),
+                FoundryFaucetRenderConstants.DOWN_OPENING_MIN_X,
+                FoundryFaucetRenderConstants.DOWN_OPENING_MAX_X,
+                FoundryFaucetRenderConstants.DOWN_OPENING_MIN_Z,
+                FoundryFaucetRenderConstants.DOWN_OPENING_MAX_Z,
+                // One texture texel per model pixel: omit the side sprite's transparent padding.
+                6.0f / 16.0f, 10.0f / 16.0f, 6.0f / 16.0f, 8.0f / 16.0f,
+                packedLight, packedOverlay);
         poseStack.popPose();
     }
 

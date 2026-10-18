@@ -56,6 +56,22 @@ public class FoundryTankBlock extends Block {
     public static final BooleanProperty HATCH_OPEN =
             BooleanProperty.create("hatch_open");
 
+    // Preserve the tank body and add one simple enclosing box for the raised custom hatch.
+    private static final VoxelShape OPEN_HATCH_SHAPE = Shapes.or(
+            Shapes.block(), Block.box(4, 16, 4, 12, 18, 12));
+
+    @Override
+    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos,
+                                  CollisionContext context) {
+        return state.getValue(HATCH_OPEN) ? OPEN_HATCH_SHAPE : Shapes.block();
+    }
+
+    @Override
+    protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
+                                           CollisionContext context) {
+        return getShape(state, level, pos, context);
+    }
+
     public FoundryTankBlock(Properties properties) {
         super(properties);
 

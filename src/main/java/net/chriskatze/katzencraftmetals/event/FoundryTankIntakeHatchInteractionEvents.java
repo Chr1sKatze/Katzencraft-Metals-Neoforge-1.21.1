@@ -41,11 +41,7 @@ public final class FoundryTankIntakeHatchInteractionEvents {
 
         Direction clickedFace = event.getFace();
 
-        if (
-                clickedFace == null
-                        || clickedFace != Direction.UP
-                        && !clickedFace.getAxis().isHorizontal()
-        ) {
+        if (clickedFace == null) {
             return;
         }
 
@@ -76,7 +72,7 @@ public final class FoundryTankIntakeHatchInteractionEvents {
             return;
         }
 
-        toggleSideFaucet(
+        toggleFaucet(
                 level,
                 pos,
                 clickedFace,
@@ -152,7 +148,7 @@ public final class FoundryTankIntakeHatchInteractionEvents {
         );
     }
 
-    private static void toggleSideFaucet(
+    private static void toggleFaucet(
             Level level,
             BlockPos tankPos,
             Direction side,

@@ -14,7 +14,6 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.Set;
 
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.FAUCET_OVERLAY_OFFSET;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.FAUCET_OVERLAY_TEXTURE;
 
 /** Faucet entrance shadow for Controller-rendered active Tank faces. */
 final class FoundryControllerTankFaucetOverlayRenderer {
@@ -58,7 +57,7 @@ final class FoundryControllerTankFaucetOverlayRenderer {
 
             if (consumer == null) {
                 consumer = bufferSource.getBuffer(
-                        RenderType.entityTranslucent(FAUCET_OVERLAY_TEXTURE)
+                        FoundryFaucetOpeningRenderType.get()
                 );
             }
 

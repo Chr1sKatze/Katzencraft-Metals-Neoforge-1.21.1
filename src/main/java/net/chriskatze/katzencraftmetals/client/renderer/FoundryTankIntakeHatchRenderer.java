@@ -2,218 +2,87 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Axis;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryTankBlock;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.client.resources.model.ModelResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.neoforged.neoforge.client.event.ModelEvent;
+import net.neoforged.neoforge.client.model.data.ModelData;
 
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.PIXEL;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.TOP_TEXTURE;
 
-/**
- * Visual intake hatch for top Tanks toggled into ore-loading mode.
- *
- * The hatch is still only an illusion: internally the Tank stays closed molten
- * storage, but visually the top becomes a single-block cap with a raised
- * loading rim.
- */
-final class FoundryTankIntakeHatchRenderer {
+/** Custom intake-hatch visual for the existing tank HATCH_OPEN state. */
+public final class FoundryTankIntakeHatchRenderer {
+    private static final ModelResourceLocation HATCH_MODEL = ModelResourceLocation.standalone(
+            ResourceLocation.fromNamespaceAndPath("katzencraftmetals", "block/foundry_hatch"));
+    private static final float FULL_MIN = 0.0f;
+    private static final float FULL_MAX = 1.0f;
+    private static final float BASE_Y = 1.003f;
+    private static final int FULL_TOP_COLOR = 0xFFFFFFFF;
 
-    /*
-     * Full top cap.
-     *
-     * This deliberately covers the connected multiblock top framing for this
-     * one open hatch Tank so it reads as a single physical loading block.
-     */
-    private static final float FULL_MIN =
-            0.0f;
+    private FoundryTankIntakeHatchRenderer() {}
 
-    private static final float FULL_MAX =
-            1.0f;
-
-    /*
-     * Center dark opening: 6x6 pixels.
-     *
-     * From above this is rendered as a fully dark top face.
-     * From below this is rendered as a mostly opaque dark underside face with
-     * only slight transparency.
-     */
-    private static final float OPENING_MIN =
-            5.0f * PIXEL;
-
-    private static final float OPENING_MAX =
-            11.0f * PIXEL;
-
-    /*
-     * Raised rim: 8x8 outside, 6x6 inside, 1 pixel tall.
-     */
-    private static final float RIM_OUTER_MIN =
-            4.0f * PIXEL;
-
-    private static final float RIM_OUTER_MAX =
-            12.0f * PIXEL;
-
-    private static final float RIM_INNER_MIN =
-            OPENING_MIN;
-
-    private static final float RIM_INNER_MAX =
-            OPENING_MAX;
-
-    private static final float BASE_Y =
-            1.003f;
-
-    private static final float OPENING_Y =
-            1.006f;
-
-    private static final float OPENING_UNDERSIDE_Y =
-            1.001f;
-
-    private static final float RIM_UNDERSIDE_Y =
-            1.002f;
-
-    private static final float RIM_TOP_Y =
-            1.0f + PIXEL + 0.003f;
-
-    /*
-     * The foundry_tank_top texture contains transparent interior pixels.
-     * The rim top and bottom surfaces must not use their world-space UVs
-     * directly or they can sample transparent pixels and disappear. Instead,
-     * sample from a known opaque corner strip of the tank top texture.
-     */
-    private static final float SOLID_U0 =
-            0.0f;
-
-    private static final float SOLID_U1 =
-            PIXEL;
-
-    private static final float SOLID_V0 =
-            0.0f;
-
-    private static final float SOLID_V1 =
-            PIXEL;
-
-    private static final int FULL_TOP_COLOR =
-            0xFFFFFFFF;
-
-    private static final int RIM_TOP_COLOR =
-            0xFFFFFFFF;
-
-    private static final int RIM_BOTTOM_COLOR =
-            0xFFFFFFFF;
-
-    private static final int RIM_OUTER_SIDE_COLOR =
-            0xFFB8B8B8;
-
-    private static final int RIM_INNER_SIDE_COLOR =
-            0xFF5C5C5C;
-
-    /*
-     * Top is fully dark again.
-     * Bottom is only slightly transparent: alpha CC is about 80% opaque.
-     */
-    private static final int OPENING_TOP_COLOR =
-            0xFF050505;
-
-    private static final int OPENING_BOTTOM_COLOR =
-            0xCC050505;
-
-    private FoundryTankIntakeHatchRenderer() {
+    public static void registerAdditionalModels(ModelEvent.RegisterAdditional event) {
+        event.register(HATCH_MODEL);
     }
 
-    /** Final dumb-Tank entry point used by the Controller renderer. */
-    static void render(
-            Level level,
-            BlockPos tankPos,
-            BlockState tankState,
-            PoseStack.Pose pose,
-            MultiBufferSource bufferSource,
+    static void render(Level level, BlockPos tankPos, BlockState tankState,
+                       PoseStack.Pose pose, MultiBufferSource bufferSource,
+                       int packedLight, int packedOverlay) {
+        if (level == null || tankPos == null || tankState == null
+                || !(tankState.getBlock() instanceof FoundryTankBlock)
+                || !tankState.hasProperty(FoundryTankBlock.HATCH_OPEN)
+                || !tankState.getValue(FoundryTankBlock.HATCH_OPEN)
+                || level.getBlockState(tankPos.above()).getBlock() instanceof FoundryTankBlock) return;
+
+        // Keep the established tank-top connection surface; only the raised hatch is replaced.
+        renderFullTopCap(bufferSource.getBuffer(RenderType.entityCutoutNoCullZOffset(TOP_TEXTURE)),
+                pose, packedLight, packedOverlay);
+
+        Minecraft minecraft = Minecraft.getInstance();
+        var model = minecraft.getModelManager().getModel(HATCH_MODEL);
+        // renderModel emits every directional group, without neighboring-block face culling.
+        minecraft.getBlockRenderer().getModelRenderer().renderModel(pose,
+                bufferSource.getBuffer(RenderType.entityCutoutNoCull(TextureAtlas.LOCATION_BLOCKS)),
+                tankState, model, 1, 1, 1, packedLight, packedOverlay,
+                ModelData.EMPTY, RenderType.cutout());
+
+        // The hatch has only its existing open/enabled state, no faucet pouring state.
+        renderHatchOpening(bufferSource.getBuffer(FoundryFaucetOpeningRenderType.get()),
+                pose, packedLight, packedOverlay);
+    }
+
+    static void renderHatchOpening(VertexConsumer consumer, PoseStack.Pose pose,
+                                   int packedLight, int packedOverlay) {
+        float min = 6.0f / 16.0f, max = 10.0f / 16.0f, y = 18.0f / 16.0f;
+        // Four existing filled texture texels per side, excluding transparent sprite padding.
+        float u0 = 6.0f / 16.0f, u1 = 10.0f / 16.0f;
+        float v0 = 5.0f / 16.0f, v1 = 9.0f / 16.0f;
+        FoundryTankCasingQuads.renderCasingQuad(consumer, pose,
+                min,y,min, min,y,max, max,y,max, max,y,min,
+                u0,v0, u0,v1, u1,v1, u1,v0,
+                0,1,0, packedLight,packedOverlay);
+    }
+
+    static void renderBottomFaucetCap(
+            VertexConsumer consumer,
+            PoseStack poseStack,
             int packedLight,
             int packedOverlay
     ) {
-        if (
-                level == null
-                        || tankPos == null
-                        || tankState == null
-                        || !(tankState.getBlock() instanceof FoundryTankBlock)
-                        || !tankState.hasProperty(
-                        FoundryTankBlock.HATCH_OPEN
-                )
-                        || !tankState.getValue(
-                        FoundryTankBlock.HATCH_OPEN
-                )
-                        || level.getBlockState(tankPos.above())
-                        .getBlock()
-                        instanceof FoundryTankBlock
-        ) {
-            return;
-        }
-
-        boolean cameraAboveHatch =
-                isCameraAboveHatch(tankPos);
-
-        VertexConsumer solidConsumer =
-                bufferSource.getBuffer(
-                        RenderType.entityCutoutNoCullZOffset(
-                                TOP_TEXTURE
-                        )
-                );
-
-        renderFullTopCap(
-                solidConsumer,
-                pose,
-                packedLight,
-                packedOverlay
-        );
-
-        if (cameraAboveHatch) {
-            renderDarkOpeningTop(
-                    solidConsumer,
-                    pose,
-                    packedLight,
-                    packedOverlay
-            );
-        }
-
-        renderRaisedRim(
-                solidConsumer,
-                pose,
-                packedLight,
-                packedOverlay
-        );
-
-        if (!cameraAboveHatch) {
-            VertexConsumer translucentConsumer =
-                    bufferSource.getBuffer(
-                            RenderType.entityTranslucent(
-                                    TOP_TEXTURE
-                            )
-                    );
-
-            renderDarkOpeningBottomSlightlyTransparent(
-                    translucentConsumer,
-                    pose,
-                    packedLight,
-                    packedOverlay
-            );
-        }
-    }
-
-
-    private static boolean isCameraAboveHatch(
-            BlockPos tankPos
-    ) {
-        Vec3 cameraPosition =
-                Minecraft.getInstance()
-                        .gameRenderer
-                        .getMainCamera()
-                        .getPosition();
-
-        return cameraPosition.y
-                >= tankPos.getY() + 1.0;
+        poseStack.pushPose();
+        // Mirror the existing cap through the tank: y=1.003 becomes y=0.997 below it.
+        poseStack.translate(0.0f, 2.0f, 1.0f);
+        poseStack.mulPose(Axis.XP.rotationDegrees(180.0f));
+        renderFullTopCap(consumer, poseStack.last(), packedLight, packedOverlay);
+        poseStack.popPose();
     }
 
     private static void renderFullTopCap(
@@ -233,327 +102,6 @@ final class FoundryTankIntakeHatchRenderer {
                 FULL_TOP_COLOR,
                 packedLight,
                 packedOverlay
-        );
-    }
-
-    private static void renderDarkOpeningTop(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            int packedLight,
-            int packedOverlay
-    ) {
-        renderTopRectSolidUv(
-                consumer,
-                pose,
-                OPENING_MIN,
-                OPENING_MAX,
-                OPENING_MIN,
-                OPENING_MAX,
-                OPENING_Y,
-                OPENING_TOP_COLOR,
-                packedLight,
-                packedOverlay
-        );
-    }
-
-    private static void renderDarkOpeningBottomSlightlyTransparent(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            int packedLight,
-            int packedOverlay
-    ) {
-        renderBottomRectSolidUv(
-                consumer,
-                pose,
-                OPENING_MIN,
-                OPENING_MAX,
-                OPENING_MIN,
-                OPENING_MAX,
-                OPENING_UNDERSIDE_Y,
-                OPENING_BOTTOM_COLOR,
-                packedLight,
-                packedOverlay
-        );
-    }
-
-    private static void renderRaisedRim(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            int packedLight,
-            int packedOverlay
-    ) {
-        /*
-         * Top face of the raised rim.
-         *
-         * These use fixed opaque UVs instead of world-space UVs because the
-         * middle of foundry_tank_top.png can be transparent.
-         */
-        renderTopRimSurfaces(
-                consumer,
-                pose,
-                packedLight,
-                packedOverlay
-        );
-
-        /*
-         * Bottom face of the raised rim, visible when looking through the glass
-         * sides from inside/below the Tank.
-         */
-        renderBottomRimSurfaces(
-                consumer,
-                pose,
-                packedLight,
-                packedOverlay
-        );
-
-        renderRimSideWalls(
-                consumer,
-                pose,
-                packedLight,
-                packedOverlay
-        );
-    }
-
-    private static void renderTopRimSurfaces(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            int packedLight,
-            int packedOverlay
-    ) {
-        renderTopRectSolidUv(
-                consumer,
-                pose,
-                RIM_OUTER_MIN,
-                RIM_OUTER_MAX,
-                RIM_OUTER_MIN,
-                RIM_INNER_MIN,
-                RIM_TOP_Y,
-                RIM_TOP_COLOR,
-                packedLight,
-                packedOverlay
-        );
-
-        renderTopRectSolidUv(
-                consumer,
-                pose,
-                RIM_OUTER_MIN,
-                RIM_OUTER_MAX,
-                RIM_INNER_MAX,
-                RIM_OUTER_MAX,
-                RIM_TOP_Y,
-                RIM_TOP_COLOR,
-                packedLight,
-                packedOverlay
-        );
-
-        renderTopRectSolidUv(
-                consumer,
-                pose,
-                RIM_OUTER_MIN,
-                RIM_INNER_MIN,
-                RIM_INNER_MIN,
-                RIM_INNER_MAX,
-                RIM_TOP_Y,
-                RIM_TOP_COLOR,
-                packedLight,
-                packedOverlay
-        );
-
-        renderTopRectSolidUv(
-                consumer,
-                pose,
-                RIM_INNER_MAX,
-                RIM_OUTER_MAX,
-                RIM_INNER_MIN,
-                RIM_INNER_MAX,
-                RIM_TOP_Y,
-                RIM_TOP_COLOR,
-                packedLight,
-                packedOverlay
-        );
-    }
-
-    private static void renderBottomRimSurfaces(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            int packedLight,
-            int packedOverlay
-    ) {
-        renderBottomRectSolidUv(
-                consumer,
-                pose,
-                RIM_OUTER_MIN,
-                RIM_OUTER_MAX,
-                RIM_OUTER_MIN,
-                RIM_INNER_MIN,
-                RIM_UNDERSIDE_Y,
-                RIM_BOTTOM_COLOR,
-                packedLight,
-                packedOverlay
-        );
-
-        renderBottomRectSolidUv(
-                consumer,
-                pose,
-                RIM_OUTER_MIN,
-                RIM_OUTER_MAX,
-                RIM_INNER_MAX,
-                RIM_OUTER_MAX,
-                RIM_UNDERSIDE_Y,
-                RIM_BOTTOM_COLOR,
-                packedLight,
-                packedOverlay
-        );
-
-        renderBottomRectSolidUv(
-                consumer,
-                pose,
-                RIM_OUTER_MIN,
-                RIM_INNER_MIN,
-                RIM_INNER_MIN,
-                RIM_INNER_MAX,
-                RIM_UNDERSIDE_Y,
-                RIM_BOTTOM_COLOR,
-                packedLight,
-                packedOverlay
-        );
-
-        renderBottomRectSolidUv(
-                consumer,
-                pose,
-                RIM_INNER_MAX,
-                RIM_OUTER_MAX,
-                RIM_INNER_MIN,
-                RIM_INNER_MAX,
-                RIM_UNDERSIDE_Y,
-                RIM_BOTTOM_COLOR,
-                packedLight,
-                packedOverlay
-        );
-    }
-
-    private static void renderRimSideWalls(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            int packedLight,
-            int packedOverlay
-    ) {
-        /*
-         * Outer side walls.
-         */
-        renderZWall(
-                consumer,
-                pose,
-                RIM_OUTER_MIN,
-                RIM_OUTER_MAX,
-                RIM_OUTER_MIN,
-                BASE_Y,
-                RIM_TOP_Y,
-                RIM_OUTER_SIDE_COLOR,
-                packedLight,
-                packedOverlay,
-                -1.0f
-        );
-
-        renderZWall(
-                consumer,
-                pose,
-                RIM_OUTER_MIN,
-                RIM_OUTER_MAX,
-                RIM_OUTER_MAX,
-                BASE_Y,
-                RIM_TOP_Y,
-                RIM_OUTER_SIDE_COLOR,
-                packedLight,
-                packedOverlay,
-                1.0f
-        );
-
-        renderXWall(
-                consumer,
-                pose,
-                RIM_OUTER_MIN,
-                RIM_OUTER_MIN,
-                RIM_OUTER_MAX,
-                BASE_Y,
-                RIM_TOP_Y,
-                RIM_OUTER_SIDE_COLOR,
-                packedLight,
-                packedOverlay,
-                -1.0f
-        );
-
-        renderXWall(
-                consumer,
-                pose,
-                RIM_OUTER_MAX,
-                RIM_OUTER_MIN,
-                RIM_OUTER_MAX,
-                BASE_Y,
-                RIM_TOP_Y,
-                RIM_OUTER_SIDE_COLOR,
-                packedLight,
-                packedOverlay,
-                1.0f
-        );
-
-        /*
-         * Inner side walls toward the loading hole.
-         */
-        renderZWall(
-                consumer,
-                pose,
-                RIM_INNER_MIN,
-                RIM_INNER_MAX,
-                RIM_INNER_MIN,
-                OPENING_Y,
-                RIM_TOP_Y,
-                RIM_INNER_SIDE_COLOR,
-                packedLight,
-                packedOverlay,
-                1.0f
-        );
-
-        renderZWall(
-                consumer,
-                pose,
-                RIM_INNER_MIN,
-                RIM_INNER_MAX,
-                RIM_INNER_MAX,
-                OPENING_Y,
-                RIM_TOP_Y,
-                RIM_INNER_SIDE_COLOR,
-                packedLight,
-                packedOverlay,
-                -1.0f
-        );
-
-        renderXWall(
-                consumer,
-                pose,
-                RIM_INNER_MIN,
-                RIM_INNER_MIN,
-                RIM_INNER_MAX,
-                OPENING_Y,
-                RIM_TOP_Y,
-                RIM_INNER_SIDE_COLOR,
-                packedLight,
-                packedOverlay,
-                1.0f
-        );
-
-        renderXWall(
-                consumer,
-                pose,
-                RIM_INNER_MAX,
-                RIM_INNER_MIN,
-                RIM_INNER_MAX,
-                OPENING_Y,
-                RIM_TOP_Y,
-                RIM_INNER_SIDE_COLOR,
-                packedLight,
-                packedOverlay,
-                -1.0f
         );
     }
 
@@ -634,316 +182,6 @@ final class FoundryTankIntakeHatchRenderer {
         );
     }
 
-    private static void renderTopRectSolidUv(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            float minX,
-            float maxX,
-            float minZ,
-            float maxZ,
-            float y,
-            int color,
-            int packedLight,
-            int packedOverlay
-    ) {
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                y,
-                minZ,
-                SOLID_U0,
-                SOLID_V0,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                1.0f,
-                0.0f
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                y,
-                maxZ,
-                SOLID_U0,
-                SOLID_V1,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                1.0f,
-                0.0f
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                y,
-                maxZ,
-                SOLID_U1,
-                SOLID_V1,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                1.0f,
-                0.0f
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                y,
-                minZ,
-                SOLID_U1,
-                SOLID_V0,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                1.0f,
-                0.0f
-        );
-    }
-
-    private static void renderBottomRectSolidUv(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            float minX,
-            float maxX,
-            float minZ,
-            float maxZ,
-            float y,
-            int color,
-            int packedLight,
-            int packedOverlay
-    ) {
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                y,
-                minZ,
-                SOLID_U1,
-                SOLID_V0,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                -1.0f,
-                0.0f
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                y,
-                maxZ,
-                SOLID_U1,
-                SOLID_V1,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                -1.0f,
-                0.0f
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                y,
-                maxZ,
-                SOLID_U0,
-                SOLID_V1,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                -1.0f,
-                0.0f
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                y,
-                minZ,
-                SOLID_U0,
-                SOLID_V0,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                -1.0f,
-                0.0f
-        );
-    }
-
-    private static void renderZWall(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            float minX,
-            float maxX,
-            float z,
-            float minY,
-            float maxY,
-            int color,
-            int packedLight,
-            int packedOverlay,
-            float normalZ
-    ) {
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                minY,
-                z,
-                minX,
-                minY,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                0.0f,
-                normalZ
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                minY,
-                z,
-                maxX,
-                minY,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                0.0f,
-                normalZ
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                maxX,
-                maxY,
-                z,
-                maxX,
-                maxY,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                0.0f,
-                normalZ
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                minX,
-                maxY,
-                z,
-                minX,
-                maxY,
-                color,
-                packedLight,
-                packedOverlay,
-                0.0f,
-                0.0f,
-                normalZ
-        );
-    }
-
-    private static void renderXWall(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            float x,
-            float minZ,
-            float maxZ,
-            float minY,
-            float maxY,
-            int color,
-            int packedLight,
-            int packedOverlay,
-            float normalX
-    ) {
-        addVertex(
-                consumer,
-                pose,
-                x,
-                minY,
-                maxZ,
-                maxZ,
-                minY,
-                color,
-                packedLight,
-                packedOverlay,
-                normalX,
-                0.0f,
-                0.0f
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                x,
-                minY,
-                minZ,
-                minZ,
-                minY,
-                color,
-                packedLight,
-                packedOverlay,
-                normalX,
-                0.0f,
-                0.0f
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                x,
-                maxY,
-                minZ,
-                minZ,
-                maxY,
-                color,
-                packedLight,
-                packedOverlay,
-                normalX,
-                0.0f,
-                0.0f
-        );
-
-        addVertex(
-                consumer,
-                pose,
-                x,
-                maxY,
-                maxZ,
-                maxZ,
-                maxY,
-                color,
-                packedLight,
-                packedOverlay,
-                normalX,
-                0.0f,
-                0.0f
-        );
-    }
-
     private static void addVertex(
             VertexConsumer consumer,
             PoseStack.Pose pose,
@@ -986,4 +224,3 @@ final class FoundryTankIntakeHatchRenderer {
                 );
     }
 }
-

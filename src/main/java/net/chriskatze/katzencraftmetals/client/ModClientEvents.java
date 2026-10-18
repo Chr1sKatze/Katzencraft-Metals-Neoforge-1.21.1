@@ -8,6 +8,7 @@ import net.chriskatze.katzencraftmetals.client.renderer.FoundryControllerBlockEn
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryFaucetBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryMetalBlendRenderType;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankConnectedFrameModel;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankIntakeHatchRenderer;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
 import net.chriskatze.katzencraftmetals.screen.*;
 import net.minecraft.client.Minecraft;
@@ -77,6 +78,7 @@ public class ModClientEvents {
             ModelEvent.RegisterAdditional event
     ) {
         FoundryTankConnectedFrameModel.registerAdditionalModels(event);
+        FoundryTankIntakeHatchRenderer.registerAdditionalModels(event);
     }
 
     @SubscribeEvent

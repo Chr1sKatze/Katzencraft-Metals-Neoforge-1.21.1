@@ -116,8 +116,15 @@ public class FoundryFaucetBlockEntityRenderer
                         ? renderState.drainStartProgress
                         : 0.0f;
 
-        FoundryFaucetStreamGeometry geometry =
-                FoundryFaucetStreamGeometry.resolve(
+        boolean bottomMounted = faucet.getBlockState().getValue(FoundryFaucetBlock.FACING) == Direction.DOWN;
+        FoundryFaucetStreamGeometry geometry = bottomMounted
+                ? FoundryFaucetStreamGeometry.resolveDown(
+                        pouring,
+                        animationProgress,
+                        shutdownStartProgress,
+                        context.cauldronSurfaceY()
+                )
+                : FoundryFaucetStreamGeometry.resolve(
                         pouring,
                         animationProgress,
                         shutdownStartProgress,
@@ -157,6 +164,12 @@ public class FoundryFaucetBlockEntityRenderer
                 animationFrame.maxV(),
                 255
         );
+
+        if (bottomMounted) {
+            FoundryFaucetStreamRenderer.renderDownwardEndCap(
+                    consumer, poseStack.last(), geometry, packedOverlay,
+                    animationFrame.minV(), animationFrame.maxV(), 255);
+        }
 
         poseStack.popPose();
 
