@@ -1,6 +1,6 @@
 package net.chriskatze.katzencraftmetals.client.renderer;
 
-import net.chriskatze.katzencraftmetals.block.entity.CastingCauldronBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryBasinBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryFaucetBlockEntity;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.util.Mth;
@@ -8,7 +8,7 @@ import org.jetbrains.annotations.Nullable;
 
 record FoundryFaucetRenderContext(
         MoltenMetalDefinition metal,
-        float cauldronSurfaceY,
+        float basinSurfaceY,
         float dripDisappearY
 ) {
 
@@ -17,23 +17,23 @@ record FoundryFaucetRenderContext(
             FoundryFaucetBlockEntity faucet,
             float partialTick
     ) {
-        FoundryFaucetBlockEntity.CauldronTarget cauldronTarget =
-                FoundryFaucetBlockEntity.findCauldronTarget(
+        FoundryFaucetBlockEntity.BasinTarget basinTarget =
+                FoundryFaucetBlockEntity.findBasinTarget(
                         faucet.getLevel(),
                         faucet.getBlockPos()
                 );
 
-        if (cauldronTarget == null) {
+        if (basinTarget == null) {
             return null;
         }
 
-        CastingCauldronBlockEntity cauldron =
-                cauldronTarget.cauldron();
+        FoundryBasinBlockEntity basin =
+                basinTarget.basin();
 
         MoltenMetalDefinition metal =
                 FoundryFaucetMetalResolver.resolve(
                         faucet,
-                        cauldron
+                        basin
                 );
 
         if (metal == null) {
@@ -41,47 +41,47 @@ record FoundryFaucetRenderContext(
         }
 
         float displayedMoltenAmount =
-                CastingCauldronFillSmoother.getDisplayedMoltenAmount(
-                        cauldron,
+                FoundryBasinFillSmoother.getDisplayedMoltenAmount(
+                        basin,
                         partialTick
                 );
 
         float fillPercentage =
                 Mth.clamp(
                         displayedMoltenAmount
-                                / CastingCauldronBlockEntity.REQUIRED_MOLTEN_AMOUNT,
+                                / FoundryBasinBlockEntity.REQUIRED_MOLTEN_AMOUNT,
                         0.0f,
                         1.0f
                 );
 
-        float cauldronBlockBaseY =
-                -cauldronTarget.distance();
+        float basinBlockBaseY =
+                -basinTarget.distance();
 
-        float cauldronBottomY =
-                cauldronBlockBaseY
-                        + FoundryFaucetRenderConstants.CAULDRON_MIN_Y;
+        float basinBottomY =
+                basinBlockBaseY
+                        + FoundryFaucetRenderConstants.BASIN_MIN_Y;
 
-        float cauldronSurfaceY =
-                cauldronBlockBaseY
+        float basinSurfaceY =
+                basinBlockBaseY
                         + Mth.lerp(
                         fillPercentage,
-                        FoundryFaucetRenderConstants.CAULDRON_MIN_Y,
-                        FoundryFaucetRenderConstants.CAULDRON_MAX_Y
+                        FoundryFaucetRenderConstants.BASIN_MIN_Y,
+                        FoundryFaucetRenderConstants.BASIN_MAX_Y
                 );
 
         float dripDisappearY =
                 displayedMoltenAmount > 0.01f
                         ? Math.max(
-                        cauldronBottomY,
-                        cauldronSurfaceY
+                        basinBottomY,
+                        basinSurfaceY
                                 - FoundryFaucetRenderConstants
                                 .MOLTEN_SURFACE_PENETRATION
                 )
-                        : cauldronBottomY;
+                        : basinBottomY;
 
         return new FoundryFaucetRenderContext(
                 metal,
-                cauldronSurfaceY,
+                basinSurfaceY,
                 dripDisappearY
         );
     }

@@ -151,7 +151,7 @@ public class KatzencraftMetalsMod {
             event.accept(ModBlocks.CRUSHER);
             event.accept(ModBlocks.FOUNDRY_CONTROLLER);
             event.accept(ModBlocks.FOUNDRY_TANK);
-            event.accept(ModBlocks.CASTING_CAULDRON);
+            event.accept(ModBlocks.FOUNDRY_BASIN);
             event.accept(ModBlocks.FOUNDRY_FAUCET);
         }
 

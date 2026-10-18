@@ -35,7 +35,7 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
         dropSelf(ModBlocks.FOUNDRY_CONTROLLER.get());
         dropSelf(ModBlocks.CRUSHER.get());
         dropSelf(ModBlocks.FOUNDRY_TANK.get());
-        dropSelf(ModBlocks.CASTING_CAULDRON.get());
+        dropSelf(ModBlocks.FOUNDRY_BASIN.get());
         dropSelf(ModBlocks.FOUNDRY_FAUCET.get());
 
         // blocks
@@ -205,7 +205,7 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
                 ModBlocks.FUEL_CHAMBER.get(),
                 ModBlocks.FOUNDRY_CONTROLLER.get(),
                 ModBlocks.FOUNDRY_TANK.get(),
-                ModBlocks.CASTING_CAULDRON.get(),
+                ModBlocks.FOUNDRY_BASIN.get(),
                 ModBlocks.FOUNDRY_FAUCET.get()
         );
     }

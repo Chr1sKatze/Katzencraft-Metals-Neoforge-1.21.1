@@ -44,13 +44,13 @@ public class ModBlockEntities {
                             .build(null)
             );
 
-    public static final Supplier<BlockEntityType<CastingCauldronBlockEntity>>
-            CASTING_CAULDRON =
+    public static final Supplier<BlockEntityType<FoundryBasinBlockEntity>>
+            FOUNDRY_BASIN =
             BLOCK_ENTITIES.register(
-                    "casting_cauldron",
+                    "foundry_basin",
                     () -> BlockEntityType.Builder.of(
-                                    CastingCauldronBlockEntity::new,
-                                    ModBlocks.CASTING_CAULDRON.get()
+                                    FoundryBasinBlockEntity::new,
+                                    ModBlocks.FOUNDRY_BASIN.get()
                             )
                             .build(null)
             );

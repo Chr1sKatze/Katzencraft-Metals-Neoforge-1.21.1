@@ -1,5 +1,4 @@
 {
-  "block.katzencraftmetals.casting_cauldron": "Casting Cauldron",
   "block.katzencraftmetals.crusher": "Crusher",
   "block.katzencraftmetals.cut_steel_block": "Cut Steel Block",
   "block.katzencraftmetals.cut_steel_slab": "Cut Steel Slab",
@@ -8,6 +7,7 @@
   "block.katzencraftmetals.deepslate_platinum_ore": "Deepslate Platinum Ore",
   "block.katzencraftmetals.end_mythril_ore": "End Mythril Ore",
   "block.katzencraftmetals.end_platinum_ore": "End Platinum Ore",
+  "block.katzencraftmetals.foundry_basin": "Foundry Basin",
   "block.katzencraftmetals.foundry_controller": "Foundry Controller",
   "block.katzencraftmetals.foundry_faucet": "Foundry Faucet",
   "block.katzencraftmetals.foundry_tank": "Foundry Tank",

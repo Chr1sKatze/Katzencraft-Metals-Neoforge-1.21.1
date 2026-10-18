@@ -122,13 +122,13 @@ public class FoundryFaucetBlockEntityRenderer
                         pouring,
                         animationProgress,
                         shutdownStartProgress,
-                        context.cauldronSurfaceY()
+                        context.basinSurfaceY()
                 )
                 : FoundryFaucetStreamGeometry.resolve(
                         pouring,
                         animationProgress,
                         shutdownStartProgress,
-                        context.cauldronSurfaceY()
+                        context.basinSurfaceY()
                 );
 
         MoltenIronAnimation.Frame animationFrame =
@@ -220,7 +220,7 @@ public class FoundryFaucetBlockEntityRenderer
         return new AABB(
                 minX,
                 faucetPos.getY()
-                        - FoundryFaucetBlockEntity.MAX_CAULDRON_DISTANCE,
+                        - FoundryFaucetBlockEntity.MAX_BASIN_DISTANCE,
                 minZ,
                 maxX + 1.0,
                 faucetPos.getY() + 1.0,

@@ -249,10 +249,10 @@ public class ModBlocks {
                     )
             );
 
-    public static final DeferredBlock<CastingCauldronBlock> CASTING_CAULDRON =
+    public static final DeferredBlock<FoundryBasinBlock> FOUNDRY_BASIN =
             registerBlock(
-                    "casting_cauldron",
-                    () -> new CastingCauldronBlock(
+                    "foundry_basin",
+                    () -> new FoundryBasinBlock(
                             BlockBehaviour.Properties.of()
                                     .strength(3.5f, 6.0f)
                                     .requiresCorrectToolForDrops()

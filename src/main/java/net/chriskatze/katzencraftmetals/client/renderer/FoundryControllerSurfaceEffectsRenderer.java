@@ -21,14 +21,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_GLASS_FADE_DISTANCE;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_MAX_ALPHA;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_LARGE_SURFACE_CELLS;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_MEDIUM_SURFACE_CELLS;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_WIDTH_LARGE;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_WIDTH_MEDIUM;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_WIDTH_SMALL;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.CONTACT_RIM_Y_OFFSET;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_GLASS_FADE_DISTANCE;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MAX_INTENSITY;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MAX_LIFETIME_TICKS;
@@ -42,7 +34,6 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_MIN_TARGET_COUNT;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.HOT_SPOT_Y_OFFSET;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.LIQUID_MAX_INSET;
-import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_CONTACT_RIM_TEXTURE;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_HOT_SPOT_TEXTURE;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_PARTICLE_INTERVAL_TICKS;
 import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRenderConstants.SURFACE_PARTICLE_TOP_LIMIT;
@@ -91,36 +82,6 @@ final class FoundryControllerSurfaceEffectsRenderer {
     private static final float FULL_TANK_HOT_SPOT_SEPARATION =
             0.004f * (1.0f / 16.0f);
 
-    // Warm, low-saturation heat highlights; neutral textures preserve these tints.
-    private static final int DEFAULT_RIM_TINT = 0xFFD080;
-    private static final Map<ResourceLocation, Integer> CONTACT_RIM_TINTS = Map.of(
-            ResourceLocation.parse("minecraft:copper"), 0xFFE3BC,
-            ResourceLocation.parse("minecraft:gold"), 0xFFF0CC,
-            ResourceLocation.parse("katzencraftmetals:mythril"), 0xFFE9D0,
-            ResourceLocation.parse("katzencraftmetals:platinum"), 0xFFE5D3
-    );
-
-    // Derive a slightly brighter core from the same warm palette once at startup.
-    // Opacity and the soft hotspot texture mask remain independent of tint.
-    private static final Map<ResourceLocation, Integer> HOT_SPOT_TINTS =
-            CONTACT_RIM_TINTS.entrySet().stream().collect(java.util.stream.Collectors.toUnmodifiableMap(
-                    Map.Entry::getKey, entry -> brighterHotSpotTint(entry.getValue())));
-    private static final int DEFAULT_HOT_SPOT_TINT = brighterHotSpotTint(DEFAULT_RIM_TINT);
-
-    private static int brighterHotSpotTint(int rimTint) {
-        int green = (rimTint >> 8) & 255;
-        int blue = rimTint & 255;
-        return (rimTint & 0xFF0000) | ((green + (255 - green) / 8) << 8)
-                | (blue + (255 - blue) / 8);
-    }
-
-    private static final float ENHANCED_RIM_MAX_ALPHA = 0.30f;
-
-    private static int contactRimTint(ResourceLocation metal) {
-        Integer tint = CONTACT_RIM_TINTS.get(metal);
-        return tint == null ? DEFAULT_RIM_TINT : tint;
-    }
-
     private final Map<FoundryControllerBlockEntity, SmokeTickState> smokeTickStates =
             new WeakHashMap<>();
 
@@ -148,16 +109,6 @@ final class FoundryControllerSurfaceEffectsRenderer {
             return;
         }
 
-        renderContactRim(
-                tankPos,
-                structure,
-                geometry,
-                pose,
-                bufferSource,
-                contactRimTint(definition.id()),
-                packedOverlay
-        );
-
         renderHotSpots(
                 tankPos,
                 structure,
@@ -178,243 +129,6 @@ final class FoundryControllerSurfaceEffectsRenderer {
                 structure,
                 geometry,
                 level
-        );
-    }
-
-    /**
-     * Renders a very soft bright band where molten liquid meets the Tank wall.
-     *
-     * This is intentionally subtle. The outer edge is only lightly tinted and
-     * the strip fades fully to transparent toward the center of the liquid, so
-     * it reads as heat at the contact boundary rather than a hard outline.
-     */
-    private static void renderContactRim(
-            BlockPos tankPos,
-            Set<BlockPos> structure,
-            FoundryTankLiquidGeometry geometry,
-            PoseStack.Pose pose,
-            MultiBufferSource bufferSource,
-            int color,
-            int packedOverlay
-    ) {
-        float glassHeadroom =
-                Math.max(
-                        0.0f,
-                        LIQUID_MAX_INSET - geometry.surfaceY()
-                );
-
-        /*
-         * Keep the contact glow visible under the top glass as well, but make
-         * it slightly softer there.
-         */
-        float glassFade =
-                Mth.lerp(
-                        Mth.clamp(
-                                glassHeadroom / CONTACT_RIM_GLASS_FADE_DISTANCE,
-                                0.0f,
-                                1.0f
-                        ),
-                        0.60f,
-                        1.0f
-                );
-
-        // Preserve iron/steel's original blend exactly; only palette overrides
-        // need stronger blending against their bright/similarly colored liquid.
-        float maxAlpha = color == DEFAULT_RIM_TINT ? CONTACT_RIM_MAX_ALPHA : ENHANCED_RIM_MAX_ALPHA;
-        int outerAlpha =
-                Mth.clamp(
-                        Math.round(
-                                255.0f
-                                        * maxAlpha
-                                        * glassFade
-                        ),
-                        0,
-                        255
-                );
-
-        if (outerAlpha <= 1) {
-            return;
-        }
-
-        int horizontalSurfaceCells =
-                countHorizontalSurfaceCells(
-                        structure,
-                        tankPos.getY()
-                );
-
-        float rimWidth =
-                getContactRimWidth(
-                        horizontalSurfaceCells
-                );
-
-        float y =
-                Math.min(
-                        geometry.surfaceY() + CONTACT_RIM_Y_OFFSET,
-                        LIQUID_MAX_INSET
-                                + FULL_TANK_HOT_SPOT_SEPARATION * 0.5f
-                );
-
-        VertexConsumer consumer =
-                bufferSource.getBuffer(
-                        RenderType.entityTranslucent(
-                                SURFACE_CONTACT_RIM_TEXTURE
-                        )
-                );
-
-        renderContactRimMesh(consumer, pose, tankPos, structure, geometry,
-                rimWidth, y, outerAlpha, color, packedOverlay);
-    }
-
-    /** Non-overlapping miter joins share both positions and alpha along each diagonal. */
-    private static void renderContactRimMesh(
-            VertexConsumer consumer, PoseStack.Pose pose, BlockPos tankPos,
-            Set<BlockPos> structure, FoundryTankLiquidGeometry geometry,
-            float width, float y, int alpha, int color, int overlay
-    ) {
-        boolean north = !structure.contains(tankPos.north());
-        boolean south = !structure.contains(tankPos.south());
-        boolean west = !structure.contains(tankPos.west());
-        boolean east = !structure.contains(tankPos.east());
-        float x0 = geometry.minX(), x1 = geometry.maxX();
-        float z0 = geometry.minZ(), z1 = geometry.maxZ();
-        float ix0 = x0 + (west ? width : 0), ix1 = x1 - (east ? width : 0);
-        float iz0 = z0 + (north ? width : 0), iz1 = z1 - (south ? width : 0);
-        if (north) rimFace(consumer, pose, y, color, overlay,
-                x0,z0,alpha, ix0,iz0,0, ix1,iz0,0, x1,z0,alpha);
-        if (south) rimFace(consumer, pose, y, color, overlay,
-                ix0,iz1,0, x0,z1,alpha, x1,z1,alpha, ix1,iz1,0);
-        if (west) rimFace(consumer, pose, y, color, overlay,
-                x0,z0,alpha, x0,z1,alpha, ix0,iz1,0, ix0,iz0,0);
-        if (east) rimFace(consumer, pose, y, color, overlay,
-                ix1,iz0,0, ix1,iz1,0, x1,z1,alpha, x1,z0,alpha);
-
-        // A missing diagonal with both cardinal neighbors is a reentrant corner.
-        // Its cell owns the join; neighboring straight strips stop at the cell edge.
-        for (int sx = -1; sx <= 1; sx += 2) {
-            for (int sz = -1; sz <= 1; sz += 2) {
-                if ((sx < 0 ? west : east)
-                        || (sz < 0 ? north : south)
-                        || structure.contains(tankPos.offset(sx, 0, sz))) continue;
-                float inset = FoundryTankRenderConstants.LIQUID_SIDE_INSET;
-                float cx = sx < 0 ? x0 : x1, cz = sz < 0 ? z0 : z1;
-                // The narrow plateau accounts for the adjacent wall's liquid inset.
-                for (int i = 0; i < 2; i++) for (int j = 0; j < 2; j++) {
-                    float u0 = i == 0 ? 0 : inset, u1 = i == 0 ? inset : inset + width;
-                    float v0 = j == 0 ? 0 : inset, v1 = j == 0 ? inset : inset + width;
-                    float left = sx < 0 ? cx + u0 : cx - u1;
-                    float right = sx < 0 ? cx + u1 : cx - u0;
-                    float top = sz < 0 ? cz + v0 : cz - v1;
-                    float bottom = sz < 0 ? cz + v1 : cz - v0;
-                    rimFace(consumer, pose, y, color, overlay,
-                            left,top,cornerAlpha(left,top,cx,cz,inset,width,alpha),
-                            left,bottom,cornerAlpha(left,bottom,cx,cz,inset,width,alpha),
-                            right,bottom,cornerAlpha(right,bottom,cx,cz,inset,width,alpha),
-                            right,top,cornerAlpha(right,top,cx,cz,inset,width,alpha));
-                }
-            }
-        }
-    }
-
-    private static int cornerAlpha(float x, float z, float cx, float cz,
-                                   float inset, float width, int alpha) {
-        return Math.round(alpha * Mth.clamp(1 - (Math.max(Math.abs(x - cx), Math.abs(z - cz))
-                - inset) / width, 0, 1));
-    }
-
-    private static void rimFace(VertexConsumer consumer, PoseStack.Pose pose,
-                                float y, int color, int overlay,
-                                float ax,float az,int aa, float bx,float bz,int ba,
-                                float cx,float cz,int ca, float dx,float dz,int da) {
-        addContactRimVertex(consumer, pose, ax,y,az,0,0,aa,color,overlay);
-        addContactRimVertex(consumer, pose, bx,y,bz,0,1,ba,color,overlay);
-        addContactRimVertex(consumer, pose, cx,y,cz,1,1,ca,color,overlay);
-        addContactRimVertex(consumer, pose, dx,y,dz,1,0,da,color,overlay);
-    }
-
-    private static void addContactRimVertex(
-            VertexConsumer consumer,
-            PoseStack.Pose pose,
-            float x,
-            float y,
-            float z,
-            float u,
-            float v,
-            int alpha,
-            int color,
-            int packedOverlay
-    ) {
-        consumer.addVertex(
-                        pose.pose(),
-                        x,
-                        y,
-                        z
-                )
-                .setColor(
-                        (color >> 16) & 255,
-                        (color >> 8) & 255,
-                        color & 255,
-                        alpha
-                )
-                .setUv(
-                        u,
-                        v
-                )
-                .setOverlay(packedOverlay)
-                .setLight(
-                        LightTexture.FULL_BRIGHT
-                )
-                .setNormal(
-                        pose,
-                        0.0f,
-                        1.0f,
-                        0.0f
-                );
-    }
-
-    /**
-     * Size-dependent contact-rim width.
-     *
-     * Requested targets:
-     *   1x1 surface  -> 2.5 px
-     *   2x2 surface  -> 3.5 px
-     *   4x4 surface  -> 4.5 px
-     *
-     * For intermediate layouts, interpolate by horizontal surface cell count
-     * so irregular and non-square shapes still scale smoothly.
-     */
-    private static float getContactRimWidth(
-            int horizontalSurfaceCells
-    ) {
-        if (horizontalSurfaceCells <= CONTACT_RIM_MEDIUM_SURFACE_CELLS) {
-            float t =
-                    Mth.clamp(
-                            (horizontalSurfaceCells - 1.0f)
-                                    / (CONTACT_RIM_MEDIUM_SURFACE_CELLS - 1.0f),
-                            0.0f,
-                            1.0f
-                    );
-
-            return Mth.lerp(
-                    t,
-                    CONTACT_RIM_WIDTH_SMALL,
-                    CONTACT_RIM_WIDTH_MEDIUM
-            );
-        }
-
-        float t =
-                Mth.clamp(
-                        (horizontalSurfaceCells
-                                - (float) CONTACT_RIM_MEDIUM_SURFACE_CELLS)
-                                / (CONTACT_RIM_LARGE_SURFACE_CELLS
-                                - (float) CONTACT_RIM_MEDIUM_SURFACE_CELLS),
-                        0.0f,
-                        1.0f
-                );
-
-        return Mth.lerp(
-                t,
-                CONTACT_RIM_WIDTH_MEDIUM,
-                CONTACT_RIM_WIDTH_LARGE
         );
     }
 
@@ -911,7 +625,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
             }
         } while (connected != previous);
         // Use only the Controller's existing cached geometry; no network scans.
-        int tint = HOT_SPOT_TINTS.getOrDefault(metal, DEFAULT_HOT_SPOT_TINT);
+        int tint = FoundryMetalEffectPalette.baseTint(metal);
         for (int dx = minDX; dx <= maxDX; dx++) {
             for (int dz = minDZ; dz <= maxDZ; dz++) {
                 if ((connected & (1L << ((dx - minDX) * rows + dz - minDZ))) == 0) continue;

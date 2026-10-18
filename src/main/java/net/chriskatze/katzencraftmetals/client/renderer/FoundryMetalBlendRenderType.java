@@ -147,7 +147,7 @@ public final class FoundryMetalBlendRenderType extends RenderType {
                         .setOutputState(MAIN_TARGET)
                         .createCompositeState(false);
 
-        return create(
+        return FoundryTankLiquidDepthRenderType.wrap(create(
                 "katzencraftmetals_foundry_metal_blend",
                 DefaultVertexFormat.NEW_ENTITY,
                 VertexFormat.Mode.QUADS,
@@ -155,7 +155,7 @@ public final class FoundryMetalBlendRenderType extends RenderType {
                 false,
                 true,
                 state
-        );
+        ));
     }
 
     private record BlendKey(

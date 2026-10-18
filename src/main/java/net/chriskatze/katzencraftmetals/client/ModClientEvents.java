@@ -3,10 +3,13 @@ package net.chriskatze.katzencraftmetals.client;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
-import net.chriskatze.katzencraftmetals.client.renderer.CastingCauldronBlockEntityRenderer;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryBasinBlockEntityRenderer;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryBasinLightingModel;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryControllerBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryFaucetBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryMetalBlendRenderType;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryMetalEffectPalette;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankSurfaceRenderType;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankConnectedFrameModel;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankIntakeHatchRenderer;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
@@ -21,6 +24,7 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterShadersEvent;
+import net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent;
 import net.neoforged.neoforge.client.event.ModelEvent;
 
 import java.io.IOException;
@@ -67,10 +71,16 @@ public class ModClientEvents {
     }
 
     @SubscribeEvent
+    public static void registerEffectPaletteReload(RegisterClientReloadListenersEvent event) {
+        event.registerReloadListener(new FoundryMetalEffectPalette());
+    }
+
+    @SubscribeEvent
     public static void registerShaders(
             RegisterShadersEvent event
     ) throws IOException {
         FoundryMetalBlendRenderType.registerShader(event);
+        FoundryTankSurfaceRenderType.registerShader(event);
     }
 
     @SubscribeEvent
@@ -86,6 +96,7 @@ public class ModClientEvents {
             ModelEvent.ModifyBakingResult event
     ) {
         FoundryTankConnectedFrameModel.modifyBakingResult(event);
+        FoundryBasinLightingModel.modifyBakingResult(event);
     }
 
     @SubscribeEvent
@@ -123,8 +134,8 @@ public class ModClientEvents {
             EntityRenderersEvent.RegisterRenderers event
     ) {
         event.registerBlockEntityRenderer(
-                ModBlockEntities.CASTING_CAULDRON.get(),
-                CastingCauldronBlockEntityRenderer::new
+                ModBlockEntities.FOUNDRY_BASIN.get(),
+                FoundryBasinBlockEntityRenderer::new
         );
 
         event.registerBlockEntityRenderer(

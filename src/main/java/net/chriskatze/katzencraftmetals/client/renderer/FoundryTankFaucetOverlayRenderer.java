@@ -105,7 +105,7 @@ final class FoundryTankFaucetOverlayRenderer {
          * Preserve the original "door" behavior:
          * - idle faucet: shadow is closed/visible
          * - active pour: shadow is open/hidden
-         * - shutdown: remain open until the visible cauldron fill catches up
+         * - shutdown: remain open until the visible basin fill catches up
          */
         if (shouldKeepFaucetOverlayOpen(
                 faucet,
@@ -186,8 +186,8 @@ final class FoundryTankFaucetOverlayRenderer {
             return false;
         }
 
-        FoundryFaucetBlockEntity.CauldronTarget target =
-                FoundryFaucetBlockEntity.findCauldronTarget(
+        FoundryFaucetBlockEntity.BasinTarget target =
+                FoundryFaucetBlockEntity.findBasinTarget(
                         faucet.getLevel(),
                         faucet.getBlockPos()
                 );
@@ -197,18 +197,18 @@ final class FoundryTankFaucetOverlayRenderer {
         }
 
         float displayedMoltenAmount =
-                CastingCauldronFillSmoother.getDisplayedMoltenAmount(
-                        target.cauldron(),
+                FoundryBasinFillSmoother.getDisplayedMoltenAmount(
+                        target.basin(),
                         partialTick
                 );
 
         float actualMoltenAmount =
-                target.cauldron()
+                target.basin()
                         .getMoltenAmount();
 
         /*
          * During shutdown, keep the entrance open only while the most recently
-         * transferred molten metal is still visibly raising the Cauldron
+         * transferred molten metal is still visibly raising the Basin
          * surface. As soon as the visual height catches up, the black entrance
          * closes and appears to cut the remaining stream off at its source.
          */

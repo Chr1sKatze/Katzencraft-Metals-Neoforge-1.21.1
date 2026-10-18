@@ -20,25 +20,25 @@ record FoundryFaucetStreamGeometry(
             boolean pouring,
             float animationProgress,
             float shutdownStartProgress,
-            float cauldronSurfaceY
+            float basinSurfaceY
     ) {
-        return resolve(pouring, animationProgress, shutdownStartProgress, cauldronSurfaceY, true);
+        return resolve(pouring, animationProgress, shutdownStartProgress, basinSurfaceY, true);
     }
 
     static FoundryFaucetStreamGeometry resolve(
             boolean pouring,
             float animationProgress,
             float shutdownStartProgress,
-            float cauldronSurfaceY
+            float basinSurfaceY
     ) {
-        return resolve(pouring, animationProgress, shutdownStartProgress, cauldronSurfaceY, false);
+        return resolve(pouring, animationProgress, shutdownStartProgress, basinSurfaceY, false);
     }
 
     private static FoundryFaucetStreamGeometry resolve(
             boolean pouring,
             float animationProgress,
             float shutdownStartProgress,
-            float cauldronSurfaceY,
+            float basinSurfaceY,
             boolean bottomMounted
     ) {
         float startupProgress =
@@ -159,9 +159,9 @@ record FoundryFaucetStreamGeometry(
                 // Resume the existing nozzle-based drain at the visible length reached by
                 // the connection-based stream. A stop inside the assembly uses its early-drip fallback.
                 float initialBottomY = Mth.lerp(Mth.clamp(shutdownStartProgress, 0.0f, 1.0f),
-                        DOWN_CONNECTION_Y, cauldronSurfaceY);
+                        DOWN_CONNECTION_Y, basinSurfaceY);
                 shutdownInitialVerticalProgress = Mth.clamp(
-                        (DOWN_NOZZLE_Y - initialBottomY) / (DOWN_NOZZLE_Y - cauldronSurfaceY),
+                        (DOWN_NOZZLE_Y - initialBottomY) / (DOWN_NOZZLE_Y - basinSurfaceY),
                         0.0f, 1.0f);
             }
         }
@@ -178,16 +178,16 @@ record FoundryFaucetStreamGeometry(
         float dripBreakupProgress =
                 0.0f;
         float dripFieldBottomY =
-                cauldronSurfaceY;
+                basinSurfaceY;
         float dripFieldTopY =
-                cauldronSurfaceY;
+                basinSurfaceY;
 
         if (pouring) {
             streamBottomY =
                     Mth.lerp(
                             verticalProgress,
                             outerTopY,
-                            cauldronSurfaceY
+                            basinSurfaceY
                     );
 
             streamInnerTopY =
@@ -201,7 +201,7 @@ record FoundryFaucetStreamGeometry(
                             ? Mth.lerp(
                             shutdownInitialVerticalProgress,
                             outerTopY,
-                            cauldronSurfaceY
+                            basinSurfaceY
                     )
                             : outerTopY
                             - MINIMUM_EARLY_DRIP_HEIGHT;
@@ -211,7 +211,7 @@ record FoundryFaucetStreamGeometry(
                         Mth.lerp(
                                 verticalProgress,
                                 initialStreamBottomY,
-                                cauldronSurfaceY
+                                basinSurfaceY
                         );
 
                 streamInnerTopY =
@@ -249,7 +249,7 @@ record FoundryFaucetStreamGeometry(
                         Mth.lerp(
                                 DRIP_BREAKUP_START,
                                 initialStreamBottomY,
-                                cauldronSurfaceY
+                                basinSurfaceY
                         );
 
                 dripFieldTopY =
@@ -260,13 +260,13 @@ record FoundryFaucetStreamGeometry(
                         );
 
                 streamBottomY =
-                        cauldronSurfaceY;
+                        basinSurfaceY;
 
                 streamInnerTopY =
-                        cauldronSurfaceY;
+                        basinSurfaceY;
 
                 streamOuterTopY =
-                        cauldronSurfaceY;
+                        basinSurfaceY;
             }
         }
 

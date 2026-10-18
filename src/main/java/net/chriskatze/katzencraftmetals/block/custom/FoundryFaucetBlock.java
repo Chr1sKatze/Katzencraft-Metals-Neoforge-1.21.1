@@ -2,7 +2,7 @@ package net.chriskatze.katzencraftmetals.block.custom;
 
 import com.mojang.serialization.MapCodec;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
-import net.chriskatze.katzencraftmetals.block.entity.CastingCauldronBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryBasinBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryFaucetBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
@@ -459,13 +459,6 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
                     0.8f
             );
 
-            player.displayClientMessage(
-                    Component.literal(
-                            "The faucet has stopped pouring."
-                    ),
-                    true
-            );
-
             return InteractionResult.CONSUME;
         }
 
@@ -528,16 +521,16 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
-        FoundryFaucetBlockEntity.CauldronTarget cauldronTarget =
-                FoundryFaucetBlockEntity.findCauldronTarget(
+        FoundryFaucetBlockEntity.BasinTarget basinTarget =
+                FoundryFaucetBlockEntity.findBasinTarget(
                         level,
                         pos
                 );
 
-        if (cauldronTarget == null) {
+        if (basinTarget == null) {
             player.displayClientMessage(
                     Component.literal(
-                            "Place a Casting Cauldron within 4 clear blocks below the faucet."
+                            "Place a Foundry Basin within 4 clear blocks below the faucet."
                     ),
                     true
             );
@@ -545,13 +538,13 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
-        CastingCauldronBlockEntity cauldron =
-                cauldronTarget.cauldron();
+        FoundryBasinBlockEntity basin =
+                basinTarget.basin();
 
-        if (cauldron.isFull()) {
+        if (basin.isFull()) {
             player.displayClientMessage(
                     Component.literal(
-                            "The Casting Cauldron is already full."
+                            "The Foundry Basin is already full."
                     ),
                     true
             );
@@ -559,13 +552,13 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             return InteractionResult.CONSUME;
         }
 
-        if (!cauldron.canAccept(
+        if (!basin.canAccept(
                 outputMetal,
                 FoundryFaucetBlockEntity.TRANSFER_AMOUNT
         )) {
             player.displayClientMessage(
                     Component.literal(
-                            "The Casting Cauldron cannot accept this metal."
+                            "The Foundry Basin cannot accept this metal."
                     ),
                     true
             );
@@ -582,13 +575,6 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
                 SoundSource.BLOCKS,
                 0.5f,
                 1.2f
-        );
-
-        player.displayClientMessage(
-                Component.literal(
-                        "The faucet has started pouring."
-                ),
-                true
         );
 
         return InteractionResult.CONSUME;

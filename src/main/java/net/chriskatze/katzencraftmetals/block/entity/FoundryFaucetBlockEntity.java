@@ -43,7 +43,7 @@ public class FoundryFaucetBlockEntity
     public static final int TRANSFER_INTERVAL = 12;
     public static final int TRANSFER_AMOUNT = 6;
 
-    public static final int MAX_CAULDRON_DISTANCE = 4;
+    public static final int MAX_BASIN_DISTANCE = 4;
 
     public static final int STREAM_ANIMATION_INTERVAL = 2;
     public static final int STREAM_ANIMATION_STEPS = 8;
@@ -232,7 +232,13 @@ public class FoundryFaucetBlockEntity
                 faucet.syncToClient();
             }
 
-            return;
+            if (faucet.streamAnimationStep < STREAM_ANIMATION_STEPS) {
+                return;
+            }
+
+            // The stream has reached the basin. Transfer its first batch now;
+            // subsequent batches still use the normal interval below.
+            faucet.transferTimer = TRANSFER_INTERVAL - 1;
         }
 
         faucet.transferTimer++;
@@ -256,7 +262,7 @@ public class FoundryFaucetBlockEntity
         }
 
         int inserted =
-                context.cauldron()
+                context.basin()
                         .insert(
                                 context.metal(),
                                 extracted
@@ -280,7 +286,7 @@ public class FoundryFaucetBlockEntity
          * another metal.
          */
         if (
-                context.cauldron().isFull()
+                context.basin().isFull()
                         || !hasMoltenReachedFaucetHeight(
                         context.tankPos(),
                         context.network()
@@ -654,13 +660,13 @@ public class FoundryFaucetBlockEntity
     }
 
     @Nullable
-    public static CauldronTarget findCauldronTarget(
+    public static BasinTarget findBasinTarget(
             Level level,
             BlockPos faucetPos
     ) {
         for (
                 int distance = 1;
-                distance <= MAX_CAULDRON_DISTANCE;
+                distance <= MAX_BASIN_DISTANCE;
                 distance++
         ) {
             BlockPos checkedPos =
@@ -673,10 +679,10 @@ public class FoundryFaucetBlockEntity
 
             if (
                     blockEntity
-                            instanceof CastingCauldronBlockEntity cauldron
+                            instanceof FoundryBasinBlockEntity basin
             ) {
-                return new CauldronTarget(
-                        cauldron,
+                return new BasinTarget(
+                        basin,
                         distance
                 );
             }
@@ -750,8 +756,8 @@ public class FoundryFaucetBlockEntity
             return null;
         }
 
-        CauldronTarget target =
-                findCauldronTarget(
+        BasinTarget target =
+                findBasinTarget(
                         level,
                         faucetPos
                 );
@@ -760,12 +766,12 @@ public class FoundryFaucetBlockEntity
             return null;
         }
 
-        CastingCauldronBlockEntity cauldron =
-                target.cauldron();
+        FoundryBasinBlockEntity basin =
+                target.basin();
 
         if (
-                cauldron.isFull()
-                        || !cauldron.canAccept(
+                basin.isFull()
+                        || !basin.canAccept(
                         outputMetal,
                         TRANSFER_AMOUNT
                 )
@@ -776,13 +782,13 @@ public class FoundryFaucetBlockEntity
         return new PouringContext(
                 network,
                 tankPosition.immutable(),
-                cauldron,
+                basin,
                 outputMetal
         );
     }
 
-    public record CauldronTarget(
-            CastingCauldronBlockEntity cauldron,
+    public record BasinTarget(
+            FoundryBasinBlockEntity basin,
             int distance
     ) {
     }
@@ -790,7 +796,7 @@ public class FoundryFaucetBlockEntity
     private record PouringContext(
             FoundryTankNetwork network,
             BlockPos tankPos,
-            CastingCauldronBlockEntity cauldron,
+            FoundryBasinBlockEntity basin,
             ResourceLocation metal
     ) {
     }

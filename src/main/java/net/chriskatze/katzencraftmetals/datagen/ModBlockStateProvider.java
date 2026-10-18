@@ -58,12 +58,12 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
         foundryTankBlock();
 
-        ModelFile castingCauldronModel = new ModelFile.UncheckedModelFile(modLoc("block/casting_cauldron"));
-        getVariantBuilder(ModBlocks.CASTING_CAULDRON.get())
+        ModelFile foundryBasinModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_basin"));
+        getVariantBuilder(ModBlocks.FOUNDRY_BASIN.get())
                 .forAllStates(state -> ConfiguredModel.builder()
-                        .modelFile(castingCauldronModel)
+                        .modelFile(foundryBasinModel)
                         .build());
-        simpleBlockItem(ModBlocks.CASTING_CAULDRON.get(), castingCauldronModel);
+        simpleBlockItem(ModBlocks.FOUNDRY_BASIN.get(), foundryBasinModel);
 
         ModelFile faucetModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_faucet"));
         ModelFile bottomFaucetModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_faucet_down"));

@@ -358,7 +358,7 @@ final class FoundryFaucetPourParticleEffects {
                         facing,
                         STREAM_CENTER_X
                                 + centeredNoise(seed ^ 0x5001L) * spread,
-                        context.cauldronSurfaceY()
+                        context.basinSurfaceY()
                                 + 0.035f,
                         STREAM_CENTER_Z
                                 + centeredNoise(seed ^ 0x5002L) * spread
@@ -398,7 +398,7 @@ final class FoundryFaucetPourParticleEffects {
                         facing,
                         STREAM_CENTER_X
                                 + centeredNoise(seed ^ 0x6001L) * spread,
-                        context.cauldronSurfaceY()
+                        context.basinSurfaceY()
                                 + 0.055f,
                         STREAM_CENTER_Z
                                 + centeredNoise(seed ^ 0x6002L) * spread
@@ -418,7 +418,7 @@ final class FoundryFaucetPourParticleEffects {
     private static boolean isLongBasinDrop(
             FoundryFaucetRenderContext context
     ) {
-        return context.cauldronSurfaceY()
+        return context.basinSurfaceY()
                 <= LONG_DROP_SURFACE_Y_THRESHOLD;
     }
 

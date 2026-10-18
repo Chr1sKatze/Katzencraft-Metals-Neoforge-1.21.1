@@ -288,7 +288,7 @@ final class FoundryTankAutoPourScheduler {
      *   waits until enough molten volume exists above those lower layers.
      *
      * This avoids the old mistake of requiring one single local tank column to
-     * contain the whole cauldron amount.
+     * contain the whole basin amount.
      */
     private static Map<Integer, Integer> createHeightAvailabilityMap(
             FoundryTankNetwork network
@@ -367,8 +367,8 @@ final class FoundryTankAutoPourScheduler {
             return null;
         }
 
-        FoundryFaucetBlockEntity.CauldronTarget target =
-                FoundryFaucetBlockEntity.findCauldronTarget(
+        FoundryFaucetBlockEntity.BasinTarget target =
+                FoundryFaucetBlockEntity.findBasinTarget(
                         level,
                         faucetPos
                 );
@@ -377,11 +377,11 @@ final class FoundryTankAutoPourScheduler {
             return null;
         }
 
-        CastingCauldronBlockEntity cauldron =
-                target.cauldron();
+        FoundryBasinBlockEntity basin =
+                target.basin();
 
         int requiredAmount =
-                cauldron.getRemainingCapacity();
+                basin.getRemainingCapacity();
 
         if (
                 requiredAmount <= 0
@@ -409,7 +409,7 @@ final class FoundryTankAutoPourScheduler {
          * connected network, but the total liquid height at this faucet's
          * physical Y-level must also be able to sustain the full pour.
          */
-        if (!cauldron.canAccept(
+        if (!basin.canAccept(
                 metal,
                 requiredAmount
         )) {

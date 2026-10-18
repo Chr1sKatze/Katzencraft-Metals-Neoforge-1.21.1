@@ -125,6 +125,9 @@ final class FoundryControllerTankLiquidRenderer {
             );
         }
 
+        Map<Integer, Integer> surfaceCellCounts = new LinkedHashMap<>();
+        for (BlockPos cell : structure) surfaceCellCounts.merge(cell.getY(), 1, Integer::sum);
+
         BlockPos controllerPos = controller.getBlockPos();
 
         /*
@@ -183,7 +186,7 @@ final class FoundryControllerTankLiquidRenderer {
                 }
 
                 VertexConsumer consumer = bufferSource.getBuffer(
-                        RenderType.entityTranslucentCull(
+                        FoundryTankLiquidDepthRenderType.get(
                                 definition.animatedTexture()
                         )
                 );
@@ -200,8 +203,6 @@ final class FoundryControllerTankLiquidRenderer {
                                 renderedLayer.renderBottom()
                         );
 
-                VertexConsumer junctionConsumer = FoundryTankJunctionMaterial.wrap(consumer, junctionFrames,
-                        () -> LevelRenderer.getLightColor(level, tankPos), tankPos, renderedLayer, renderedLayers);
 
                 /*
                  * Do not render the old perfectly flat horizontal face when a
@@ -225,20 +226,18 @@ final class FoundryControllerTankLiquidRenderer {
                         renderedLayer.renderTop()
                                 && !differentMetalDirectlyAbove
                 ) {
-                    FoundryTankLiquidQuads.renderLiquidHorizontalFace(
-                            Direction.UP,
-                            consumer,
-                            pose,
-                            minX,
-                            maxX,
-                            renderedLayer.maxY(),
-                            minZ,
-                            maxZ,
-                            packedOverlay,
-                            animationFrame.minV(),
-                            animationFrame.maxV()
+                    FoundryTankSurfaceRenderer.render(
+                            bufferSource, consumer, pose, geometry, tankPos, structure,
+                            definition, surfaceCellCounts.get(tankPos.getY()), packedOverlay,
+                            animationFrame.minV(), animationFrame.maxV()
                     );
                 }
+
+                // Switching to the surface shader finishes a shared buffer. Reacquire
+                // the side consumer before wrapping it for the existing junction fixes.
+                consumer = bufferSource.getBuffer(FoundryTankLiquidDepthRenderType.get(definition.animatedTexture()));
+                VertexConsumer junctionConsumer = FoundryTankJunctionMaterial.wrap(consumer, junctionFrames,
+                        () -> LevelRenderer.getLightColor(level, tankPos), tankPos, renderedLayer, renderedLayers);
 
                 renderLayerBottom(tankPos, renderedLayer, geometry, renderedLayers,
                         junctionConsumer, pose, packedOverlay, animationFrame.minV(), animationFrame.maxV());
@@ -868,7 +867,7 @@ final class FoundryControllerTankLiquidRenderer {
          */
         VertexConsumer lowerConsumer =
                 bufferSource.getBuffer(
-                        RenderType.entityTranslucentCull(
+                        FoundryTankLiquidDepthRenderType.get(
                                 lowerDefinition.animatedTexture()
                         )
                 );
@@ -905,7 +904,7 @@ final class FoundryControllerTankLiquidRenderer {
          */
         VertexConsumer upperConsumer =
                 bufferSource.getBuffer(
-                        RenderType.entityTranslucentCull(
+                        FoundryTankLiquidDepthRenderType.get(
                                 upperDefinition.animatedTexture()
                         )
                 );

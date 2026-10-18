@@ -1,7 +1,7 @@
 package net.chriskatze.katzencraftmetals.client.renderer;
 
 import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
-import net.chriskatze.katzencraftmetals.block.entity.CastingCauldronBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryBasinBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryFaucetBlockEntity;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
@@ -18,14 +18,14 @@ final class FoundryFaucetMetalResolver {
     @Nullable
     static MoltenMetalDefinition resolve(
             FoundryFaucetBlockEntity faucet,
-            CastingCauldronBlockEntity cauldron
+            FoundryBasinBlockEntity basin
     ) {
         ResourceLocation renderedMetalId =
                 faucet.getPouringMetal();
 
         if (renderedMetalId == null) {
             renderedMetalId =
-                    cauldron.getStoredMetal();
+                    basin.getStoredMetal();
         }
 
         if (renderedMetalId == null) {
