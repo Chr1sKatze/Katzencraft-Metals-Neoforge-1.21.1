@@ -30,6 +30,11 @@ public class ModRecipeProvider extends RecipeProvider {
     @Override
     protected void buildRecipes(RecipeOutput recipeOutput) {
 
+        ShapedRecipeBuilder.shaped(RecipeCategory.DECORATIONS, ModBlocks.FOUNDRY_TABLE.get())
+                .pattern("III").pattern("S S").pattern("SSS")
+                .define('I', ModItems.STEEL_INGOT.get()).define('S', Items.STONE_BRICKS)
+                .unlockedBy("has_steel_ingot", has(ModItems.STEEL_INGOT.get())).save(recipeOutput);
+
         ModFoundryRecipeProvider.build(recipeOutput);
         ModMetalRecipeProvider.build(recipeOutput);
         ModEquipmentRecipeProvider.build(recipeOutput);

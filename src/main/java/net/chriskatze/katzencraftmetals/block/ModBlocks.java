@@ -249,6 +249,11 @@ public class ModBlocks {
                     )
             );
 
+    public static final DeferredBlock<FoundryTableBlock> FOUNDRY_TABLE =
+            registerBlock("foundry_table", () -> new FoundryTableBlock(
+                    BlockBehaviour.Properties.of().strength(3.5f, 6.0f)
+                            .requiresCorrectToolForDrops().noOcclusion().sound(SoundType.METAL)));
+
     public static final DeferredBlock<FoundryBasinBlock> FOUNDRY_BASIN =
             registerBlock(
                     "foundry_basin",
@@ -261,7 +266,7 @@ public class ModBlocks {
             );
 
     public static final DeferredBlock<FoundryFaucetBlock> FOUNDRY_FAUCET =
-            registerBlock(
+            BLOCKS.register(
                     "foundry_faucet",
                     () -> new FoundryFaucetBlock(
                             BlockBehaviour.Properties.of()

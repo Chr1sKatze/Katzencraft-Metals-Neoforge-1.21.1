@@ -77,6 +77,8 @@ final class FoundryTankFaucetOverlayRenderer {
         }
 
         if (face == Direction.DOWN) {
+            poseStack.pushPose();
+            FoundryFaucetRenderTransform.rotateDownAssembly(poseStack, faucetState);
             FoundryTankIntakeHatchRenderer.renderBottomFaucetCap(
                     bufferSource.getBuffer(RenderType.entityCutoutNoCullZOffset(
                             FoundryTankRenderConstants.TOP_TEXTURE)),
@@ -87,6 +89,7 @@ final class FoundryTankFaucetOverlayRenderer {
                         bufferSource.getBuffer(FoundryFaucetOpeningRenderType.get()),
                         poseStack, LevelRenderer.getLightColor(level, tankPos), packedOverlay);
             }
+            poseStack.popPose();
             return;
         }
         if (!face.getAxis().isHorizontal()) return;

@@ -72,7 +72,7 @@ public class FoundryTankBlock extends Block {
     @Override
     protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos,
                                            CollisionContext context) {
-        return getShape(state, level, pos, context);
+        return Shapes.block();
     }
 
     public FoundryTankBlock(Properties properties) {

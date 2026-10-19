@@ -58,6 +58,13 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
         foundryTankBlock();
 
+        ModelFile tableModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_table"));
+        getVariantBuilder(ModBlocks.FOUNDRY_TABLE.get()).forAllStates(state ->
+                ConfiguredModel.builder().modelFile(tableModel)
+                        .rotationY(net.chriskatze.katzencraftmetals.block.custom.FoundryTableBlock.modelRotation(
+                                state.getValue(net.chriskatze.katzencraftmetals.block.custom.FoundryTableBlock.FACING))).build());
+        simpleBlockItem(ModBlocks.FOUNDRY_TABLE.get(), tableModel);
+
         ModelFile foundryBasinModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_basin"));
         getVariantBuilder(ModBlocks.FOUNDRY_BASIN.get())
                 .forAllStates(state -> ConfiguredModel.builder()
@@ -71,10 +78,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
             Direction facing = state.getValue(FoundryFaucetBlock.FACING);
             return ConfiguredModel.builder()
                     .modelFile(facing == Direction.DOWN ? bottomFaucetModel : faucetModel)
-                    .rotationY(facing == Direction.DOWN ? 0 : ((int) facing.toYRot() + 180) % 360)
+                    .rotationY(facing == Direction.DOWN ? FoundryFaucetBlock.downRotationDegrees(state) : ((int) facing.toYRot() + 180) % 360)
                     .build();
         });
-        simpleBlockItem(ModBlocks.FOUNDRY_FAUCET.get(), faucetModel);
     }
 
 

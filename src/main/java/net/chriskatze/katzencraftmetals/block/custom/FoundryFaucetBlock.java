@@ -47,6 +47,18 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
     public static final DirectionProperty FACING =
             DirectionProperty.create("facing", direction -> direction != Direction.UP);
 
+    public static final DirectionProperty DOWN_ROTATION =
+            DirectionProperty.create("down_rotation", Direction.Plane.HORIZONTAL);
+
+    public static int downRotationDegrees(BlockState state) {
+        return switch (state.getValue(DOWN_ROTATION)) {
+            case EAST -> 90;
+            case SOUTH -> 180;
+            case WEST -> 270;
+            default -> 0;
+        };
+    }
+
     // =========================
     // SHAPES
     // =========================
@@ -243,7 +255,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
      * Larger targeting shapes make the complete visible Faucet area clickable,
      * including the empty space inside its arch.
      *
-     * Physical collision continues to use the detailed SHAPE_* definitions.
+     * Physical collision shares these same selection shapes.
      */
     private static final VoxelShape SELECTION_SHAPE_NORTH =
             Block.box(
@@ -271,6 +283,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
 
     // Simple enclosure of the custom model, only for the downward orientation.
     private static final VoxelShape SHAPE_DOWN = Block.box(4, 10, 5, 12, 16, 11);
+    private static final VoxelShape SHAPE_DOWN_QUARTER_TURN = Block.box(5, 10, 4, 11, 16, 12);
 
     public FoundryFaucetBlock(Properties properties) {
         super(properties);
@@ -280,7 +293,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
                         .setValue(
                                 FACING,
                                 Direction.NORTH
-                        )
+                        ).setValue(DOWN_ROTATION, Direction.NORTH)
         );
     }
 
@@ -293,7 +306,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
     protected void createBlockStateDefinition(
             StateDefinition.Builder<Block, BlockState> builder
     ) {
-        builder.add(FACING);
+        builder.add(FACING, DOWN_ROTATION);
     }
 
     @Nullable
@@ -307,7 +320,9 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
                 context.getClickedFace();
 
         if (clickedFace == Direction.DOWN) {
-            BlockState state = defaultBlockState().setValue(FACING, Direction.DOWN);
+            BlockState state = defaultBlockState().setValue(FACING, Direction.DOWN)
+                    .setValue(DOWN_ROTATION, context.getPlayer() != null
+                            ? context.getPlayer().getDirection().getOpposite() : context.getHorizontalDirection().getOpposite());
             return state.canSurvive(context.getLevel(), context.getClickedPos()) ? state : null;
         }
 
@@ -318,6 +333,19 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
 
         return defaultBlockState()
                 .setValue(FACING, facing);
+    }
+
+    @Override
+    protected BlockState rotate(BlockState state, net.minecraft.world.level.block.Rotation rotation) {
+        return state.getValue(FACING) == Direction.DOWN
+                ? state.setValue(DOWN_ROTATION, rotation.rotate(state.getValue(DOWN_ROTATION)))
+                : super.rotate(state, rotation);
+    }
+
+    @Override
+    protected BlockState mirror(BlockState state, net.minecraft.world.level.block.Mirror mirror) {
+        if (state.getValue(FACING) != Direction.DOWN) return super.mirror(state, mirror);
+        return rotate(state, mirror.getRotation(state.getValue(DOWN_ROTATION)));
     }
 
     @Override
@@ -630,7 +658,7 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             case SOUTH -> SELECTION_SHAPE_SOUTH;
             case EAST -> SELECTION_SHAPE_EAST;
             case WEST -> SELECTION_SHAPE_WEST;
-            case DOWN -> SHAPE_DOWN;
+            case DOWN -> downRotationDegrees(state) % 180 == 0 ? SHAPE_DOWN : SHAPE_DOWN_QUARTER_TURN;
             default -> SELECTION_SHAPE_NORTH;
         };
     }
@@ -642,13 +670,6 @@ public class FoundryFaucetBlock extends BaseEntityBlock {
             BlockPos pos,
             CollisionContext context
     ) {
-        return switch (state.getValue(FACING)) {
-            case NORTH -> SHAPE_NORTH;
-            case SOUTH -> SHAPE_SOUTH;
-            case EAST -> SHAPE_EAST;
-            case WEST -> SHAPE_WEST;
-            case DOWN -> SHAPE_DOWN;
-            default -> SHAPE_NORTH;
-        };
+        return getShape(state, level, pos, context);
     }
 }

@@ -1,20 +1,77 @@
 {
   "variants": {
-    "facing=down": {
-      "model": "katzencraftmetals:block/foundry_faucet_down"
+    "down_rotation=east,facing=down": {
+      "model": "katzencraftmetals:block/foundry_faucet_down",
+      "y": 90
     },
-    "facing=east": {
+    "down_rotation=east,facing=east": {
       "model": "katzencraftmetals:block/foundry_faucet",
       "y": 90
     },
-    "facing=north": {
+    "down_rotation=east,facing=north": {
       "model": "katzencraftmetals:block/foundry_faucet"
     },
-    "facing=south": {
+    "down_rotation=east,facing=south": {
       "model": "katzencraftmetals:block/foundry_faucet",
       "y": 180
     },
-    "facing=west": {
+    "down_rotation=east,facing=west": {
+      "model": "katzencraftmetals:block/foundry_faucet",
+      "y": 270
+    },
+    "down_rotation=north,facing=down": {
+      "model": "katzencraftmetals:block/foundry_faucet_down"
+    },
+    "down_rotation=north,facing=east": {
+      "model": "katzencraftmetals:block/foundry_faucet",
+      "y": 90
+    },
+    "down_rotation=north,facing=north": {
+      "model": "katzencraftmetals:block/foundry_faucet"
+    },
+    "down_rotation=north,facing=south": {
+      "model": "katzencraftmetals:block/foundry_faucet",
+      "y": 180
+    },
+    "down_rotation=north,facing=west": {
+      "model": "katzencraftmetals:block/foundry_faucet",
+      "y": 270
+    },
+    "down_rotation=south,facing=down": {
+      "model": "katzencraftmetals:block/foundry_faucet_down",
+      "y": 180
+    },
+    "down_rotation=south,facing=east": {
+      "model": "katzencraftmetals:block/foundry_faucet",
+      "y": 90
+    },
+    "down_rotation=south,facing=north": {
+      "model": "katzencraftmetals:block/foundry_faucet"
+    },
+    "down_rotation=south,facing=south": {
+      "model": "katzencraftmetals:block/foundry_faucet",
+      "y": 180
+    },
+    "down_rotation=south,facing=west": {
+      "model": "katzencraftmetals:block/foundry_faucet",
+      "y": 270
+    },
+    "down_rotation=west,facing=down": {
+      "model": "katzencraftmetals:block/foundry_faucet_down",
+      "y": 270
+    },
+    "down_rotation=west,facing=east": {
+      "model": "katzencraftmetals:block/foundry_faucet",
+      "y": 90
+    },
+    "down_rotation=west,facing=north": {
+      "model": "katzencraftmetals:block/foundry_faucet"
+    },
+    "down_rotation=west,facing=south": {
+      "model": "katzencraftmetals:block/foundry_faucet",
+      "y": 180
+    },
+    "down_rotation=west,facing=west": {
       "model": "katzencraftmetals:block/foundry_faucet",
       "y": 270
     }

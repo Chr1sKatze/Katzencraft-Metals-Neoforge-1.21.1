@@ -88,6 +88,7 @@ public class ModLanguageProvider extends LanguageProvider {
         add(ModBlocks.FOUNDRY_CONTROLLER.get(), "Foundry Controller");
         add(ModBlocks.FOUNDRY_TANK.get(), "Foundry Tank");
         add(ModBlocks.FOUNDRY_BASIN.get(), "Foundry Basin");
+        add(ModBlocks.FOUNDRY_TABLE.get(), "Foundry Table");
         add(ModBlocks.FOUNDRY_FAUCET.get(), "Foundry Faucet");
 
         // Molten metals

@@ -143,8 +143,14 @@ public class FoundryFaucetBlockEntityRenderer
                         )
                 );
 
+        if (context.tableMold() != null) {
+            consumer = new FoundryFaucetTableStreamClip(consumer, faucet.getBlockPos(),
+                    faucet.getBlockState().getValue(FoundryFaucetBlock.FACING), context.tableMold(), bottomMounted
+                            ? faucet.getBlockState().getValue(FoundryFaucetBlock.DOWN_ROTATION) : Direction.NORTH);
+        }
         poseStack.pushPose();
 
+        if (bottomMounted) FoundryFaucetRenderTransform.rotateDownAssembly(poseStack, faucet.getBlockState());
         FoundryFaucetRenderTransform.rotateForFacing(
                 poseStack,
                 faucet.getBlockState()

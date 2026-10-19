@@ -199,6 +199,10 @@ public final class FoundryTankIntakeHatchInteractionEvents {
                                 side
                         );
 
+        if (side == Direction.DOWN) {
+            faucetState = faucetState.setValue(FoundryFaucetBlock.DOWN_ROTATION, player.getDirection().getOpposite());
+        }
+
         if (!faucetState.canSurvive(level, faucetPos)) {
             player.displayClientMessage(
                     Component.literal(

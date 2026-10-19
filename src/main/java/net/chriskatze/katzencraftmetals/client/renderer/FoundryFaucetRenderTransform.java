@@ -9,6 +9,22 @@ final class FoundryFaucetRenderTransform {
     private FoundryFaucetRenderTransform() {
     }
 
+    static void rotateDownAssembly(PoseStack poses, net.minecraft.world.level.block.state.BlockState state) {
+        rotateDownAssembly(poses, state.getValue(net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock.DOWN_ROTATION));
+    }
+
+    static void rotateDownAssembly(PoseStack poses, Direction rotation) {
+        float angle = switch (rotation) {
+            case EAST -> -90;
+            case SOUTH -> -180;
+            case WEST -> -270;
+            default -> 0;
+        };
+        poses.translate(.5, 0, .5);
+        poses.mulPose(Axis.YP.rotationDegrees(angle));
+        poses.translate(-.5, 0, -.5);
+    }
+
     static void rotateForFacing(
             PoseStack poseStack,
             Direction facing

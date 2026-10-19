@@ -66,6 +66,10 @@ public class ModBlockEntities {
                             .build(null)
             );
 
+    public static final Supplier<BlockEntityType<FoundryTableBlockEntity>> FOUNDRY_TABLE =
+            BLOCK_ENTITIES.register("foundry_table", () -> BlockEntityType.Builder.of(
+                    FoundryTableBlockEntity::new, ModBlocks.FOUNDRY_TABLE.get()).build(null));
+
     public static void register(IEventBus modEventBus) {
         BLOCK_ENTITIES.register(modEventBus);
     }

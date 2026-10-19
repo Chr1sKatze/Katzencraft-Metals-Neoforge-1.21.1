@@ -54,11 +54,12 @@ public class FoundryBasinBlockEntity
             BlockPos pos,
             BlockState state
     ) {
-        super(
-                ModBlockEntities.FOUNDRY_BASIN.get(),
-                pos,
-                state
-        );
+        this(ModBlockEntities.FOUNDRY_BASIN.get(), pos, state);
+    }
+
+    protected FoundryBasinBlockEntity(net.minecraft.world.level.block.entity.BlockEntityType<?> type,
+                                     BlockPos pos, BlockState state) {
+        super(type, pos, state);
     }
 
     // =========================
@@ -138,7 +139,7 @@ public class FoundryBasinBlockEntity
         }
 
         int remainingCapacity =
-                REQUIRED_MOLTEN_AMOUNT - moltenAmount;
+                getRequiredMoltenAmount() - moltenAmount;
 
         return amount <= remainingCapacity;
     }
@@ -156,6 +157,7 @@ public class FoundryBasinBlockEntity
         }
 
         moltenAmount += amount;
+        onMoltenInserted();
 
         coolingProgress = 0;
         cooled = false;
@@ -170,6 +172,10 @@ public class FoundryBasinBlockEntity
     // =========================
     // HOPPER / SIDED OUTPUT
     // =========================
+
+    protected void onMoltenInserted() {
+        // Specialized casting targets may notify clients after a successful transfer.
+    }
 
     @Override
     public int getContainerSize() {
@@ -312,16 +318,16 @@ public class FoundryBasinBlockEntity
             return ItemStack.EMPTY;
         }
 
-        return ModMoltenMetals.get(
-                        storedMetal
-                )
-                .map(
-                        definition ->
-                                definition.createCastResult()
-                )
-                .orElse(
-                        ItemStack.EMPTY
-                );
+        return createResult(storedMetal);
+    }
+
+    protected ItemStack createResult(ResourceLocation metal) {
+        return ModMoltenMetals.get(metal).map(definition -> definition.createCastResult())
+                .orElse(ItemStack.EMPTY);
+    }
+
+    public int getRequiredMoltenAmount() {
+        return REQUIRED_MOLTEN_AMOUNT;
     }
 
     public ItemStack takeResult() {
@@ -359,13 +365,13 @@ public class FoundryBasinBlockEntity
 
     public boolean isFull() {
         return moltenAmount
-                >= REQUIRED_MOLTEN_AMOUNT;
+                >= getRequiredMoltenAmount();
     }
 
     public int getRemainingCapacity() {
         return Math.max(
                 0,
-                REQUIRED_MOLTEN_AMOUNT - moltenAmount
+                getRequiredMoltenAmount() - moltenAmount
         );
     }
 
@@ -551,7 +557,7 @@ public class FoundryBasinBlockEntity
                                 "MoltenAmount"
                         ),
                         0,
-                        REQUIRED_MOLTEN_AMOUNT
+                        getRequiredMoltenAmount()
                 );
 
         coolingProgress =

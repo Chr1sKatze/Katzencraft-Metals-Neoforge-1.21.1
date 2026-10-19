@@ -152,7 +152,7 @@ public class KatzencraftMetalsMod {
             event.accept(ModBlocks.FOUNDRY_CONTROLLER);
             event.accept(ModBlocks.FOUNDRY_TANK);
             event.accept(ModBlocks.FOUNDRY_BASIN);
-            event.accept(ModBlocks.FOUNDRY_FAUCET);
+            event.accept(ModBlocks.FOUNDRY_TABLE);
         }
 
         if (

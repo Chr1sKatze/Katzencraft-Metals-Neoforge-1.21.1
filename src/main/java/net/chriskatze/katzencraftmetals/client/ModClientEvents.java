@@ -4,11 +4,14 @@ import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryBasinBlockEntityRenderer;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryTableBlockEntityRenderer;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryCastingRenderType;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryBasinLightingModel;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryControllerBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryFaucetBlockEntityRenderer;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryMetalBlendRenderType;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryMetalEffectPalette;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryIngotTextures;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankSurfaceRenderType;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankConnectedFrameModel;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankIntakeHatchRenderer;
@@ -73,6 +76,7 @@ public class ModClientEvents {
     @SubscribeEvent
     public static void registerEffectPaletteReload(RegisterClientReloadListenersEvent event) {
         event.registerReloadListener(new FoundryMetalEffectPalette());
+        event.registerReloadListener(new FoundryIngotTextures());
     }
 
     @SubscribeEvent
@@ -81,6 +85,7 @@ public class ModClientEvents {
     ) throws IOException {
         FoundryMetalBlendRenderType.registerShader(event);
         FoundryTankSurfaceRenderType.registerShader(event);
+        FoundryCastingRenderType.registerShader(event);
     }
 
     @SubscribeEvent
@@ -133,6 +138,7 @@ public class ModClientEvents {
     public static void registerBlockEntityRenderers(
             EntityRenderersEvent.RegisterRenderers event
     ) {
+        event.registerBlockEntityRenderer(ModBlockEntities.FOUNDRY_TABLE.get(), FoundryTableBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(
                 ModBlockEntities.FOUNDRY_BASIN.get(),
                 FoundryBasinBlockEntityRenderer::new

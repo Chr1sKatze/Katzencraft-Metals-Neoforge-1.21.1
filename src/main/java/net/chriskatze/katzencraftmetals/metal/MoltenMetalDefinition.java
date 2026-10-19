@@ -87,6 +87,13 @@ public record MoltenMetalDefinition(
                 / unitsPerOre;
     }
 
+    /** Registered ingot matching this metal; unsupported metals cannot fill an ingot table. */
+    public ItemStack createIngotResult() {
+        return net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(
+                        ResourceLocation.fromNamespaceAndPath(id.getNamespace(), id.getPath() + "_ingot"))
+                .map(item -> new ItemStack(item, 1)).orElse(ItemStack.EMPTY);
+    }
+
     public ItemStack createCastResult() {
         ItemStack result =
                 castResultFactory.get();

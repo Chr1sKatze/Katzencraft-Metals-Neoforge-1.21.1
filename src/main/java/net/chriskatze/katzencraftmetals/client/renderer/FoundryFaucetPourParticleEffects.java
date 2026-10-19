@@ -2,6 +2,7 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 
 import net.chriskatze.katzencraftmetals.block.custom.FoundryFaucetBlock;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryFaucetBlockEntity;
+import net.chriskatze.katzencraftmetals.block.entity.FoundryPouringSparks;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
@@ -286,7 +287,7 @@ final class FoundryFaucetPourParticleEffects {
     ) {
         ParticlePoint point =
                 localToWorld(
-                        faucet.getBlockPos(),
+                        faucet,
                         facing,
                         STREAM_CENTER_X
                                 + centeredNoise(seed ^ 0x3001L) * 0.05f,
@@ -314,7 +315,7 @@ final class FoundryFaucetPourParticleEffects {
     ) {
         ParticlePoint point =
                 localToWorld(
-                        faucet.getBlockPos(),
+                        faucet,
                         facing,
                         STREAM_CENTER_X
                                 + centeredNoise(seed ^ 0x4001L) * 0.06f,
@@ -354,7 +355,7 @@ final class FoundryFaucetPourParticleEffects {
 
         ParticlePoint point =
                 localToWorld(
-                        faucet.getBlockPos(),
+                        faucet,
                         facing,
                         STREAM_CENTER_X
                                 + centeredNoise(seed ^ 0x5001L) * spread,
@@ -364,15 +365,9 @@ final class FoundryFaucetPourParticleEffects {
                                 + centeredNoise(seed ^ 0x5002L) * spread
                 );
 
-        faucet.getLevel().addParticle(
-                ParticleTypes.LAVA,
-                point.x(),
-                point.y(),
-                point.z(),
-                centeredNoise(seed ^ 0x5003L) * speed,
-                0.010d,
-                centeredNoise(seed ^ 0x5004L) * speed
-        );
+        var impact = context.impactPosition(point.x(), point.y(), point.z());
+        FoundryPouringSparks.spawnImpact(faucet.getLevel(), impact.x, impact.y, impact.z,
+                centeredNoise(seed ^ 0x5003L) * speed, centeredNoise(seed ^ 0x5004L) * speed, false);
     }
 
     private static void spawnBasinSmoke(
@@ -394,7 +389,7 @@ final class FoundryFaucetPourParticleEffects {
 
         ParticlePoint point =
                 localToWorld(
-                        faucet.getBlockPos(),
+                        faucet,
                         facing,
                         STREAM_CENTER_X
                                 + centeredNoise(seed ^ 0x6001L) * spread,
@@ -404,11 +399,12 @@ final class FoundryFaucetPourParticleEffects {
                                 + centeredNoise(seed ^ 0x6002L) * spread
                 );
 
+        var impact = context.impactPosition(point.x(), point.y(), point.z());
         faucet.getLevel().addParticle(
                 ParticleTypes.SMOKE,
-                point.x(),
-                point.y(),
-                point.z(),
+                impact.x,
+                impact.y,
+                impact.z,
                 centeredNoise(seed ^ 0x6003L) * speed,
                 0.014d,
                 centeredNoise(seed ^ 0x6004L) * speed
@@ -427,12 +423,13 @@ final class FoundryFaucetPourParticleEffects {
     }
 
     private static ParticlePoint localToWorld(
-            BlockPos blockPos,
+            FoundryFaucetBlockEntity faucet,
             Direction facing,
             float localX,
             float localY,
             float localZ
     ) {
+        BlockPos blockPos = faucet.getBlockPos();
         float rotatedX;
         float rotatedZ;
 
@@ -444,6 +441,13 @@ final class FoundryFaucetPourParticleEffects {
             case DOWN -> {
                 rotatedX = localX;
                 rotatedZ = localZ + FoundryFaucetRenderConstants.DOWN_STREAM_Z_OFFSET;
+                float x = rotatedX, z = rotatedZ;
+                switch (faucet.getBlockState().getValue(FoundryFaucetBlock.DOWN_ROTATION)) {
+                    case EAST -> { rotatedX=1-z; rotatedZ=x; }
+                    case SOUTH -> { rotatedX=1-x; rotatedZ=1-z; }
+                    case WEST -> { rotatedX=z; rotatedZ=1-x; }
+                    default -> {}
+                }
             }
             case EAST -> {
                 rotatedX = 1.0f - localZ;
