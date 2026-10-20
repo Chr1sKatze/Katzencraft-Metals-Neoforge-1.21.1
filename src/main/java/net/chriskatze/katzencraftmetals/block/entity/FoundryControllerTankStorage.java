@@ -230,8 +230,7 @@ final class FoundryControllerTankStorage {
 
         ensureBound(network);
 
-        return total(contents) + amount
-                <= network.getCapacity();
+        return amount <= network.getCapacity() - total(contents);
     }
 
     int insert(

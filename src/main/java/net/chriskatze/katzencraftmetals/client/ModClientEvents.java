@@ -12,6 +12,7 @@ import net.chriskatze.katzencraftmetals.client.renderer.FoundryFaucetBlockEntity
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryMetalBlendRenderType;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryMetalEffectPalette;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryIngotTextures;
+import net.chriskatze.katzencraftmetals.client.renderer.FoundryFlowingTextures;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankSurfaceRenderType;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankConnectedFrameModel;
 import net.chriskatze.katzencraftmetals.client.renderer.FoundryTankIntakeHatchRenderer;
@@ -77,6 +78,7 @@ public class ModClientEvents {
     public static void registerEffectPaletteReload(RegisterClientReloadListenersEvent event) {
         event.registerReloadListener(new FoundryMetalEffectPalette());
         event.registerReloadListener(new FoundryIngotTextures());
+        event.registerReloadListener(new FoundryFlowingTextures());
     }
 
     @SubscribeEvent
@@ -108,11 +110,6 @@ public class ModClientEvents {
     public static void registerScreens(
             RegisterMenuScreensEvent event
     ) {
-        event.register(
-                ModMenuTypes.CRUSHER_MENU.get(),
-                CrusherScreen::new
-        );
-
         event.register(
                 ModMenuTypes.FUEL_CHAMBER_MENU.get(),
                 FuelChamberScreen::new

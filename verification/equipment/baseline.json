@@ -1,0 +1,717 @@
+{
+  "minecraft:turtle_helmet": {
+    "durability": 275,
+    "enchantability": 9,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.helmet|HEAD|ADD_VALUE": 2.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.helmet|HEAD|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:wolf_armor": {
+    "durability": 64,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.body|BODY|ADD_VALUE": 11.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.body|BODY|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:wooden_sword": {
+    "durability": 59,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 3.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.4000000953674316
+    },
+    "repairIron": false
+  },
+  "minecraft:wooden_shovel": {
+    "durability": 59,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 1.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:wooden_pickaxe": {
+    "durability": 59,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 1.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.799999952316284
+    },
+    "repairIron": false
+  },
+  "minecraft:wooden_axe": {
+    "durability": 59,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 6.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.200000047683716
+    },
+    "repairIron": false
+  },
+  "minecraft:wooden_hoe": {
+    "durability": 59,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 0.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:stone_sword": {
+    "durability": 131,
+    "enchantability": 5,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 4.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.4000000953674316
+    },
+    "repairIron": false
+  },
+  "minecraft:stone_shovel": {
+    "durability": 131,
+    "enchantability": 5,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 2.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:stone_pickaxe": {
+    "durability": 131,
+    "enchantability": 5,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 2.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.799999952316284
+    },
+    "repairIron": false
+  },
+  "minecraft:stone_axe": {
+    "durability": 131,
+    "enchantability": 5,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 8.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.200000047683716
+    },
+    "repairIron": false
+  },
+  "minecraft:stone_hoe": {
+    "durability": 131,
+    "enchantability": 5,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 0.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.0
+    },
+    "repairIron": false
+  },
+  "minecraft:golden_sword": {
+    "durability": 32,
+    "enchantability": 22,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 3.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.4000000953674316
+    },
+    "repairIron": false
+  },
+  "minecraft:golden_shovel": {
+    "durability": 32,
+    "enchantability": 22,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 1.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:golden_pickaxe": {
+    "durability": 32,
+    "enchantability": 22,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 1.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.799999952316284
+    },
+    "repairIron": false
+  },
+  "minecraft:golden_axe": {
+    "durability": 32,
+    "enchantability": 22,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 6.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:golden_hoe": {
+    "durability": 32,
+    "enchantability": 22,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 0.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:iron_sword": {
+    "durability": 250,
+    "enchantability": 14,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 5.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.4000000953674316
+    },
+    "repairIron": true
+  },
+  "minecraft:iron_shovel": {
+    "durability": 250,
+    "enchantability": 14,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 3.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": true
+  },
+  "minecraft:iron_pickaxe": {
+    "durability": 250,
+    "enchantability": 14,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 3.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.799999952316284
+    },
+    "repairIron": true
+  },
+  "minecraft:iron_axe": {
+    "durability": 250,
+    "enchantability": 14,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 8.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0999999046325684
+    },
+    "repairIron": true
+  },
+  "minecraft:iron_hoe": {
+    "durability": 250,
+    "enchantability": 14,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 0.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -1.0
+    },
+    "repairIron": true
+  },
+  "minecraft:diamond_sword": {
+    "durability": 1561,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 6.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.4000000953674316
+    },
+    "repairIron": false
+  },
+  "minecraft:diamond_shovel": {
+    "durability": 1561,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 4.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:diamond_pickaxe": {
+    "durability": 1561,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 4.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.799999952316284
+    },
+    "repairIron": false
+  },
+  "minecraft:diamond_axe": {
+    "durability": 1561,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 8.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:diamond_hoe": {
+    "durability": 1561,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 0.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:netherite_sword": {
+    "durability": 2031,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 7.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.4000000953674316
+    },
+    "repairIron": false
+  },
+  "minecraft:netherite_shovel": {
+    "durability": 2031,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 5.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:netherite_pickaxe": {
+    "durability": 2031,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 5.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.799999952316284
+    },
+    "repairIron": false
+  },
+  "minecraft:netherite_axe": {
+    "durability": 2031,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 9.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "minecraft:netherite_hoe": {
+    "durability": 2031,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 0.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:leather_helmet": {
+    "durability": 55,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.helmet|HEAD|ADD_VALUE": 1.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.helmet|HEAD|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:leather_chestplate": {
+    "durability": 80,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.chestplate|CHEST|ADD_VALUE": 3.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.chestplate|CHEST|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:leather_leggings": {
+    "durability": 75,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.leggings|LEGS|ADD_VALUE": 2.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.leggings|LEGS|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:leather_boots": {
+    "durability": 65,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.boots|FEET|ADD_VALUE": 1.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.boots|FEET|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:chainmail_helmet": {
+    "durability": 165,
+    "enchantability": 12,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.helmet|HEAD|ADD_VALUE": 2.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.helmet|HEAD|ADD_VALUE": 0.0
+    },
+    "repairIron": true
+  },
+  "minecraft:chainmail_chestplate": {
+    "durability": 240,
+    "enchantability": 12,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.chestplate|CHEST|ADD_VALUE": 5.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.chestplate|CHEST|ADD_VALUE": 0.0
+    },
+    "repairIron": true
+  },
+  "minecraft:chainmail_leggings": {
+    "durability": 225,
+    "enchantability": 12,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.leggings|LEGS|ADD_VALUE": 4.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.leggings|LEGS|ADD_VALUE": 0.0
+    },
+    "repairIron": true
+  },
+  "minecraft:chainmail_boots": {
+    "durability": 195,
+    "enchantability": 12,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.boots|FEET|ADD_VALUE": 1.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.boots|FEET|ADD_VALUE": 0.0
+    },
+    "repairIron": true
+  },
+  "minecraft:iron_helmet": {
+    "durability": 165,
+    "enchantability": 9,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.helmet|HEAD|ADD_VALUE": 2.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.helmet|HEAD|ADD_VALUE": 0.0
+    },
+    "repairIron": true
+  },
+  "minecraft:iron_chestplate": {
+    "durability": 240,
+    "enchantability": 9,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.chestplate|CHEST|ADD_VALUE": 6.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.chestplate|CHEST|ADD_VALUE": 0.0
+    },
+    "repairIron": true
+  },
+  "minecraft:iron_leggings": {
+    "durability": 225,
+    "enchantability": 9,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.leggings|LEGS|ADD_VALUE": 5.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.leggings|LEGS|ADD_VALUE": 0.0
+    },
+    "repairIron": true
+  },
+  "minecraft:iron_boots": {
+    "durability": 195,
+    "enchantability": 9,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.boots|FEET|ADD_VALUE": 2.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.boots|FEET|ADD_VALUE": 0.0
+    },
+    "repairIron": true
+  },
+  "minecraft:diamond_helmet": {
+    "durability": 363,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.helmet|HEAD|ADD_VALUE": 3.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.helmet|HEAD|ADD_VALUE": 2.0
+    },
+    "repairIron": false
+  },
+  "minecraft:diamond_chestplate": {
+    "durability": 528,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.chestplate|CHEST|ADD_VALUE": 8.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.chestplate|CHEST|ADD_VALUE": 2.0
+    },
+    "repairIron": false
+  },
+  "minecraft:diamond_leggings": {
+    "durability": 495,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.leggings|LEGS|ADD_VALUE": 6.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.leggings|LEGS|ADD_VALUE": 2.0
+    },
+    "repairIron": false
+  },
+  "minecraft:diamond_boots": {
+    "durability": 429,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.boots|FEET|ADD_VALUE": 3.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.boots|FEET|ADD_VALUE": 2.0
+    },
+    "repairIron": false
+  },
+  "minecraft:golden_helmet": {
+    "durability": 77,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.helmet|HEAD|ADD_VALUE": 2.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.helmet|HEAD|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:golden_chestplate": {
+    "durability": 112,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.chestplate|CHEST|ADD_VALUE": 5.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.chestplate|CHEST|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:golden_leggings": {
+    "durability": 105,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.leggings|LEGS|ADD_VALUE": 3.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.leggings|LEGS|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:golden_boots": {
+    "durability": 91,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.boots|FEET|ADD_VALUE": 1.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.boots|FEET|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:netherite_helmet": {
+    "durability": 407,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.helmet|HEAD|ADD_VALUE": 3.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.helmet|HEAD|ADD_VALUE": 3.0,
+      "minecraft:generic.knockback_resistance|minecraft:armor.helmet|HEAD|ADD_VALUE": 0.10000000149011612
+    },
+    "repairIron": false
+  },
+  "minecraft:netherite_chestplate": {
+    "durability": 592,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.chestplate|CHEST|ADD_VALUE": 8.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.chestplate|CHEST|ADD_VALUE": 3.0,
+      "minecraft:generic.knockback_resistance|minecraft:armor.chestplate|CHEST|ADD_VALUE": 0.10000000149011612
+    },
+    "repairIron": false
+  },
+  "minecraft:netherite_leggings": {
+    "durability": 555,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.leggings|LEGS|ADD_VALUE": 6.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.leggings|LEGS|ADD_VALUE": 3.0,
+      "minecraft:generic.knockback_resistance|minecraft:armor.leggings|LEGS|ADD_VALUE": 0.10000000149011612
+    },
+    "repairIron": false
+  },
+  "minecraft:netherite_boots": {
+    "durability": 481,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.boots|FEET|ADD_VALUE": 3.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.boots|FEET|ADD_VALUE": 3.0,
+      "minecraft:generic.knockback_resistance|minecraft:armor.boots|FEET|ADD_VALUE": 0.10000000149011612
+    },
+    "repairIron": false
+  },
+  "minecraft:iron_horse_armor": {
+    "durability": 0,
+    "enchantability": 9,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.body|BODY|ADD_VALUE": 5.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.body|BODY|ADD_VALUE": 0.0
+    },
+    "repairIron": true
+  },
+  "minecraft:golden_horse_armor": {
+    "durability": 0,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.body|BODY|ADD_VALUE": 7.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.body|BODY|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "minecraft:diamond_horse_armor": {
+    "durability": 0,
+    "enchantability": 10,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.body|BODY|ADD_VALUE": 11.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.body|BODY|ADD_VALUE": 2.0
+    },
+    "repairIron": false
+  },
+  "minecraft:leather_horse_armor": {
+    "durability": 0,
+    "enchantability": 15,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.body|BODY|ADD_VALUE": 3.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.body|BODY|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_pickaxe": {
+    "durability": 512,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 4.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.799999952316284
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_axe": {
+    "durability": 512,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 4.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_shovel": {
+    "durability": 512,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 4.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_hoe": {
+    "durability": 512,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 1.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -1.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_sword": {
+    "durability": 512,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 6.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.4000000953674316
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_helmet": {
+    "durability": 264,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.helmet|HEAD|ADD_VALUE": 2.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.helmet|HEAD|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_chestplate": {
+    "durability": 264,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.chestplate|CHEST|ADD_VALUE": 6.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.chestplate|CHEST|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_leggings": {
+    "durability": 264,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.leggings|LEGS|ADD_VALUE": 5.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.leggings|LEGS|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_boots": {
+    "durability": 264,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.boots|FEET|ADD_VALUE": 2.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.boots|FEET|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:steel_horse_armor": {
+    "durability": 0,
+    "enchantability": 18,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.body|BODY|ADD_VALUE": 5.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.body|BODY|ADD_VALUE": 0.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:mythril_pickaxe": {
+    "durability": 1536,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 6.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.799999952316284
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:mythril_axe": {
+    "durability": 1536,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 6.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:mythril_shovel": {
+    "durability": 1536,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 6.5,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -3.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:mythril_hoe": {
+    "durability": 1536,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 3.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -1.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:mythril_sword": {
+    "durability": 1536,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.attack_damage|minecraft:base_attack_damage|MAINHAND|ADD_VALUE": 9.0,
+      "minecraft:generic.attack_speed|minecraft:base_attack_speed|MAINHAND|ADD_VALUE": -2.4000000953674316
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:mythril_helmet": {
+    "durability": 440,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.helmet|HEAD|ADD_VALUE": 3.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.helmet|HEAD|ADD_VALUE": 2.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:mythril_chestplate": {
+    "durability": 440,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.chestplate|CHEST|ADD_VALUE": 8.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.chestplate|CHEST|ADD_VALUE": 2.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:mythril_leggings": {
+    "durability": 440,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.leggings|LEGS|ADD_VALUE": 6.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.leggings|LEGS|ADD_VALUE": 2.0
+    },
+    "repairIron": false
+  },
+  "katzencraftmetals:mythril_boots": {
+    "durability": 440,
+    "enchantability": 25,
+    "attributes": {
+      "minecraft:generic.armor|minecraft:armor.boots|FEET|ADD_VALUE": 3.0,
+      "minecraft:generic.armor_toughness|minecraft:armor.boots|FEET|ADD_VALUE": 2.0
+    },
+    "repairIron": false
+  }
+}

@@ -2,6 +2,10 @@ package net.chriskatze.katzencraftmetals.config;
 
 import net.neoforged.neoforge.common.ModConfigSpec;
 
+/** Legacy, inert settings retained to preserve existing TOML files.
+ * Equipment balance is defined by MetalEquipmentProfiles; do not activate these old defaults.
+ */
+@Deprecated
 public class CatoToolTierConfig {
 
     public static final ModConfigSpec.Builder BUILDER = new ModConfigSpec.Builder();

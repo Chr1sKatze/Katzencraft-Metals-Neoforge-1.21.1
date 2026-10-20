@@ -51,41 +51,77 @@ final class FoundryTankSurfaceRenderer {
         emitQuad(out, pose, g, minV, maxV, tint, alpha, light);
     }
 
-    /** Same side vertices and material, with depth below the exposed meniscus in UV1. */
+    /** One origin per contiguous liquid column; empty cells never relay surface heat. */
+    record SideGlow(float top, float distance, float glassFade) {}
+
+    static SideGlow sideGlow(BlockPos pos, java.util.Map<BlockPos, java.util.List<FoundryTankRenderedMetalLayer>> layers) {
+        BlockPos surface = pos;
+        var column = layers.getOrDefault(surface, java.util.List.of());
+        if (column.isEmpty()) return null;
+        while (column.getLast().maxY() >= 1.0f - LIQUID_EPSILON) {
+            var above = layers.getOrDefault(surface.above(), java.util.List.of());
+            if (above.isEmpty() || above.getFirst().minY() > LIQUID_EPSILON) break;
+            // The longest band is half a block; a surface two cells above cannot contribute.
+            if (surface.getY() - pos.getY() >= 1) return null;
+            surface = surface.above();
+            column = above;
+        }
+        var top = column.getLast();
+        if (!top.renderTop()) return null;
+        float origin = surface.getY() - pos.getY() + top.maxY();
+        float distance = sideFadeDistance(top.metal(), 1);
+        float fade = Mth.lerp(Mth.clamp((LIQUID_MAX_INSET - top.maxY())
+                / CONTACT_RIM_GLASS_FADE_DISTANCE, 0, 1), 0.60f, 1.0f);
+        return new SideGlow(origin, distance, fade);
+    }
+
     static VertexConsumer sideConsumer(MultiBufferSource buffers, VertexConsumer fallback,
                                        FoundryTankLiquidGeometry g, MoltenMetalDefinition metal,
                                        float minV, float maxV) {
-        RenderType type = FoundryTankSurfaceRenderType.get(metal.animatedTexture());
-        if (type == null) return fallback;
-        float fade = Mth.lerp(Mth.clamp((LIQUID_MAX_INSET - g.surfaceY())
-                / CONTACT_RIM_GLASS_FADE_DISTANCE, 0, 1), 0.60f, 1.0f);
-        return new SideConsumer(buffers.getBuffer(type), g.surfaceY(),
-                sideFadeDistance(metal.id(), g.surfaceY() - g.minY()), minV, maxV,
-                FoundryMetalEffectPalette.baseTint(metal.id()),
-                Math.round(255 * FoundryMetalEffectPalette.rimMaxAlpha(metal.id()) * fade));
+        return sideConsumer(buffers, fallback, g, metal, minV, maxV,
+                new SideGlow(g.surfaceY(), sideFadeDistance(metal.id(), 1),
+                        Mth.lerp(Mth.clamp((LIQUID_MAX_INSET - g.surfaceY())
+                                / CONTACT_RIM_GLASS_FADE_DISTANCE, 0, 1), 0.60f, 1.0f)));
     }
 
-    static float sideFadeDistance(ResourceLocation metal, float layerHeight) {
-        float maximum = metal.equals(IRON) || metal.equals(STEEL) ? 8.0f / 16.0f : 4.0f / 16.0f;
-        // Shorten the fade proportionally in shallow layers, keeping bottom edges unlit.
-        return Math.min(maximum, layerHeight * maximum);
+    static VertexConsumer sideConsumer(MultiBufferSource buffers, VertexConsumer fallback,
+                                       FoundryTankLiquidGeometry g, MoltenMetalDefinition metal,
+                                       float minV, float maxV, SideGlow glow) {
+        if (glow == null || glow.top() - g.surfaceY() >= glow.distance()) return fallback;
+        RenderType type = FoundryTankSurfaceRenderType.get(metal.animatedTexture());
+        if (type == null) return fallback;
+        return new SideConsumer(buffers.getBuffer(type), glow, minV, maxV, metal, null);
+    }
+
+    static VertexConsumer interfaceConsumer(VertexConsumer out, SideGlow glow,
+                                            MoltenMetalDefinition lower, MoltenMetalDefinition upper,
+                                            float minV, float maxV) {
+        return glow == null ? out : new SideConsumer(out, glow, minV, maxV, lower, upper);
+    }
+
+    static float sideFadeDistance(ResourceLocation metal, float ignoredLayerHeight) {
+        return metal.equals(IRON) || metal.equals(STEEL) ? 8.0f / 16.0f : 4.0f / 16.0f;
     }
 
     private static final class SideConsumer implements VertexConsumer {
         private final VertexConsumer out;
         private final float top, fadeDistance, minV, maxV;
-        private final int tint, alpha;
+        private final int tint, alpha, upperTint, upperAlpha;
+        private final boolean interfaceBand;
         private float depth;
 
-        private SideConsumer(VertexConsumer out, float top, float fadeDistance,
-                             float minV, float maxV, int tint, int alpha) {
+        private SideConsumer(VertexConsumer out, SideGlow glow, float minV, float maxV,
+                             MoltenMetalDefinition metal, MoltenMetalDefinition upper) {
             this.out = out;
-            this.top = top;
-            this.fadeDistance = fadeDistance;
+            this.top = glow.top();
+            this.fadeDistance = glow.distance();
             this.minV = minV;
             this.maxV = maxV;
-            this.tint = tint;
-            this.alpha = alpha;
+            this.tint = FoundryMetalEffectPalette.baseTint(metal.id());
+            this.alpha = Math.round(255 * FoundryMetalEffectPalette.rimMaxAlpha(metal.id()) * glow.glassFade());
+            this.interfaceBand = upper != null;
+            this.upperTint = upper == null ? tint : FoundryMetalEffectPalette.baseTint(upper.id());
+            this.upperAlpha = upper == null ? alpha : Math.round(255 * FoundryMetalEffectPalette.rimMaxAlpha(upper.id()) * glow.glassFade());
         }
 
         @Override public VertexConsumer addVertex(float x, float y, float z) {
@@ -101,8 +137,19 @@ final class FoundryTankSurfaceRenderer {
             out.setUv(u, v); return this;
         }
         @Override public VertexConsumer setUv1(int u, int v) {
-            out.setUv1(Math.round(Mth.clamp(depth, 0, 1) * 32767),
-                    Math.round(fadeDistance * 32767)); return this;
+            if (interfaceBand) {
+                float t = Mth.clamp((u / 32767.0f * 4.0f - 1.0f) / 2.0f, 0, 1);
+                t = t * t * (3 - 2 * t);
+                out.setColor(Math.round(Mth.lerp(t, (tint >> 16) & 255, (upperTint >> 16) & 255)),
+                        Math.round(Mth.lerp(t, (tint >> 8) & 255, (upperTint >> 8) & 255)),
+                        Math.round(Mth.lerp(t, tint & 255, upperTint & 255)), Math.round(Mth.lerp(t, alpha, upperAlpha)));
+                out.setUv1(u, Math.round(Mth.clamp(depth / fadeDistance / 8, 0, 1) * 32767));
+            } else {
+                // Four-block encoding range avoids clamping before interpolation across a cell.
+                out.setUv1(Math.round(Mth.clamp(depth / 4, 0, 1) * 32767),
+                        Math.round(fadeDistance * 32767));
+            }
+            return this;
         }
         @Override public VertexConsumer setUv2(int u, int v) {
             // The high count bit selects side shading; low bytes retain original light.

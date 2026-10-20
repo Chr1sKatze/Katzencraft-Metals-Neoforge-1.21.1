@@ -2,7 +2,6 @@ package net.chriskatze.katzencraftmetals.datagen;
 
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
-import net.chriskatze.katzencraftmetals.datagen.recipe.CrusherRecipeBuilder;
 import net.chriskatze.katzencraftmetals.item.ModItems;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.data.PackOutput;
@@ -10,7 +9,6 @@ import net.minecraft.data.recipes.RecipeCategory;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.data.recipes.RecipeProvider;
 import net.minecraft.data.recipes.ShapedRecipeBuilder;
-import net.minecraft.data.recipes.ShapelessRecipeBuilder;
 import net.minecraft.data.recipes.SimpleCookingRecipeBuilder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.Items;
@@ -38,55 +36,6 @@ public class ModRecipeProvider extends RecipeProvider {
         ModFoundryRecipeProvider.build(recipeOutput);
         ModMetalRecipeProvider.build(recipeOutput);
         ModEquipmentRecipeProvider.build(recipeOutput);
-
-        // =========================
-        // NORMAL SHAPELESS
-        // =========================
-
-        // Coal -> Crushed Coal
-        ShapelessRecipeBuilder.shapeless(
-                        RecipeCategory.MISC,
-                        ModItems.CRUSHED_COAL.get(),
-                        3
-                )
-                .requires(Items.COAL)
-                .unlockedBy(
-                        "has_coal",
-                        has(Items.COAL)
-                )
-                .save(recipeOutput);
-
-        // Crushed Coal -> Coal
-        ShapelessRecipeBuilder.shapeless(
-                        RecipeCategory.MISC,
-                        Items.COAL
-                )
-                .requires(ModItems.CRUSHED_COAL.get(), 3)
-                .unlockedBy(
-                        "has_crushed_coal",
-                        has(ModItems.CRUSHED_COAL.get())
-                )
-                .save(
-                        recipeOutput,
-                        KatzencraftMetalsMod.MODID + ":coal_from_crushed_coal"
-                );
-
-        // Crushed Iron Ore + Crushed Coal -> Steel Charge
-        ShapelessRecipeBuilder.shapeless(
-                        RecipeCategory.MISC,
-                        ModItems.STEEL_CHARGE.get()
-                )
-                .requires(ModItems.CRUSHED_IRON_ORE.get())
-                .requires(ModItems.CRUSHED_COAL.get())
-                .unlockedBy(
-                        "has_crushed_iron_ore",
-                        has(ModItems.CRUSHED_IRON_ORE.get())
-                )
-                .unlockedBy(
-                        "has_crushed_coal",
-                        has(ModItems.CRUSHED_COAL.get())
-                )
-                .save(recipeOutput);
 
         // =========================
         // BLAST FURNACE - BUILDING MATERIALS

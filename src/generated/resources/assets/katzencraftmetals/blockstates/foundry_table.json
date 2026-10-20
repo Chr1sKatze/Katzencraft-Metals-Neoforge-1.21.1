@@ -1,0 +1,49 @@
+{
+  "variants": {
+    "cast_state=cooled,facing=east": {
+      "model": "katzencraftmetals:block/foundry_table",
+      "y": 90
+    },
+    "cast_state=cooled,facing=north": {
+      "model": "katzencraftmetals:block/foundry_table"
+    },
+    "cast_state=cooled,facing=south": {
+      "model": "katzencraftmetals:block/foundry_table",
+      "y": 180
+    },
+    "cast_state=cooled,facing=west": {
+      "model": "katzencraftmetals:block/foundry_table",
+      "y": 270
+    },
+    "cast_state=empty,facing=east": {
+      "model": "katzencraftmetals:block/foundry_table",
+      "y": 90
+    },
+    "cast_state=empty,facing=north": {
+      "model": "katzencraftmetals:block/foundry_table"
+    },
+    "cast_state=empty,facing=south": {
+      "model": "katzencraftmetals:block/foundry_table",
+      "y": 180
+    },
+    "cast_state=empty,facing=west": {
+      "model": "katzencraftmetals:block/foundry_table",
+      "y": 270
+    },
+    "cast_state=molten,facing=east": {
+      "model": "katzencraftmetals:block/foundry_table",
+      "y": 90
+    },
+    "cast_state=molten,facing=north": {
+      "model": "katzencraftmetals:block/foundry_table"
+    },
+    "cast_state=molten,facing=south": {
+      "model": "katzencraftmetals:block/foundry_table",
+      "y": 180
+    },
+    "cast_state=molten,facing=west": {
+      "model": "katzencraftmetals:block/foundry_table",
+      "y": 270
+    }
+  }
+}

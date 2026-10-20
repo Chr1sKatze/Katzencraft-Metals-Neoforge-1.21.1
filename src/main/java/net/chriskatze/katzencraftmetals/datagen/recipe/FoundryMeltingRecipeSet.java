@@ -25,7 +25,7 @@ public final class FoundryMeltingRecipeSet {
      * 1600 / 100 = 16 Iron per Coal
      */
     public static final int BASE_ITEM_PROCESSING_TIME = 100;
-    public static final int BASE_NUGGET_PROCESSING_TIME = 12;
+    public static final int BASE_NUGGET_PROCESSING_TIME = 12; // Historical explicit override value; default helpers use proportional catalog timing.
     public static final int BASE_BLOCK_PROCESSING_TIME = 900;
 
     private final MoltenMetalDefinition metal;
@@ -54,7 +54,7 @@ public final class FoundryMeltingRecipeSet {
         return raw(
                 input,
                 recipeName,
-                BASE_ITEM_PROCESSING_TIME
+                processingTime(input, metal.unitsPerOre())
         );
     }
 
@@ -78,7 +78,7 @@ public final class FoundryMeltingRecipeSet {
         return ingot(
                 input,
                 recipeName,
-                BASE_ITEM_PROCESSING_TIME
+                processingTime(input, metal.unitsPerOre())
         );
     }
 
@@ -102,7 +102,7 @@ public final class FoundryMeltingRecipeSet {
         return nugget(
                 input,
                 recipeName,
-                BASE_NUGGET_PROCESSING_TIME
+                processingTime(input, 1)
         );
     }
 
@@ -126,7 +126,7 @@ public final class FoundryMeltingRecipeSet {
         return rawBlock(
                 input,
                 recipeName,
-                BASE_BLOCK_PROCESSING_TIME
+                processingTime(input, metal.unitsPerOre() * 9)
         );
     }
 
@@ -151,7 +151,7 @@ public final class FoundryMeltingRecipeSet {
         return block(
                 input,
                 recipeName,
-                BASE_BLOCK_PROCESSING_TIME
+                processingTime(input, metal.unitsPerOre() * 9)
         );
     }
 
@@ -176,7 +176,7 @@ public final class FoundryMeltingRecipeSet {
         return ore(
                 input,
                 recipeName,
-                BASE_ITEM_PROCESSING_TIME
+                processingTime(input, metal.unitsPerOre())
         );
     }
 
@@ -193,12 +193,18 @@ public final class FoundryMeltingRecipeSet {
         );
     }
 
+    private int processingTime(Item input, int moltenUnits) {
+        return net.chriskatze.katzencraftmetals.metal.MetalCatalog.get(metal.id()).orElseThrow()
+                .meltingTimeFor(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(input), moltenUnits);
+    }
+
     public FoundryMeltingRecipeSet item(
             Item input,
             int moltenAmount,
             int processingTime,
             String recipeName
     ) {
+        if (processingTime <= 0) throw new IllegalArgumentException("Melting time must be positive: " + recipeName);
         entries.add(
                 new Entry(
                         input,

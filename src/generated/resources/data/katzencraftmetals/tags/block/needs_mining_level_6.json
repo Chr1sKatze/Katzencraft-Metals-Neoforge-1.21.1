@@ -1,0 +1,11 @@
+{
+  "values": [
+    "katzencraftmetals:platinum_block",
+    "katzencraftmetals:platinum_ore",
+    "katzencraftmetals:deepslate_platinum_ore",
+    "katzencraftmetals:nether_platinum_ore",
+    "katzencraftmetals:end_platinum_ore",
+    "minecraft:netherite_block",
+    "minecraft:ancient_debris"
+  ]
+}

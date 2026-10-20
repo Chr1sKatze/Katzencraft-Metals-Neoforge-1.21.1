@@ -1,5 +1,9 @@
 package net.chriskatze.katzencraftmetals.datagen;
 
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.chriskatze.katzencraftmetals.metal.MetalAlloy;
+import net.chriskatze.katzencraftmetals.metal.MetalDefinition;
+import net.chriskatze.katzencraftmetals.metal.MetalCatalog;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.datagen.recipe.FoundryAlloyRecipeSet;
 import net.chriskatze.katzencraftmetals.datagen.recipe.FoundryMeltingRecipeSet;
@@ -22,6 +26,8 @@ public final class ModFoundryRecipeProvider {
     public static void build(
             RecipeOutput recipeOutput
     ) {
+        net.chriskatze.katzencraftmetals.metal.MetalRecyclingRecipes.generate(recipeOutput);
+        buildCatalogStandardMelting(recipeOutput);
         buildIronMeltingRecipes(
                 recipeOutput
         );
@@ -34,10 +40,6 @@ public final class ModFoundryRecipeProvider {
                 recipeOutput
         );
 
-        buildSteelMeltingRecipes(
-                recipeOutput
-        );
-
         buildPlatinumMeltingRecipes(
                 recipeOutput
         );
@@ -46,9 +48,36 @@ public final class ModFoundryRecipeProvider {
                 recipeOutput
         );
 
+        FoundryMeltingRecipeSet.forMetal(ModMoltenMetals.get(net.minecraft.resources.ResourceLocation.withDefaultNamespace("netherite")).orElseThrow())
+                .raw(Items.NETHERITE_SCRAP, "raw_netherite")
+                .ore(Items.ANCIENT_DEBRIS, "netherite_ore")
+                .save(recipeOutput);
+
         buildAlloyRecipes(
                 recipeOutput
         );
+    }
+
+    private static void buildCatalogStandardMelting(RecipeOutput output) {
+        for (var definition : MetalCatalog.values()) {
+            if (definition.foundry() == null) continue;
+            var molten = ModMoltenMetals.get(definition.id()).orElseThrow();
+            var recipes = FoundryMeltingRecipeSet.forMetal(molten);
+            definition.forms().forEach((id, form) -> {
+                if (form != MetalDefinition.Form.INGOT
+                        && form != MetalDefinition.Form.NUGGET
+                        && form != MetalDefinition.Form.STORAGE_BLOCK) return;
+                var item = BuiltInRegistries.ITEM.getOptional(id).orElseThrow(
+                        () -> new IllegalStateException("Missing Foundry input form: " + id));
+                switch (form) {
+                    case INGOT -> recipes.ingot(item, id.getPath());
+                    case NUGGET -> recipes.nugget(item, id.getPath());
+                    case STORAGE_BLOCK -> recipes.block(item, id.getPath());
+                    default -> {}
+                }
+            });
+            recipes.save(output);
+        }
     }
 
     private static void buildIronMeltingRecipes(
@@ -61,21 +90,9 @@ public final class ModFoundryRecipeProvider {
                         Items.RAW_IRON,
                         "raw_iron"
                 )
-                .ingot(
-                        Items.IRON_INGOT,
-                        "iron_ingot"
-                )
-                .nugget(
-                        Items.IRON_NUGGET,
-                        "iron_nugget"
-                )
                 .rawBlock(
                         Items.RAW_IRON_BLOCK,
                         "raw_iron_block"
-                )
-                .block(
-                        Items.IRON_BLOCK,
-                        "iron_block"
                 )
                 .ore(
                         Items.IRON_ORE,
@@ -100,17 +117,9 @@ public final class ModFoundryRecipeProvider {
                         Items.RAW_COPPER,
                         "raw_copper"
                 )
-                .ingot(
-                        Items.COPPER_INGOT,
-                        "copper_ingot"
-                )
                 .rawBlock(
                         Items.RAW_COPPER_BLOCK,
                         "raw_copper_block"
-                )
-                .block(
-                        Items.COPPER_BLOCK,
-                        "copper_block"
                 )
                 .ore(
                         Items.COPPER_ORE,
@@ -135,45 +144,9 @@ public final class ModFoundryRecipeProvider {
                         Items.RAW_GOLD,
                         "raw_gold"
                 )
-                .ingot(
-                        Items.GOLD_INGOT,
-                        "gold_ingot"
-                )
-                .nugget(
-                        Items.GOLD_NUGGET,
-                        "gold_nugget"
-                )
                 .rawBlock(
                         Items.RAW_GOLD_BLOCK,
                         "raw_gold_block"
-                )
-                .block(
-                        Items.GOLD_BLOCK,
-                        "gold_block"
-                )
-                .save(
-                        recipeOutput
-                );
-    }
-
-    private static void buildSteelMeltingRecipes(
-            RecipeOutput recipeOutput
-    ) {
-        FoundryMeltingRecipeSet.forMetal(
-                        ModMoltenMetals.STEEL
-                )
-                .ingot(
-                        ModItems.STEEL_INGOT.get(),
-                        "steel_ingot"
-                )
-                .nugget(
-                        ModItems.STEEL_NUGGET.get(),
-                        "steel_nugget"
-                )
-                .block(
-                        ModBlocks.STEEL_BLOCK.get()
-                                .asItem(),
-                        "steel_block"
                 )
                 .save(
                         recipeOutput
@@ -189,19 +162,6 @@ public final class ModFoundryRecipeProvider {
                 .raw(
                         ModItems.RAW_PLATINUM.get(),
                         "raw_platinum"
-                )
-                .ingot(
-                        ModItems.PLATINUM_INGOT.get(),
-                        "platinum_ingot"
-                )
-                .nugget(
-                        ModItems.PLATINUM_NUGGET.get(),
-                        "platinum_nugget"
-                )
-                .block(
-                        ModBlocks.PLATINUM_BLOCK.get()
-                                .asItem(),
-                        "platinum_block"
                 )
                 .ore(
                         ModBlocks.PLATINUM_ORE.get()
@@ -238,19 +198,6 @@ public final class ModFoundryRecipeProvider {
                         ModItems.RAW_MYTHRIL.get(),
                         "raw_mythril"
                 )
-                .ingot(
-                        ModItems.MYTHRIL_INGOT.get(),
-                        "mythril_ingot"
-                )
-                .nugget(
-                        ModItems.MYTHRIL_NUGGET.get(),
-                        "mythril_nugget"
-                )
-                .block(
-                        ModBlocks.MYTHRIL_BLOCK.get()
-                                .asItem(),
-                        "mythril_block"
-                )
                 .ore(
                         ModBlocks.MYTHRIL_ORE.get()
                                 .asItem(),
@@ -279,55 +226,14 @@ public final class ModFoundryRecipeProvider {
     private static void buildAlloyRecipes(
             RecipeOutput recipeOutput
     ) {
-        /*
-         * Foundry alloy recipes:
-         *
-         * Steel is currently a refinement-style alloy recipe because the alloy
-         * system only accepts molten metal ingredients. We can add carbon/coal
-         * support later if we want proper iron + carbon steel.
-         */
-        FoundryAlloyRecipeSet.forMetal(
-                        ModMoltenMetals.STEEL
-                )
-                .ingredient(
-                        ModMoltenMetals.IRON,
-                        6
-                )
-                .save(
-                        recipeOutput
-                );
-
-        FoundryAlloyRecipeSet.forMetal(
-                        ModMoltenMetals.PLATINUM
-                )
-                .ingredient(
-                        ModMoltenMetals.IRON,
-                        3
-                )
-                .ingredient(
-                        ModMoltenMetals.GOLD,
-                        3
-                )
-                .save(
-                        recipeOutput
-                );
-
-        FoundryAlloyRecipeSet.forMetal(
-                        ModMoltenMetals.MYTHRIL
-                )
-                .ingredient(
-                        ModMoltenMetals.STEEL,
-                        3
-                )
-                .ingredient(
-                        ModMoltenMetals.PLATINUM,
-                        3
-                )
-                .processingTime(
-                        140
-                )
-                .save(
-                        recipeOutput
-                );
+        for (var definition : MetalCatalog.values()) {
+            if (definition.alloy() == null) continue;
+            var recipes = FoundryAlloyRecipeSet.forMetal(ModMoltenMetals.get(definition.id()).orElseThrow())
+                    .outputAmount(MetalAlloy.UNITS_PER_INGOT)
+                    .processingTime(definition.alloy().processingTime());
+            for (var input : definition.alloy().inputs())
+                recipes.ingredient(ModMoltenMetals.get(input.metal()).orElseThrow(), input.moltenUnits());
+            recipes.save(recipeOutput);
+        }
     }
 }

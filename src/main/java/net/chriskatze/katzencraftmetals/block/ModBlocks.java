@@ -1,5 +1,7 @@
 package net.chriskatze.katzencraftmetals.block;
 
+import net.chriskatze.katzencraftmetals.metal.MetalDefinition;
+import net.chriskatze.katzencraftmetals.metal.StandardMetalForms;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.custom.*;
 import net.minecraft.util.valueproviders.UniformInt;
@@ -23,19 +25,13 @@ public class ModBlocks {
     public static final DeferredRegister.Items BLOCK_ITEMS =
             DeferredRegister.createItems(KatzencraftMetalsMod.MODID);
 
+    private static final java.util.Map<String, DeferredBlock<Block>> STANDARD_BLOCKS = new java.util.LinkedHashMap<>();
+
     // =========================
     // STEEL
     // =========================
 
-    public static final DeferredBlock<Block> STEEL_BLOCK =
-            registerBlock(
-                    "steel_block",
-                    () -> new Block(
-                            Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
-                                    .sound(SoundType.COPPER)
-                                    .requiresCorrectToolForDrops()
-                    )
-            );
+    public static final DeferredBlock<Block> STEEL_BLOCK = standardBlock("steel_block");
 
     // =========================
     // CUT STEEL BUILDING BLOCKS
@@ -154,9 +150,7 @@ public class ModBlocks {
     // PLATINUM
     // =========================
 
-    public static final DeferredBlock<Block> PLATINUM_BLOCK = registerBlock("platinum_block",
-            () -> new Block(Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
-                    .requiresCorrectToolForDrops()));
+    public static final DeferredBlock<Block> PLATINUM_BLOCK = standardBlock("platinum_block");
 
     public static final DeferredBlock<Block> PLATINUM_ORE = registerBlock("platinum_ore",
             () -> new DropExperienceBlock(UniformInt.of(2, 4),
@@ -182,9 +176,7 @@ public class ModBlocks {
     // MYTHRIL
     // =========================
 
-    public static final DeferredBlock<Block> MYTHRIL_BLOCK = registerBlock("mythril_block",
-            () -> new Block(Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
-                    .requiresCorrectToolForDrops()));
+    public static final DeferredBlock<Block> MYTHRIL_BLOCK = standardBlock("mythril_block");
 
     public static final DeferredBlock<Block> MYTHRIL_ORE = registerBlock("mythril_ore",
             () -> new DropExperienceBlock(UniformInt.of(2, 4),
@@ -209,11 +201,6 @@ public class ModBlocks {
     // =========================
     // MACHINES
     // =========================
-
-    public static final DeferredBlock<Block> CRUSHER = registerBlock("crusher",
-            () -> new CrusherBlock(Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
-                    .strength(3.5f)
-                    .requiresCorrectToolForDrops()));
 
     public static final DeferredBlock<FuelChamberBlock> FUEL_CHAMBER =
             registerBlock(
@@ -280,6 +267,21 @@ public class ModBlocks {
     // HELPERS
     // =========================
 
+    private static DeferredBlock<Block> standardBlock(String path) {
+        var id = net.minecraft.resources.ResourceLocation.fromNamespaceAndPath(KatzencraftMetalsMod.MODID, path);
+        var form = StandardMetalForms.find(id).orElseThrow();
+        if (form.form() != MetalDefinition.Form.STORAGE_BLOCK)
+            throw new IllegalArgumentException("Expected storage block: " + path);
+        return STANDARD_BLOCKS.computeIfAbsent(path, key -> registerBlock(key, () -> {
+            var settings = form.metal().storageBlock();
+            var properties = Block.Properties.ofFullCopy(Blocks.IRON_BLOCK)
+                    .strength(settings.strength(), settings.resistance()).requiresCorrectToolForDrops();
+            if (settings.sound() == MetalDefinition.StorageSound.COPPER)
+                properties.sound(SoundType.COPPER);
+            return new Block(properties);
+        }));
+    }
+
     private static <T extends Block> DeferredBlock<T> registerBlock(String name, Supplier<T> blockSupplier) {
         DeferredBlock<T> registeredBlock = BLOCKS.register(name, blockSupplier);
         registerBlockItem(name, registeredBlock);
@@ -295,6 +297,9 @@ public class ModBlocks {
     // =========================
 
     public static void register(IEventBus modEventBus) {
+        for (var form : StandardMetalForms.entries()) {
+            if (form.form().block) standardBlock(form.id().getPath());
+        }
         BLOCKS.register(modEventBus);
         BLOCK_ITEMS.register(modEventBus);
     }

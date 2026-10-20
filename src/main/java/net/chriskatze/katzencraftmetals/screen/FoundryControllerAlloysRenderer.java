@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.screen;
 
+import net.chriskatze.katzencraftmetals.metal.MetalNames;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
@@ -379,11 +380,7 @@ final class FoundryControllerAlloysRenderer {
                     entry.holder().value();
 
             Component tooltip =
-                    Component.literal(
-                            FoundryControllerMetalsRenderer.displayName(
-                                    recipe.outputMetal()
-                            )
-                    );
+                    MetalNames.name(recipe.outputMetal());
 
             graphics.renderTooltip(
                     screen.uiFont(),
@@ -430,12 +427,8 @@ final class FoundryControllerAlloysRenderer {
 
             graphics.renderTooltip(
                     screen.uiFont(),
-                    Component.literal(
-                            FoundryControllerMetalsRenderer.displayName(
-                                    ingredient.metal()
-                            )
-                                    + ": "
-                                    + FoundryControllerUiDrawing.formatOreAmount(
+                    MetalNames.name(ingredient.metal()).copy().append(
+                            ": " + FoundryControllerUiDrawing.formatOreAmount(
                                     safeMultiply(
                                             ingredient.amount(),
                                             batchCount
@@ -468,12 +461,8 @@ final class FoundryControllerAlloysRenderer {
 
             graphics.renderTooltip(
                     screen.uiFont(),
-                    Component.literal(
-                            FoundryControllerMetalsRenderer.displayName(
-                                    recipe.outputMetal()
-                            )
-                                    + ": "
-                                    + FoundryControllerUiDrawing.formatOreAmount(
+                    MetalNames.name(recipe.outputMetal()).copy().append(
+                            ": " + FoundryControllerUiDrawing.formatOreAmount(
                                     safeMultiply(
                                             recipe.outputAmount(),
                                             batchCount

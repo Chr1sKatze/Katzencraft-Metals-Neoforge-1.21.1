@@ -89,8 +89,9 @@ public record MoltenMetalDefinition(
 
     /** Registered ingot matching this metal; unsupported metals cannot fill an ingot table. */
     public ItemStack createIngotResult() {
-        return net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(
-                        ResourceLocation.fromNamespaceAndPath(id.getNamespace(), id.getPath() + "_ingot"))
+        return MetalCatalog.get(id).stream().flatMap(metal -> metal.forms().entrySet().stream())
+                .filter(form -> form.getValue() == MetalDefinition.Form.INGOT)
+                .findFirst().flatMap(form -> net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(form.getKey()))
                 .map(item -> new ItemStack(item, 1)).orElse(ItemStack.EMPTY);
     }
 

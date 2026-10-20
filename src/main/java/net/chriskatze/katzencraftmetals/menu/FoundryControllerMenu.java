@@ -8,7 +8,6 @@ import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyCatalog;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyRecipe;
-import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.Container;
@@ -21,7 +20,6 @@ import net.minecraft.world.inventory.SimpleContainerData;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
 
 import java.util.List;
 import java.util.Optional;
@@ -367,15 +365,8 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             return Optional.empty();
         }
 
-        return blockEntity.getLevel()
-                .getRecipeManager()
-                .getRecipeFor(
-                        ModRecipes.FOUNDRY_MELTING_TYPE.get(),
-                        new SingleRecipeInput(input),
-                        blockEntity.getLevel()
-                )
-                .map(holder -> holder.value().moltenMetal())
-                .flatMap(ModMoltenMetals::get);
+        return net.chriskatze.katzencraftmetals.block.entity.FoundryMeltingRecipes.find(blockEntity.getLevel(), input)
+                .flatMap(recipe -> ModMoltenMetals.get(recipe.moltenMetal()));
     }
 
     public int getMetalAmount(MoltenMetalDefinition definition) {

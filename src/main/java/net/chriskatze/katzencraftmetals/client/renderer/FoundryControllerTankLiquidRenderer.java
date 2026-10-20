@@ -176,6 +176,7 @@ final class FoundryControllerTankLiquidRenderer {
             );
             PoseStack.Pose pose = poseStack.last();
 
+            var sideGlow = FoundryTankSurfaceRenderer.sideGlow(tankPos, renderedLayers);
             for (FoundryTankRenderedMetalLayer renderedLayer : localLayers) {
                 MoltenMetalDefinition definition =
                         ModMoltenMetals.get(renderedLayer.metal())
@@ -242,11 +243,11 @@ final class FoundryControllerTankLiquidRenderer {
                 renderLayerBottom(tankPos, renderedLayer, geometry, renderedLayers,
                         junctionConsumer, pose, packedOverlay, animationFrame.minV(), animationFrame.maxV());
 
-                if (renderedLayer.renderTop() && !differentMetalDirectlyAbove) {
+                if (sideGlow != null) {
                     // Shade existing exposed sides only. Bottoms and frame-classified
                     // junction pieces retain their original material and depth state.
                     consumer = FoundryTankSurfaceRenderer.sideConsumer(bufferSource, consumer,
-                            geometry, definition, animationFrame.minV(), animationFrame.maxV());
+                            geometry, definition, animationFrame.minV(), animationFrame.maxV(), sideGlow);
                     junctionConsumer = FoundryTankJunctionMaterial.wrap(consumer, junctionFrames,
                             () -> LevelRenderer.getLightColor(level, tankPos), tankPos, renderedLayer, renderedLayers);
                 }
@@ -717,6 +718,7 @@ final class FoundryControllerTankLiquidRenderer {
                     controllerPos,
                     tankPos,
                     structure,
+                    FoundryTankSurfaceRenderer.sideGlow(tankPos, allLayers),
                     lower,
                     upper,
                     boundaryY,
@@ -758,6 +760,7 @@ final class FoundryControllerTankLiquidRenderer {
                             controllerPos,
                             tankPos,
                             structure,
+                            FoundryTankSurfaceRenderer.sideGlow(tankPos, allLayers),
                             lower,
                             upper,
                             1.0f,
@@ -782,6 +785,7 @@ final class FoundryControllerTankLiquidRenderer {
             BlockPos controllerPos,
             BlockPos tankPos,
             Set<BlockPos> structure,
+            FoundryTankSurfaceRenderer.SideGlow sideGlow,
             FoundryTankRenderedMetalLayer lowerLayer,
             FoundryTankRenderedMetalLayer upperLayer,
             float boundaryY,
@@ -838,7 +842,9 @@ final class FoundryControllerTankLiquidRenderer {
 
         if (blendRenderType != null) {
             VertexConsumer blendConsumer =
-                    bufferSource.getBuffer(blendRenderType);
+                    FoundryTankSurfaceRenderer.interfaceConsumer(bufferSource.getBuffer(blendRenderType),
+                            sideGlow,
+                            lowerDefinition, upperDefinition, frameMinV, frameMaxV);
 
             for (Direction side : Direction.Plane.HORIZONTAL) {
                 if (structure.contains(tankPos.relative(side))) {

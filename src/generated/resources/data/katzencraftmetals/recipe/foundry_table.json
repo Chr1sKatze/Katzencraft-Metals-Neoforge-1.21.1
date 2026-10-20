@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "I": {
+      "item": "katzencraftmetals:steel_ingot"
+    },
+    "S": {
+      "item": "minecraft:stone_bricks"
+    }
+  },
+  "pattern": [
+    "III",
+    "S S",
+    "SSS"
+  ],
+  "result": {
+    "count": 1,
+    "id": "katzencraftmetals:foundry_table"
+  }
+}

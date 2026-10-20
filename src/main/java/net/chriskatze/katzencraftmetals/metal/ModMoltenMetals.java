@@ -1,8 +1,6 @@
 package net.chriskatze.katzencraftmetals.metal;
 
-import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.Items;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -15,181 +13,24 @@ import java.util.Optional;
 /** Central list of molten metals understood by the Foundry. */
 public final class ModMoltenMetals {
 
-    private static final Map<ResourceLocation, MoltenMetalDefinition>
-            DEFINITIONS =
-            new LinkedHashMap<>();
+    private static final Map<ResourceLocation, MoltenMetalDefinition> DEFINITIONS = createDefinitions();
 
-    public static final MoltenMetalDefinition IRON =
-            register(
-                    FoundryMetalBuilder.vanilla(
-                                    "iron"
-                            )
-                            .animatedTexture(
-                                    "molten_iron"
-                            )
-                            .cooledTexture(
-                                    "cooled_iron"
-                            )
-                            .density(
-                                    7_874
-                            )
-                            .unitsPerOre(
-                                    6
-                            )
-                            .castResult(
-                                    Items.IRON_BLOCK
-                            )
-                            .build()
-            );
-
-    public static final MoltenMetalDefinition COPPER =
-            register(
-                    FoundryMetalBuilder.vanilla(
-                                    "copper"
-                            )
-                            .animatedTexture(
-                                    "molten_copper"
-                            )
-                            .vanillaCooledTexture(
-                                    "copper_block"
-                            )
-                            .density(
-                                    8_960
-                            )
-                            .unitsPerOre(
-                                    6
-                            )
-                            .castResult(
-                                    Items.COPPER_BLOCK
-                            )
-                            .build()
-            );
-
-    public static final MoltenMetalDefinition STEEL =
-            register(
-                    FoundryMetalBuilder.mod(
-                                    "steel"
-                            )
-                            .animatedTexture(
-                                    "molten_steel"
-                            )
-                            .flowingTexture(
-                                    "molten_steel_flowing"
-                            )
-                            .cooledTexture(
-                                    "steel_block"
-                            )
-                            .density(
-                                    7_850
-                            )
-                            .unitsPerOre(
-                                    6
-                            )
-                            .castResult(
-                                    ModBlocks.STEEL_BLOCK.get()
-                            )
-                            .build()
-            );
-
-    public static final MoltenMetalDefinition MYTHRIL =
-            register(
-                    FoundryMetalBuilder.mod(
-                                    "mythril"
-                            )
-                            .animatedTexture(
-                                    "molten_mythril"
-                            )
-                            .flowingTexture(
-                                    "molten_mythril_flowing"
-                            )
-                            .cooledTexture(
-                                    "mythril_block"
-                            )
-                            .density(
-                                    9_500
-                            )
-                            .unitsPerOre(
-                                    6
-                            )
-                            .castResult(
-                                    ModBlocks.MYTHRIL_BLOCK.get()
-                            )
-                            .build()
-            );
-
-    public static final MoltenMetalDefinition GOLD =
-            register(
-                    FoundryMetalBuilder.vanilla(
-                                    "gold"
-                            )
-                            .animatedTexture(
-                                    "molten_gold"
-                            )
-                            .flowingTexture(
-                                    "molten_gold_flowing"
-                            )
-                            .vanillaCooledTexture(
-                                    "gold_block"
-                            )
-                            .density(
-                                    19_300
-                            )
-                            .unitsPerOre(
-                                    6
-                            )
-                            .castResult(
-                                    Items.GOLD_BLOCK
-                            )
-                            .build()
-            );
-
-    public static final MoltenMetalDefinition PLATINUM =
-            register(
-                    FoundryMetalBuilder.mod(
-                                    "platinum"
-                            )
-                            .animatedTexture(
-                                    "molten_platinum"
-                            )
-                            .flowingTexture(
-                                    "molten_platinum_flowing"
-                            )
-                            .cooledTexture(
-                                    "platinum_block"
-                            )
-                            .density(
-                                    21_450
-                            )
-                            .unitsPerOre(
-                                    6
-                            )
-                            .castResult(
-                                    ModBlocks.PLATINUM_BLOCK.get()
-                            )
-                            .build()
-            );
-
-    private ModMoltenMetals() {
-    }
-
-    private static MoltenMetalDefinition register(
-            MoltenMetalDefinition definition
-    ) {
-        MoltenMetalDefinition previous =
-                DEFINITIONS.putIfAbsent(
-                        definition.id(),
-                        definition
-                );
-
-        if (previous != null) {
-            throw new IllegalStateException(
-                    "Duplicate molten metal definition: "
-                            + definition.id()
-            );
+    private static Map<ResourceLocation, MoltenMetalDefinition> createDefinitions() {
+        Map<ResourceLocation, MoltenMetalDefinition> definitions = new LinkedHashMap<>();
+        for (var metal : MetalCatalog.values()) {
+            if (metal.foundry() != null) definitions.put(metal.id(), FoundryMetalBuilder.fromCatalog(metal));
         }
-
-        return definition;
+        return Collections.unmodifiableMap(definitions);
     }
+
+    public static final MoltenMetalDefinition IRON = DEFINITIONS.get(ResourceLocation.parse("minecraft:iron"));
+    public static final MoltenMetalDefinition COPPER = DEFINITIONS.get(ResourceLocation.parse("minecraft:copper"));
+    public static final MoltenMetalDefinition STEEL = DEFINITIONS.get(ResourceLocation.parse("katzencraftmetals:steel"));
+    public static final MoltenMetalDefinition MYTHRIL = DEFINITIONS.get(ResourceLocation.parse("katzencraftmetals:mythril"));
+    public static final MoltenMetalDefinition GOLD = DEFINITIONS.get(ResourceLocation.parse("minecraft:gold"));
+    public static final MoltenMetalDefinition PLATINUM = DEFINITIONS.get(ResourceLocation.parse("katzencraftmetals:platinum"));
+
+    private ModMoltenMetals() {}
 
     public static Optional<MoltenMetalDefinition> get(
             ResourceLocation id

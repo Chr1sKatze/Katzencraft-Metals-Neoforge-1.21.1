@@ -4,5 +4,6 @@
     "item": "katzencraftmetals:raw_mythril"
   },
   "molten_amount": 6,
-  "molten_metal": "katzencraftmetals:mythril"
+  "molten_metal": "katzencraftmetals:mythril",
+  "processing_time": 160
 }

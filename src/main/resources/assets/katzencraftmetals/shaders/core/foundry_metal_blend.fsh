@@ -15,6 +15,9 @@ in vec4 vertexColor;
 in vec4 lightMapColor;
 in vec2 texCoord0;
 in float blendDistance;
+in vec4 surfaceGlowColor;
+in float surfaceGlowDepth;
+flat in int surfaceGlow;
 
 out vec4 fragColor;
 
@@ -65,6 +68,11 @@ void main() {
                     * ColorModulator;
 
     color *= lightMapColor;
+    if (surfaceGlow != 0) {
+        float glow = 1.0 - smoothstep(0.0, 1.0, surfaceGlowDepth);
+        vec4 glowColor = surfaceGlowColor * ColorModulator;
+        color.rgb = mix(color.rgb, glowColor.rgb, glow * glowColor.a * 1.18);
+    }
 
     fragColor =
             linear_fog(

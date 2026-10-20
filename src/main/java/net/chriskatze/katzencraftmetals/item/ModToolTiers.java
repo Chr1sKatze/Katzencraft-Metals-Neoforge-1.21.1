@@ -1,29 +1,11 @@
 package net.chriskatze.katzencraftmetals.item;
 
-import net.minecraft.tags.BlockTags;
+import net.chriskatze.katzencraftmetals.metal.MetalEquipmentProfiles;
 import net.minecraft.world.item.Tier;
-import net.minecraft.world.item.crafting.Ingredient;
 
-public class ModToolTiers {
-
-    public static final Tier STEEL = new FixedToolTier(
-            BlockTags.INCORRECT_FOR_DIAMOND_TOOL,
-            512,
-            7.0F,
-            3.0F,
-            18,
-            () -> Ingredient.of(ModItems.STEEL_INGOT.get())
-    );
-
-    public static final Tier MYTHRIL = new FixedToolTier(
-            BlockTags.INCORRECT_FOR_NETHERITE_TOOL,
-            1536,
-            10.0F,
-            5.0F,
-            25,
-            () -> Ingredient.of(ModItems.MYTHRIL_INGOT.get())
-    );
-
-    private ModToolTiers() {
-    }
+/** Compatibility aliases; statistics and native tool rules live in equipment profiles. */
+public final class ModToolTiers {
+    public static final Tier STEEL = MetalEquipmentProfiles.forMetal("katzencraftmetals:steel").tier(MetalEquipmentProfiles.ToolKind.PICKAXE);
+    public static final Tier MYTHRIL = MetalEquipmentProfiles.forMetal("katzencraftmetals:mythril").tier(MetalEquipmentProfiles.ToolKind.PICKAXE);
+    private ModToolTiers() {}
 }

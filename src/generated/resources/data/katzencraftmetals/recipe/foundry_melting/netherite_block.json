@@ -1,0 +1,9 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "minecraft:netherite_block"
+  },
+  "molten_amount": 54,
+  "molten_metal": "minecraft:netherite",
+  "processing_time": 900
+}

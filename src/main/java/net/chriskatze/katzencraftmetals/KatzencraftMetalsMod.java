@@ -87,22 +87,10 @@ public class KatzencraftMetalsMod {
                 event.getTabKey()
                         == CreativeModeTabs.INGREDIENTS
         ) {
-            event.accept(ModItems.CRUSHED_COAL);
-            event.accept(ModItems.CRUSHED_IRON_ORE);
 
-            event.accept(ModItems.STEEL_NUGGET);
-            event.accept(ModItems.STEEL_INGOT);
-            event.accept(ModItems.STEEL_CHARGE);
-
-            event.accept(ModItems.PLATINUM_NUGGET);
             event.accept(ModItems.RAW_PLATINUM);
-            event.accept(ModItems.PLATINUM_INGOT);
-            event.accept(ModItems.CRUSHED_PLATINUM_ORE);
 
-            event.accept(ModItems.MYTHRIL_NUGGET);
             event.accept(ModItems.RAW_MYTHRIL);
-            event.accept(ModItems.MYTHRIL_INGOT);
-            event.accept(ModItems.CRUSHED_MYTHRIL_ORE);
 
             event.accept(ModItems.SAPPHIRE_GEM);
             event.accept(ModItems.AMETHYST_GEM);
@@ -112,10 +100,7 @@ public class KatzencraftMetalsMod {
                 event.getTabKey()
                         == CreativeModeTabs.BUILDING_BLOCKS
         ) {
-            event.accept(ModBlocks.PLATINUM_BLOCK);
-            event.accept(ModBlocks.MYTHRIL_BLOCK);
 
-            event.accept(ModBlocks.STEEL_BLOCK);
             event.accept(ModBlocks.CUT_STEEL_BLOCK);
             event.accept(ModBlocks.CUT_STEEL_SLAB);
             event.accept(ModBlocks.CUT_STEEL_STAIRS);
@@ -148,7 +133,6 @@ public class KatzencraftMetalsMod {
                 event.getTabKey()
                         == CreativeModeTabs.FUNCTIONAL_BLOCKS
         ) {
-            event.accept(ModBlocks.CRUSHER);
             event.accept(ModBlocks.FOUNDRY_CONTROLLER);
             event.accept(ModBlocks.FOUNDRY_TANK);
             event.accept(ModBlocks.FOUNDRY_BASIN);
@@ -159,6 +143,11 @@ public class KatzencraftMetalsMod {
                 event.getTabKey()
                         == CreativeModeTabs.COMBAT
         ) {
+            event.accept(ModItems.COPPER_SWORD);
+            event.accept(ModItems.COPPER_HELMET);
+            event.accept(ModItems.COPPER_CHESTPLATE);
+            event.accept(ModItems.COPPER_LEGGINGS);
+            event.accept(ModItems.COPPER_BOOTS);
             event.accept(ModItems.STEEL_SWORD);
             event.accept(ModItems.STEEL_HELMET);
             event.accept(ModItems.STEEL_CHESTPLATE);
@@ -177,6 +166,10 @@ public class KatzencraftMetalsMod {
                 event.getTabKey()
                         == CreativeModeTabs.TOOLS_AND_UTILITIES
         ) {
+            event.accept(ModItems.COPPER_PICKAXE);
+            event.accept(ModItems.COPPER_AXE);
+            event.accept(ModItems.COPPER_SHOVEL);
+            event.accept(ModItems.COPPER_HOE);
             event.accept(ModItems.STEEL_PICKAXE);
             event.accept(ModItems.STEEL_AXE);
             event.accept(ModItems.STEEL_SHOVEL);
@@ -187,6 +180,7 @@ public class KatzencraftMetalsMod {
             event.accept(ModItems.MYTHRIL_SHOVEL);
             event.accept(ModItems.MYTHRIL_HOE);
         }
+            net.chriskatze.katzencraftmetals.item.MetalCreativeEntries.add(event);
     }
 
     @SubscribeEvent

@@ -1,0 +1,20 @@
+{
+  "values": [
+    "minecraft:nether_gold_ore",
+    "katzencraftmetals:steel_trapdoor",
+    "minecraft:stone",
+    "minecraft:cobblestone",
+    "minecraft:deepslate",
+    "minecraft:cobbled_deepslate",
+    "minecraft:granite",
+    "minecraft:diorite",
+    "minecraft:andesite",
+    "minecraft:tuff",
+    "minecraft:calcite",
+    "minecraft:blackstone",
+    "minecraft:basalt",
+    "minecraft:smooth_basalt",
+    "minecraft:coal_ore",
+    "minecraft:deepslate_coal_ore"
+  ]
+}

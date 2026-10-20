@@ -29,7 +29,7 @@ public class FoundryBasinBlockEntity
      *
      * Nine ingots form one metal block:
      *
-     * 6 × 9 = 54 molten units.
+     * 6 Ã— 9 = 54 molten units.
      */
     public static final int REQUIRED_MOLTEN_AMOUNT = 54;
 
@@ -48,6 +48,7 @@ public class FoundryBasinBlockEntity
 
     private int moltenAmount;
     private int coolingProgress;
+    private int coolingDuration = MAX_COOLING_PROGRESS;
     private boolean cooled;
 
     public FoundryBasinBlockEntity(
@@ -78,29 +79,22 @@ public class FoundryBasinBlockEntity
 
         basin.updateVisualState();
 
-        if (
-                basin.isEmpty()
-                        || !basin.isFull()
-                        || basin.cooled
-        ) {
-            return;
-        }
-
-        basin.coolingProgress++;
-
-        if (
-                basin.coolingProgress
-                        >= MAX_COOLING_PROGRESS
-        ) {
-            basin.coolingProgress =
-                    MAX_COOLING_PROGRESS;
-
-            basin.cooled = true;
-            basin.updateVisualState();
-        }
+        if (!basin.advanceCooling()) return;
+        if (basin.cooled) basin.updateVisualState();
 
         basin.setChanged();
         basin.syncToClient();
+    }
+
+    /** Advances the same server-authoritative cooling state, without world/render side effects. */
+    boolean advanceCooling() {
+        if (isEmpty() || !isFull() || cooled) return false;
+        if (coolingProgress < coolingDuration) coolingProgress++;
+        if (coolingProgress >= coolingDuration) {
+            coolingProgress = coolingDuration;
+            cooled = true;
+        }
+        return true;
     }
 
     // =========================
@@ -116,9 +110,9 @@ public class FoundryBasinBlockEntity
         }
 
         /*
-         * Every registered molten metal may be cast.
+         * Only metals with a registered output for this destination may be cast.
          */
-        if (!ModMoltenMetals.contains(metal)) {
+        if (!ModMoltenMetals.contains(metal) || createResult(metal).isEmpty()) {
             return false;
         }
 
@@ -154,6 +148,7 @@ public class FoundryBasinBlockEntity
 
         if (storedMetal == null) {
             storedMetal = metal;
+            coolingDuration = configuredCoolingTime(metal);
         }
 
         moltenAmount += amount;
@@ -326,6 +321,13 @@ public class FoundryBasinBlockEntity
                 .orElse(ItemStack.EMPTY);
     }
 
+    protected int configuredCoolingTime(ResourceLocation metal) {
+        return net.chriskatze.katzencraftmetals.metal.MetalCatalog.get(metal)
+                .map(definition -> definition.blockCoolingTime()).orElse(MAX_COOLING_PROGRESS);
+    }
+
+    public int getCoolingDuration() { return coolingDuration; }
+
     public int getRequiredMoltenAmount() {
         return REQUIRED_MOLTEN_AMOUNT;
     }
@@ -345,6 +347,7 @@ public class FoundryBasinBlockEntity
 
     private void clear() {
         storedMetal = null;
+        coolingDuration = MAX_COOLING_PROGRESS;
         moltenAmount = 0;
         coolingProgress = 0;
         cooled = false;
@@ -516,6 +519,8 @@ public class FoundryBasinBlockEntity
                 moltenAmount
         );
 
+        tag.putInt("CoolingDuration", coolingDuration);
+
         tag.putInt(
                 "CoolingProgress",
                 coolingProgress
@@ -538,6 +543,7 @@ public class FoundryBasinBlockEntity
         );
 
         storedMetal = null;
+        coolingDuration = MAX_COOLING_PROGRESS;
         moltenAmount = 0;
         coolingProgress = 0;
         cooled = false;
@@ -560,13 +566,16 @@ public class FoundryBasinBlockEntity
                         getRequiredMoltenAmount()
                 );
 
+        coolingDuration = tag.contains("CoolingDuration") ? Math.max(1, tag.getInt("CoolingDuration"))
+                : storedMetal != null ? configuredCoolingTime(storedMetal) : MAX_COOLING_PROGRESS;
+
         coolingProgress =
                 Mth.clamp(
                         tag.getInt(
                                 "CoolingProgress"
                         ),
                         0,
-                        MAX_COOLING_PROGRESS
+                        coolingDuration
                 );
 
         cooled =
@@ -599,7 +608,7 @@ public class FoundryBasinBlockEntity
 
         if (cooled) {
             coolingProgress =
-                    MAX_COOLING_PROGRESS;
+                    coolingDuration;
         }
     }
 }

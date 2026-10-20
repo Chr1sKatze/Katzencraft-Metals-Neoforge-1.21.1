@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.datagen;
 
+import net.chriskatze.katzencraftmetals.metal.StandardMetalForms;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.custom.FoundryControllerBlock;
@@ -26,7 +27,6 @@ public class ModBlockStateProvider extends BlockStateProvider {
 
     @Override
     protected void registerStatesAndModels() {
-        blockWithItem(ModBlocks.STEEL_BLOCK.get());
         blockWithItem(ModBlocks.CUT_STEEL_BLOCK.get());
         customLever(ModBlocks.STEEL_LEVER.get(), "steel");
         vanillaPressurePlate((PressurePlateBlock) ModBlocks.STEEL_PRESSURE_PLATE.get(), ModBlocks.STEEL_BLOCK.get());
@@ -39,19 +39,17 @@ public class ModBlockStateProvider extends BlockStateProvider {
         vanillaTrapdoor((TrapDoorBlock) ModBlocks.STEEL_TRAPDOOR.get(), "steel");
         vanillaLadder((LadderBlock) ModBlocks.STEEL_LADDER.get(), "steel");
 
-        blockWithItem(ModBlocks.PLATINUM_BLOCK.get());
+        for (var form : StandardMetalForms.entries()) if (form.form().block) blockWithItem(form.block());
         blockWithItem(ModBlocks.PLATINUM_ORE.get());
         blockWithItem(ModBlocks.DEEPSLATE_PLATINUM_ORE.get());
         blockWithItem(ModBlocks.NETHER_PLATINUM_ORE.get());
         blockWithItem(ModBlocks.END_PLATINUM_ORE.get());
 
-        blockWithItem(ModBlocks.MYTHRIL_BLOCK.get());
         blockWithItem(ModBlocks.MYTHRIL_ORE.get());
         blockWithItem(ModBlocks.DEEPSLATE_MYTHRIL_ORE.get());
         blockWithItem(ModBlocks.NETHER_MYTHRIL_ORE.get());
         blockWithItem(ModBlocks.END_MYTHRIL_ORE.get());
 
-        blockWithItem(ModBlocks.CRUSHER.get());
         blockWithItem(ModBlocks.FUEL_CHAMBER.get());
 
         foundryControllerBlock();
@@ -82,7 +80,6 @@ public class ModBlockStateProvider extends BlockStateProvider {
                     .build();
         });
     }
-
 
     private void foundryControllerBlock() {
         Block controller =
@@ -159,7 +156,6 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 controllerOff
         );
     }
-
 
     private void foundryTankBlock() {
         Block tank =
@@ -808,7 +804,6 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 itemModel
         );
     }
-
 
     /**
      * Standalone world-aware correction models.
@@ -1945,7 +1940,6 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 )
                 .end();
     }
-
 
     private void blockWithItem(Block block) {
         simpleBlockWithItem(block, cubeAll(block));

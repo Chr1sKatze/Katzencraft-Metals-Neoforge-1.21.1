@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.screen;
 
+import net.chriskatze.katzencraftmetals.metal.MetalNames;
 import net.chriskatze.katzencraftmetals.menu.FoundryControllerMenu;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
@@ -516,16 +517,7 @@ final class FoundryControllerMetalsRenderer {
     static String displayName(
             ResourceLocation id
     ) {
-        String path =
-                id.getPath()
-                        .replace('_', ' ');
-
-        if (path.isEmpty()) {
-            return "";
-        }
-
-        return Character.toUpperCase(path.charAt(0))
-                + path.substring(1);
+        return MetalNames.name(id).getString();
     }
 
     private FoundryControllerMenu menu() {

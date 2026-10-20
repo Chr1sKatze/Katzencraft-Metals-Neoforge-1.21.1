@@ -1,0 +1,14 @@
+// Opt-in registry-loaded checks; never included in the shipped mod JAR.
+allprojects { afterEvaluate {
+ def checks=sourceSets.create('equipmentChecks')
+ checks.java.srcDir('verification/equipment')
+ checks.compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+ checks.runtimeClasspath += sourceSets.main.runtimeClasspath
+ neoForge.mods.named('katzencraftmetals') { sourceSet(checks) }
+ neoForge.runs.named('data') {
+   systemProperty 'katzencraft.equipment.root',projectDir.absolutePath
+   programArguments.set(['--mod','katzencraftmetals','--all','--output',file('build/equipment-datagen').absolutePath,'--existing',file('src/main/resources').absolutePath])
+ }
+ tasks.named('compileEquipmentChecksJava') { dependsOn 'classes' }
+ tasks.named('runData') { dependsOn 'equipmentChecksClasses' }
+}}

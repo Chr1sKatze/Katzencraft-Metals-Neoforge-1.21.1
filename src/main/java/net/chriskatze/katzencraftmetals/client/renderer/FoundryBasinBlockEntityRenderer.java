@@ -117,8 +117,7 @@ public class FoundryBasinBlockEntityRenderer
                                     basin.getCoolingProgress()
                                             + partialTick
                             )
-                                    / FoundryBasinBlockEntity
-                                    .MAX_COOLING_PROGRESS,
+                                    / basin.getCoolingDuration(),
                             0.0f,
                             1.0f
                     );

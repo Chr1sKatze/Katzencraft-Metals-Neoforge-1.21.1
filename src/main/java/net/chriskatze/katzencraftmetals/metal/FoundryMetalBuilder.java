@@ -53,11 +53,25 @@ public final class FoundryMetalBuilder {
                         name
                 );
 
-        translationKey =
-                "metal."
-                        + KatzencraftMetalsMod.MODID
-                        + "."
-                        + name;
+        MetalDefinition definition = MetalCatalog.get(id).orElseThrow(
+                () -> new IllegalArgumentException("Metal missing from catalog: " + id));
+        translationKey = definition.translationKey();
+        density = definition.density();
+        unitsPerOre = definition.unitsPerOre();
+    }
+
+    /** Converts early metadata to runtime information without resolving deferred item objects. */
+    public static MoltenMetalDefinition fromCatalog(MetalDefinition definition) {
+        var support = java.util.Objects.requireNonNull(definition.foundry(), "Foundry support for " + definition.id());
+        var still = support.still() != null ? support.still() : MetalFoundrySupport.texture("molten_" + definition.id().getPath());
+        var flowing = support.flowing() != null ? support.flowing() : still;
+        var block = definition.forms().entrySet().stream().filter(entry -> entry.getValue() == MetalDefinition.Form.STORAGE_BLOCK)
+                .map(java.util.Map.Entry::getKey).findFirst();
+        var cooled = support.cooled() != null ? support.cooled() : block.map(id -> ResourceLocation.fromNamespaceAndPath(
+                id.getNamespace(), "textures/block/" + id.getPath() + ".png")).orElse(MetalFoundrySupport.texture("foundry_table_ingot_base"));
+        return new MoltenMetalDefinition(definition.id(), definition.translationKey(), still, flowing, cooled,
+                definition.density(), definition.unitsPerOre(), () -> block.flatMap(net.minecraft.core.registries.BuiltInRegistries.ITEM::getOptional)
+                .map(item -> new ItemStack(item)).orElse(ItemStack.EMPTY));
     }
 
     public static FoundryMetalBuilder mod(
@@ -201,8 +215,10 @@ public final class FoundryMetalBuilder {
     public FoundryMetalBuilder density(
             int density
     ) {
-        this.density =
-                density;
+        if (density != MetalCatalog.get(id).orElseThrow().density()) {
+            throw new IllegalArgumentException("Set metal density in MetalCatalog: " + id);
+        }
+        this.density = density;
 
         return this;
     }
@@ -210,8 +226,10 @@ public final class FoundryMetalBuilder {
     public FoundryMetalBuilder unitsPerOre(
             int unitsPerOre
     ) {
-        this.unitsPerOre =
-                unitsPerOre;
+        if (unitsPerOre != MetalCatalog.get(id).orElseThrow().unitsPerOre()) {
+            throw new IllegalArgumentException("Set molten units in MetalCatalog: " + id);
+        }
+        this.unitsPerOre = unitsPerOre;
 
         return this;
     }

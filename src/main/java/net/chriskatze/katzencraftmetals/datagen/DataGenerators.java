@@ -76,10 +76,9 @@ public class DataGenerators {
                 )
         );
 
-        generator.addProvider(
-                event.includeClient(),
-                new ModLanguageProvider(output)
-        );
+        for (String locale : MetalLanguageEntries.locales()) {
+            generator.addProvider(event.includeClient(), new ModLanguageProvider(output, locale));
+        }
 
         generator.addProvider(
                 event.includeServer(),
@@ -100,6 +99,8 @@ public class DataGenerators {
                 event.includeServer(),
                 blockTagsProvider
         );
+        generator.addProvider(event.includeServer(),new MetalEquipmentItemTagsProvider(
+                output,lookupProvider,blockTagsProvider.contentsGetter(),existingFileHelper));
 
         generator.addProvider(
                 event.includeServer(),

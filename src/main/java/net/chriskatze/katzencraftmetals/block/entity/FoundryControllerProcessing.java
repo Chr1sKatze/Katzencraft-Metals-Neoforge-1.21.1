@@ -159,7 +159,8 @@ final class FoundryControllerProcessing {
 
         selectActiveRecipe(
                 inputSlot,
-                recipe
+                recipe,
+                inputStack
         );
 
         if (
@@ -226,27 +227,29 @@ final class FoundryControllerProcessing {
 
     private boolean matchesActiveRecipe(
             int inputSlot,
-            FoundryMeltingRecipe recipe
+            FoundryMeltingRecipe recipe,
+            ItemStack inputStack
     ) {
         return job.matches(
                 inputSlot,
                 recipe,
                 getProcessingTime(
                         recipe.processingTime()
-                )
+                ), inputStack
         );
     }
 
     private void selectActiveRecipe(
             int inputSlot,
-            FoundryMeltingRecipe recipe
+            FoundryMeltingRecipe recipe,
+            ItemStack inputStack
     ) {
         if (job.select(
                 inputSlot,
                 recipe,
                 getProcessingTime(
                         recipe.processingTime()
-                )
+                ), inputStack
         )) {
             controller.setChanged();
         }
@@ -316,7 +319,8 @@ final class FoundryControllerProcessing {
         if (
                 !matchesActiveRecipe(
                         expectedInputSlot,
-                        currentRecipe
+                        currentRecipe,
+                        inputStack
                 )
                         || !FoundryMeltingRecipes.sameResult(
                         expectedRecipe,
@@ -325,40 +329,19 @@ final class FoundryControllerProcessing {
         ) {
             selectActiveRecipe(
                     expectedInputSlot,
-                    currentRecipe
+                    currentRecipe,
+                    inputStack
             );
             return;
         }
 
-        if (
-                controller.getLevel() == null
-                        || !network.canAccept(
-                        currentRecipe.moltenMetal(),
-                        currentRecipe.moltenAmount()
-                )
-        ) {
-            return;
-        }
-
-        int inserted =
-                network.insert(
-                        currentRecipe.moltenMetal(),
-                        currentRecipe.moltenAmount()
-                );
-
-        if (
-                inserted
-                        != currentRecipe.moltenAmount()
-        ) {
-            return;
-        }
+        if (controller.getLevel() == null || !commitMelting(network, inputStack, currentRecipe)) return;
 
         if (job.selectedOutputMetal == null) {
             job.selectedOutputMetal =
                     currentRecipe.moltenMetal();
         }
 
-        inputStack.shrink(1);
         job.progress = 0;
 
 
@@ -366,6 +349,19 @@ final class FoundryControllerProcessing {
                 .setChanged();
 
         controller.setChanged();
+    }
+
+    /** Called only after active input/component validation, on the server thread. */
+    static boolean commitMelting(FoundryTankNetwork network, ItemStack input, FoundryMeltingRecipe recipe) {
+        if (input.isEmpty() || !network.canAccept(recipe.moltenMetal(), recipe.moltenAmount())) return false;
+        int inserted = network.insert(recipe.moltenMetal(), recipe.moltenAmount());
+        if (inserted != recipe.moltenAmount()) {
+            // Defensive rollback: a failed completion must never leave unconsumed metal behind.
+            if (inserted > 0) network.extract(recipe.moltenMetal(), inserted);
+            return false;
+        }
+        input.shrink(1);
+        return true;
     }
 
     int getProgress() {

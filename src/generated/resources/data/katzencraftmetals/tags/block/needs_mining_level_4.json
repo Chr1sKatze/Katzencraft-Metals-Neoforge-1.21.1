@@ -1,0 +1,17 @@
+{
+  "values": [
+    "katzencraftmetals:steel_block",
+    "minecraft:gold_block",
+    "minecraft:gold_ore",
+    "minecraft:deepslate_gold_ore",
+    "katzencraftmetals:cut_steel_block",
+    "katzencraftmetals:steel_bars",
+    "katzencraftmetals:steel_chain",
+    "katzencraftmetals:steel_pressure_plate",
+    "katzencraftmetals:steel_lever",
+    "katzencraftmetals:steel_door",
+    "katzencraftmetals:cut_steel_stairs",
+    "katzencraftmetals:cut_steel_slab",
+    "katzencraftmetals:steel_ladder"
+  ]
+}

@@ -26,24 +26,6 @@ public class ModRecipes {
 
     public static final DeferredHolder<
             RecipeSerializer<?>,
-            RecipeSerializer<CrusherRecipe>
-            > CRUSHER_SERIALIZER =
-            RECIPE_SERIALIZERS.register(
-                    "crusher",
-                    CrusherRecipe.Serializer::new
-            );
-
-    public static final DeferredHolder<
-            RecipeType<?>,
-            RecipeType<CrusherRecipe>
-            > CRUSHER_TYPE =
-            RECIPE_TYPES.register(
-                    "crusher",
-                    () -> namedType("crusher")
-            );
-
-    public static final DeferredHolder<
-            RecipeSerializer<?>,
             RecipeSerializer<FoundryMeltingRecipe>
             > FOUNDRY_MELTING_SERIALIZER =
             RECIPE_SERIALIZERS.register(

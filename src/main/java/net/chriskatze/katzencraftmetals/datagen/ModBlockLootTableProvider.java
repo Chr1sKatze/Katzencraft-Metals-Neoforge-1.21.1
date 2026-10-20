@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.datagen;
 
+import net.chriskatze.katzencraftmetals.metal.StandardMetalForms;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.item.ModItems;
 import net.minecraft.core.HolderLookup;
@@ -30,17 +31,19 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
 
     @Override
     protected void generate() {
+        // Reuse weighted ore/Silk/Fortune conventions; no gemstone bonus for Netherite.
+        add(net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS,
+                block -> createWeightedOreDropsWithGemChance(block, net.minecraft.world.item.Items.NETHERITE_SCRAP,
+                        2, 0.5f, net.minecraft.world.item.Items.NETHERITE_SCRAP, 0f));
         // machines
         dropSelf(ModBlocks.FUEL_CHAMBER.get());
         dropSelf(ModBlocks.FOUNDRY_CONTROLLER.get());
-        dropSelf(ModBlocks.CRUSHER.get());
         dropSelf(ModBlocks.FOUNDRY_TANK.get());
         dropSelf(ModBlocks.FOUNDRY_BASIN.get());
         dropSelf(ModBlocks.FOUNDRY_TABLE.get());
         add(ModBlocks.FOUNDRY_FAUCET.get(), LootTable.lootTable());
 
         // blocks
-        dropSelf(ModBlocks.STEEL_BLOCK.get());
         dropSelf(ModBlocks.STEEL_BARS.get());
         dropSelf(ModBlocks.STEEL_CHAIN.get());
         dropSelf(ModBlocks.STEEL_PRESSURE_PLATE.get());
@@ -50,9 +53,8 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
         dropSelf(ModBlocks.STEEL_TRAPDOOR.get());
         dropSelf(ModBlocks.STEEL_LADDER.get());
 
-        dropSelf(ModBlocks.PLATINUM_BLOCK.get());
+        for (var form : StandardMetalForms.entries()) if (form.form().block) dropSelf(form.block());
 
-        dropSelf(ModBlocks.MYTHRIL_BLOCK.get());
 
         // Cut steel building blocks
         dropSelf(ModBlocks.CUT_STEEL_BLOCK.get());
@@ -164,7 +166,7 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
         // - not affected by Fortune
         // - not affected by extra raw-drop rolls
         // - exactly one check, exactly one gem if successful
-        table.withPool(LootPool.lootPool()
+        if (gemDropChance > 0) table.withPool(LootPool.lootPool()
                 .setRolls(ConstantValue.exactly(1))
                 .when(doesNotHaveSilkTouch())
                 .add(LootItem.lootTableItem(bonusGem)
@@ -176,20 +178,20 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
 
     @Override
     protected Iterable<Block> getKnownBlocks() {
-        return List.of(
-                ModBlocks.PLATINUM_BLOCK.get(),
+        return java.util.stream.Stream.concat(
+                StandardMetalForms.entries().stream().filter(form -> form.form().block).map(form -> form.block()),
+                List.of(
+                net.minecraft.world.level.block.Blocks.ANCIENT_DEBRIS,
                 ModBlocks.PLATINUM_ORE.get(),
                 ModBlocks.DEEPSLATE_PLATINUM_ORE.get(),
                 ModBlocks.NETHER_PLATINUM_ORE.get(),
                 ModBlocks.END_PLATINUM_ORE.get(),
 
-                ModBlocks.MYTHRIL_BLOCK.get(),
                 ModBlocks.MYTHRIL_ORE.get(),
                 ModBlocks.DEEPSLATE_MYTHRIL_ORE.get(),
                 ModBlocks.NETHER_MYTHRIL_ORE.get(),
                 ModBlocks.END_MYTHRIL_ORE.get(),
 
-                ModBlocks.STEEL_BLOCK.get(),
                 ModBlocks.CUT_STEEL_BLOCK.get(),
                 ModBlocks.STEEL_BARS.get(),
                 ModBlocks.STEEL_CHAIN.get(),
@@ -202,13 +204,12 @@ public class ModBlockLootTableProvider extends BlockLootSubProvider {
                 ModBlocks.CUT_STEEL_SLAB.get(),
                 ModBlocks.STEEL_LADDER.get(),
 
-                ModBlocks.CRUSHER.get(),
                 ModBlocks.FUEL_CHAMBER.get(),
                 ModBlocks.FOUNDRY_CONTROLLER.get(),
                 ModBlocks.FOUNDRY_TANK.get(),
                 ModBlocks.FOUNDRY_BASIN.get(),
                 ModBlocks.FOUNDRY_TABLE.get(),
                 ModBlocks.FOUNDRY_FAUCET.get()
-        );
+        ).stream()).toList();
     }
 }

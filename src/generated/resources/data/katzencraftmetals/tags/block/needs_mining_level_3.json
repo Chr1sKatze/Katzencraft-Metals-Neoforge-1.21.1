@@ -1,0 +1,11 @@
+{
+  "values": [
+    "minecraft:iron_block",
+    "minecraft:iron_ore",
+    "minecraft:deepslate_iron_ore",
+    "minecraft:copper_block",
+    "minecraft:copper_ore",
+    "minecraft:deepslate_copper_ore",
+    "katzencraftmetals:steel_button"
+  ]
+}

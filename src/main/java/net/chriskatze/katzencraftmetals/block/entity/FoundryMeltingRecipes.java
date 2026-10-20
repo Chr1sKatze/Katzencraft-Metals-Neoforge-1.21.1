@@ -16,7 +16,7 @@ import java.util.Optional;
  * FoundryControllerProcessing owns the melting state machine.
  * This class only answers recipe questions.
  */
-final class FoundryMeltingRecipes {
+public final class FoundryMeltingRecipes {
 
     private FoundryMeltingRecipes() {
     }
@@ -31,7 +31,7 @@ final class FoundryMeltingRecipes {
         ).isPresent();
     }
 
-    static Optional<FoundryMeltingRecipe> find(
+    public static Optional<FoundryMeltingRecipe> find(
             @Nullable Level level,
             ItemStack stack
     ) {
@@ -42,24 +42,16 @@ final class FoundryMeltingRecipes {
             return Optional.empty();
         }
 
-        return level.getRecipeManager()
-                .getRecipeFor(
-                        ModRecipes.FOUNDRY_MELTING_TYPE.get(),
-                        new SingleRecipeInput(
-                                stack
-                        ),
-                        level
-                )
-                .map(
-                        holder ->
-                                holder.value()
-                )
-                .filter(
-                        recipe ->
-                                ModMoltenMetals.contains(
-                                        recipe.moltenMetal()
-                                )
-                );
+        // Explicit recycling metadata wins over ordinary recipes for the same stack.
+        return resolve(level.getRecipeManager().getRecipesFor(ModRecipes.FOUNDRY_MELTING_TYPE.get(),
+                new SingleRecipeInput(stack), level).stream().map(holder -> holder.value()).toList(), stack);
+    }
+
+    public static Optional<FoundryMeltingRecipe> resolve(java.util.List<FoundryMeltingRecipe> recipes, ItemStack stack) {
+        return recipes.stream().filter(recipe -> recipe.ingredient().test(stack))
+                .filter(recipe -> ModMoltenMetals.contains(recipe.moltenMetal()))
+                .min(java.util.Comparator.comparing(recipe -> recipe.recycling().isEmpty()))
+                .flatMap(recipe -> recipe.resolve(stack));
     }
 
     static boolean sameResult(

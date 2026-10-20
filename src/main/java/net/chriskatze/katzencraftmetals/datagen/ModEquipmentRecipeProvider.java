@@ -20,6 +20,13 @@ public final class ModEquipmentRecipeProvider {
     public static void build(
             RecipeOutput recipeOutput
     ) {
+        equipmentSet(recipeOutput,"copper",Items.COPPER_INGOT,
+                ModItems.COPPER_SWORD.get(),ModItems.COPPER_PICKAXE.get(),ModItems.COPPER_AXE.get(),
+                ModItems.COPPER_SHOVEL.get(),ModItems.COPPER_HOE.get(),ModItems.COPPER_HELMET.get(),
+                ModItems.COPPER_CHESTPLATE.get(),ModItems.COPPER_LEGGINGS.get(),ModItems.COPPER_BOOTS.get());
+        equipmentSet(recipeOutput,"netherite",Items.NETHERITE_INGOT,
+                Items.NETHERITE_SWORD,Items.NETHERITE_PICKAXE,Items.NETHERITE_AXE,Items.NETHERITE_SHOVEL,
+                Items.NETHERITE_HOE,Items.NETHERITE_HELMET,Items.NETHERITE_CHESTPLATE,Items.NETHERITE_LEGGINGS,Items.NETHERITE_BOOTS);
         buildSteelEquipmentRecipes(
                 recipeOutput
         );

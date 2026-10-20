@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.datagen;
 
+import net.chriskatze.katzencraftmetals.metal.StandardMetalForms;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.item.ModItems;
 import net.minecraft.data.PackOutput;
@@ -14,27 +15,28 @@ public class ModItemModelProvider extends ItemModelProvider {
 
     @Override
     protected void registerModels() {
+        for (var form : StandardMetalForms.entries()) if (!form.form().block) basicItem(form.item());
 
-        basicItem(ModItems.CRUSHED_COAL.get());
 
-        basicItem(ModItems.CRUSHED_IRON_ORE.get());
 
-        basicItem(ModItems.STEEL_NUGGET.get());
-        basicItem(ModItems.STEEL_INGOT.get());
-        basicItem(ModItems.STEEL_CHARGE.get());
 
-        basicItem(ModItems.PLATINUM_NUGGET.get());
         basicItem(ModItems.RAW_PLATINUM.get());
-        basicItem(ModItems.PLATINUM_INGOT.get());
-        basicItem(ModItems.CRUSHED_PLATINUM_ORE.get());
 
-        basicItem(ModItems.MYTHRIL_NUGGET.get());
         basicItem(ModItems.RAW_MYTHRIL.get());
-        basicItem(ModItems.MYTHRIL_INGOT.get());
-        basicItem(ModItems.CRUSHED_MYTHRIL_ORE.get());
 
         basicItem(ModItems.SAPPHIRE_GEM.get());
         basicItem(ModItems.AMETHYST_GEM.get());
+
+        // Explicitly approved temporary iron artwork; no authored texture files are changed.
+        withExistingParent("copper_sword",mcLoc("item/handheld")).texture("layer0",mcLoc("item/iron_sword"));
+        withExistingParent("copper_pickaxe",mcLoc("item/handheld")).texture("layer0",mcLoc("item/iron_pickaxe"));
+        withExistingParent("copper_axe",mcLoc("item/handheld")).texture("layer0",mcLoc("item/iron_axe"));
+        withExistingParent("copper_shovel",mcLoc("item/handheld")).texture("layer0",mcLoc("item/iron_shovel"));
+        withExistingParent("copper_hoe",mcLoc("item/handheld")).texture("layer0",mcLoc("item/iron_hoe"));
+        withExistingParent("copper_helmet",mcLoc("item/generated")).texture("layer0",mcLoc("item/iron_helmet"));
+        withExistingParent("copper_chestplate",mcLoc("item/generated")).texture("layer0",mcLoc("item/iron_chestplate"));
+        withExistingParent("copper_leggings",mcLoc("item/generated")).texture("layer0",mcLoc("item/iron_leggings"));
+        withExistingParent("copper_boots",mcLoc("item/generated")).texture("layer0",mcLoc("item/iron_boots"));
 
         handheldItem(ModItems.STEEL_PICKAXE);
         handheldItem(ModItems.STEEL_AXE);

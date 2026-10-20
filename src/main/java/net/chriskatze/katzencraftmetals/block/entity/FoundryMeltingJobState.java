@@ -5,6 +5,7 @@ import net.chriskatze.katzencraftmetals.recipe.FoundryMeltingRecipe;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
@@ -16,6 +17,8 @@ import java.util.Objects;
  * This class only stores, resets, saves, and loads the melting data.
  */
 final class FoundryMeltingJobState {
+
+    private ItemStack activeInput = ItemStack.EMPTY;
 
     int progress;
 
@@ -77,15 +80,29 @@ final class FoundryMeltingJobState {
         return true;
     }
 
+    boolean matches(int slot, FoundryMeltingRecipe recipe, int ticks, ItemStack input) {
+        return matches(slot, recipe, ticks) && !activeInput.isEmpty()
+                && ItemStack.isSameItemSameComponents(activeInput, input);
+    }
+
+    boolean select(int slot, FoundryMeltingRecipe recipe, int ticks, ItemStack input) {
+        if (matches(slot, recipe, ticks, input)) return false;
+        clearActiveRecipe();
+        select(slot, recipe, ticks);
+        activeInput = input.copyWithCount(1);
+        return true;
+    }
+
     boolean clearActiveRecipe() {
         boolean changed =
-                progress != 0
+                !activeInput.isEmpty() || progress != 0
                         || maxProgress
                         != FoundryControllerBlockEntity.MAX_PROGRESS
                         || activeInputSlot != -1
                         || activeMoltenMetal != null
                         || activeMoltenAmount != 0;
 
+        activeInput = ItemStack.EMPTY;
         progress = 0;
         maxProgress =
                 FoundryControllerBlockEntity.MAX_PROGRESS;
@@ -120,6 +137,8 @@ final class FoundryMeltingJobState {
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
+        if (!activeInput.isEmpty()) tag.put("ActiveInput", activeInput.save(registries));
+
         tag.putInt(
                 "Progress",
                 progress
@@ -164,6 +183,8 @@ final class FoundryMeltingJobState {
             CompoundTag tag,
             HolderLookup.Provider registries
     ) {
+        activeInput = tag.contains("ActiveInput") ? ItemStack.parseOptional(registries, tag.getCompound("ActiveInput")) : ItemStack.EMPTY;
+
         maxProgress =
                 tag.contains("MaxProgress")
                         ? Math.max(

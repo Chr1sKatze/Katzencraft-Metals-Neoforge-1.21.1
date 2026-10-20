@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.screen;
 
+import net.chriskatze.katzencraftmetals.metal.MetalNames;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.menu.FoundryFaucetOutputMenu;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
@@ -557,15 +558,9 @@ public class FoundryFaucetOutputScreen
                         ? Component.literal(
                         "Lock Faucet to Controller output."
                 )
-                        : Component.literal(
-                        "Lock Faucet to "
-                                + FoundryControllerMetalsRenderer
-                                .displayName(
-                                        menu.getMetals()
-                                                .get(absoluteRow - 1)
-                                                .id()
-                                )
-                );
+                        : Component.literal("Lock Faucet to ").append(
+                        MetalNames.name(
+                                menu.getMetals().get(absoluteRow - 1).id()));
 
         graphics.renderTooltip(
                 font,

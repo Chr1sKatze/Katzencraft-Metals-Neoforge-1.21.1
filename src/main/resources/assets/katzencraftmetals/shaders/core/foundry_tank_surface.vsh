@@ -35,6 +35,7 @@ void main() {
     localXZ = vec2(UV1) / 32767.0;
     edges = (UV2.x >> 8) & 255;
     sideSurface = (UV2.y >> 15) & 1;
+    if (sideSurface != 0) localXZ.x *= 4.0;
     float cells = float((UV2.y >> 8) & 127);
     rimWidth = cells <= RimCounts.x
         ? mix(RimWidths.y, RimWidths.z, clamp((cells - 1.0) / (RimCounts.x - 1.0), 0.0, 1.0))

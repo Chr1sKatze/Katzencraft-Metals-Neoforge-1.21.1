@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.block.custom;
 
+import net.chriskatze.katzencraftmetals.metal.MetalNames;
 import com.mojang.serialization.MapCodec;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryBasinBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
@@ -251,9 +252,7 @@ public class FoundryBasinBlock extends BaseEntityBlock {
                             )
                             .map(
                                     definition ->
-                                            Component.translatable(
-                                                    definition.translationKey()
-                                            )
+                                            MetalNames.name(definition.id())
                             )
                             .orElse(
                                     Component.literal(

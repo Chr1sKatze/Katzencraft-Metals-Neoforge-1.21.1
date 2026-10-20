@@ -13,10 +13,6 @@ public class ModMenuTypes {
     public static final DeferredRegister<MenuType<?>> MENUS =
             DeferredRegister.create(Registries.MENU, KatzencraftMetalsMod.MODID);
 
-    public static final Supplier<MenuType<CrusherMenu>> CRUSHER_MENU =
-            MENUS.register("crusher_menu",
-                    () -> IMenuTypeExtension.create(CrusherMenu::new));
-
     public static final Supplier<MenuType<FuelChamberMenu>> FUEL_CHAMBER_MENU =
             MENUS.register(
                     "fuel_chamber_menu",

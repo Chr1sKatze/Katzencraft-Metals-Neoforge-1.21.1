@@ -1,0 +1,13 @@
+{
+  "type": "katzencraftmetals:foundry_melting",
+  "ingredient": {
+    "item": "minecraft:iron_pickaxe"
+  },
+  "molten_amount": 18,
+  "molten_metal": "minecraft:iron",
+  "processing_time": 300,
+  "recycling": {
+    "durability_scaling": true,
+    "minimum_ore": 1
+  }
+}

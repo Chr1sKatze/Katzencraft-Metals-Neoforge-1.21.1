@@ -2,15 +2,15 @@
   "type": "katzencraftmetals:foundry_alloy",
   "ingredients": [
     {
-      "amount": 3,
+      "amount": 6,
       "metal": "katzencraftmetals:steel"
     },
     {
-      "amount": 3,
+      "amount": 6,
       "metal": "katzencraftmetals:platinum"
     }
   ],
   "output_amount": 6,
   "output_metal": "katzencraftmetals:mythril",
-  "processing_time": 140
+  "processing_time": 160
 }

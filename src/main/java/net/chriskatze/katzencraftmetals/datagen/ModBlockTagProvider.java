@@ -1,5 +1,6 @@
 package net.chriskatze.katzencraftmetals.datagen;
 
+import net.chriskatze.katzencraftmetals.metal.StandardMetalForms;
 import net.chriskatze.katzencraftmetals.KatzencraftMetalsMod;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.minecraft.core.HolderLookup;
@@ -22,23 +23,21 @@ public class ModBlockTagProvider extends BlockTagsProvider {
 
     @Override
     protected void addTags(HolderLookup.Provider provider) {
+        java.util.Set<net.minecraft.world.level.block.Block> pickaxeBlocks = new java.util.LinkedHashSet<>();
+        for (var form : StandardMetalForms.entries()) if (form.form().block) pickaxeBlocks.add(form.block());
 
-        tag(BlockTags.MINEABLE_WITH_PICKAXE)
-                .add(
-                        ModBlocks.PLATINUM_BLOCK.get(),
-                        ModBlocks.PLATINUM_ORE.get(),
+        java.util.Collections.addAll(pickaxeBlocks,
+                                ModBlocks.PLATINUM_ORE.get(),
                         ModBlocks.DEEPSLATE_PLATINUM_ORE.get(),
                         ModBlocks.NETHER_PLATINUM_ORE.get(),
                         ModBlocks.END_PLATINUM_ORE.get(),
 
-                        ModBlocks.MYTHRIL_BLOCK.get(),
-                        ModBlocks.MYTHRIL_ORE.get(),
+                                ModBlocks.MYTHRIL_ORE.get(),
                         ModBlocks.DEEPSLATE_MYTHRIL_ORE.get(),
                         ModBlocks.NETHER_MYTHRIL_ORE.get(),
                         ModBlocks.END_MYTHRIL_ORE.get(),
 
-                        ModBlocks.STEEL_BLOCK.get(),
-                        ModBlocks.CUT_STEEL_BLOCK.get(),
+                                ModBlocks.CUT_STEEL_BLOCK.get(),
                         ModBlocks.CUT_STEEL_SLAB.get(),
                         ModBlocks.CUT_STEEL_STAIRS.get(),
                         ModBlocks.STEEL_BARS.get(),
@@ -57,6 +56,19 @@ public class ModBlockTagProvider extends BlockTagsProvider {
                         ModBlocks.FOUNDRY_FAUCET.get()
                 );
 
+        // All eight levels are material-independent requirements, including currently empty levels.
+        for(int level=1;level<=8;level++)tag(net.chriskatze.katzencraftmetals.config.BlockRequirements.tag(level));
+        var legacyDiamond=net.chriskatze.katzencraftmetals.config.BlockRequirements.legacyDiamondBlocks();
+        for(var entry:net.chriskatze.katzencraftmetals.config.BlockRequirements.configured().entrySet()) {
+            var block=net.minecraft.core.registries.BuiltInRegistries.BLOCK.getOptional(entry.getKey()).orElseThrow();
+            tag(net.chriskatze.katzencraftmetals.config.BlockRequirements.tag(entry.getValue())).add(block);
+            pickaxeBlocks.add(block);
+            // Only existing Steel/Platinum/Mythril content retains saved Diamond-pickaxe access.
+            if(legacyDiamond.contains(entry.getKey()))
+                tag(net.chriskatze.katzencraftmetals.config.BlockRequirements.LEGACY_DIAMOND).add(block);
+        }
+
+        tag(BlockTags.MINEABLE_WITH_PICKAXE).add(pickaxeBlocks.toArray(net.minecraft.world.level.block.Block[]::new));
         tag(BlockTags.CLIMBABLE)
                 .add(ModBlocks.STEEL_LADDER.get());
     }

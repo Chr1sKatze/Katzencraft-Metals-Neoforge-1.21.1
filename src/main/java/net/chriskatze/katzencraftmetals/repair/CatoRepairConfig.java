@@ -32,6 +32,15 @@ public class CatoRepairConfig {
         REPAIR_ENTRIES.put(Items.IRON_LEGGINGS, new RepairEntry(Items.IRON_INGOT, 0.50F));
         REPAIR_ENTRIES.put(Items.IRON_BOOTS, new RepairEntry(Items.IRON_INGOT, 0.50F));
 
+        // Copper uses the approved profile ingredient and vanilla's quarter-durability
+        // amount. This mod's custom anvil requires explicit repair entries.
+        var copper=net.chriskatze.katzencraftmetals.metal.MetalEquipmentProfiles.forMetal("minecraft:copper");
+        Item copperIngredient=copper.repairIngredient().getItems()[0].getItem();
+        for(String part:java.util.List.of("sword","pickaxe","axe","shovel","hoe","helmet","chestplate","leggings","boots")) {
+            var id=net.minecraft.resources.ResourceLocation.fromNamespaceAndPath("katzencraftmetals","copper_"+part);
+            REPAIR_ENTRIES.put(net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(id).orElseThrow(),new RepairEntry(copperIngredient,.25f));
+        }
+
         // =========================
         // DIAMOND EXAMPLES
         // =========================

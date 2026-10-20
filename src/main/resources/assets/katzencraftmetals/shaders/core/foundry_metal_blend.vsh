@@ -24,6 +24,9 @@ out vec4 vertexColor;
 out vec4 lightMapColor;
 out vec2 texCoord0;
 out float blendDistance;
+out vec4 surfaceGlowColor;
+out float surfaceGlowDepth;
+flat out int surfaceGlow;
 
 void main() {
     gl_Position =
@@ -46,17 +49,20 @@ void main() {
                     Light0_Direction,
                     Light1_Direction,
                     Normal,
-                    Color
+                    vec4(1.0)
             );
 
     lightMapColor =
             texelFetch(
                     Sampler2,
-                    UV2 / 16,
+                    (UV2 & ivec2(255)) / 16,
                     0
             );
 
     texCoord0 = UV0;
+    surfaceGlow = (UV2.y >> 15) & 1;
+    surfaceGlowDepth = float(UV1.y) / 32767.0 * 8.0;
+    surfaceGlowColor = minecraft_mix_light(Light0_Direction, Light1_Direction, Normal, Color) * lightMapColor;
 
     /*
      * UV1.x encodes signed distance to the wavy interface:
