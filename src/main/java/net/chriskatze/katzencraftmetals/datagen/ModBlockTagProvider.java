@@ -50,7 +50,6 @@ public class ModBlockTagProvider extends BlockTagsProvider {
 
                         ModBlocks.FUEL_CHAMBER.get(),
                         ModBlocks.FOUNDRY_CONTROLLER.get(),
-                        ModBlocks.FOUNDRY_TANK.get(),
                         ModBlocks.FOUNDRY_BASIN.get(),
                         ModBlocks.FOUNDRY_TABLE.get(),
                         ModBlocks.FOUNDRY_FAUCET.get()

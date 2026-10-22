@@ -26,7 +26,7 @@ Java paths below are relative to `src/main/java/net/chriskatze/katzencraftmetals
 | Custom mining requirements | `config/BlockRequirements.java`, `getRequirement` | Catalog ore/storage requirements; absent → native behavior |
 | Equipment | `metal/MetalEquipmentProfiles.java`, existing tier/material/item adapters | Optional catalog profile |
 | Equipment recipes | `datagen/ModEquipmentRecipeProvider.java`, `build` | Optional |
-| Natural ores | `worldgen/ModConfiguredFeatures.java`, `ModPlacedFeatures.java`, `ModBiomeModifiers.java`, `bootstrap` | Optional |
+| Natural ore generation | `MetalCatalog.java` / `.oreGeneration(...)`; adapters in `worldgen/ModOreGeneration.java` | Optional, explicitly enabled |
 
 `datagen/DataGenerators.java::gatherData` already installs item models, blockstates, English language, recipes, block tags, loot and worldgen providers. `build.gradle` includes `src/generated/resources`. Preserve authored resources under `src/main/resources`; edit generator ownership before editing generated JSON.
 
@@ -34,7 +34,7 @@ Java paths below are relative to `src/main/java/net/chriskatze/katzencraftmetals
 
 A representative **new mod-owned ingot + nugget + storage block, standard conversions, Foundry melting and alloy acquisition, without ores/equipment** touches **12 existing Java files**: ModItems, ModBlocks, KatzencraftMetalsMod, ModMoltenMetals, ModFoundryRecipeProvider, ModMetalRecipeProvider, ModItemModelProvider, ModBlockStateProvider, ModLanguageProvider, ModBlockLootTableProvider, ModBlockTagProvider and BlockRequirements. Four authored PNGs (ingot, nugget, block, molten) bring this example to **16 source/asset locations**, before optional animation metadata, flowing/custom Table textures and generated outputs.
 
-This historical count identifies the pre-Phase-1 repetition. Catalog metadata now replaces numeric/name duplication, and standard names no longer require explicit provider entries. Phase 2 now also removes repetitive standard ingot/nugget/storage-block registration, models, crafting conversions, loot, tool tags and storage mining entries. Specialized forms, exceptional acquisition recipes and progression remain manual; Phase 3 now also automates standard Foundry melting and catalog alloys. This is a scoped checklist, not a universal minimum. Reusing vanilla forms reduces work. Naturally generated ore adds three worldgen sources and more assets/declarations. Equipment adds tier/material/custom mining handling. Generated JSON counts depend on enabled forms/recipes and must also be included in Git, but are not separate manual definitions.
+This historical count identifies the pre-Phase-1 repetition. Catalog metadata now replaces numeric/name duplication, and standard names no longer require explicit provider entries. Phase 2 now also removes repetitive standard ingot/nugget/storage-block registration, models, crafting conversions, loot, tool tags and storage mining entries. Specialized forms, exceptional acquisition recipes and progression remain manual; Phase 3 now also automates standard Foundry melting and catalog alloys. This is a scoped checklist, not a universal minimum. Reusing vanilla forms reduces work. Naturally generated ore needs registered ore blocks/assets plus explicit catalog generation entries. Equipment adds tier/material/custom mining handling. Generated JSON counts depend on enabled forms/recipes and must also be included in Git, but are not separate manual definitions.
 
 ## Adding a metal today
 
@@ -150,13 +150,13 @@ Standard storage-block self-drops, known-block coverage and pickaxe tags are now
 
 There is no `ModItemTagProvider` installed in `DataGenerators`. Common material item tags such as `c:ingots/electrum` are an optional interoperability addition, not already automatic. A tag provider and tag-aware recipe inputs would need deliberate implementation; current explicit-item recipes do not automatically recognize arbitrary equivalent mod ingots.
 
-For ore generation extend the three existing worldgen `bootstrap` methods: configured replacement targets/vein sizes, placed frequency/height, biome modifiers enabling placement. Current platinum/mythril support stone+deepslate Overworld, netherrack Nether and end-stone End variants. Each enabled block needs registration/model/loot/mining coverage first. `DataGenerators` already installs the worldgen registries. Test newly generated chunks; changing a definition does not populate existing terrain.
+For ore generation, configure `.oreGeneration(...)` in the catalog as described below; do not add per-metal bootstrap code. Each enabled ore block still needs registration/model/loot/mining coverage first. Test newly generated chunks; changing settings does not populate existing terrain.
 
 ### 8. Phase 1 catalog and automatic names (implemented)
 
 `metal/MetalDefinition.java` is an immutable record with a concise builder: stable ResourceLocation, required English name, optional locale names, density, units, explicit enabled form IDs/types, and per-locale/per-form name overrides. Collections are copied and exposed read-only; duplicate IDs/forms/name keys, blank names, invalid locales, nonpositive values and absent-form overrides are rejected. No item/block objects, client classes or resource scanning are needed to load the catalog before deferred registration.
 
-`MetalCatalog.values()` preserves **iron, copper, steel, mythril, gold, platinum** order and original namespaces/numeric properties. Core form IDs are explicit, including no copper nugget and no raw steel. Equipment/building variants remain in existing owners rather than speculative catalog structures. Alloys now live in the catalog; exceptional acquisition, worldgen and equipment remain in their existing manual owners.
+`MetalCatalog.values()` preserves **iron, copper, steel, mythril, gold, platinum** order and original namespaces/numeric properties. Core form IDs are explicit, including no copper nugget and no raw steel. Equipment/building variants remain in existing owners rather than speculative catalog structures. Alloys now live in the catalog; exceptional acquisition and equipment remain in their existing manual owners; ore generation is now catalog-driven.
 
 Example addition (enabled standard forms now register automatically):
 
@@ -213,7 +213,7 @@ ModItems registers ingot/nugget; ModBlocks storage/cut/building forms; Creative/
 
 ### Platinum: ore and alloy
 
-Items: nugget/raw/ingot. Blocks: storage plus four ore variants. Definition: density 21450, still+flowing, platinum block result. Alloy: 6 iron+6 gold → 6 platinum. Existing ore/raw Foundry melting remains available. Ore drops include Fortune/Silk Touch handling and separate 5% amethyst chance; custom requirements use STEEL for ore/storage. Three worldgen classes install dimension variants. No platinum equipment set exists to copy by default.
+Items: nugget/raw/ingot. Blocks: storage plus four ore variants. Definition: density 21450, still+flowing, platinum block result. Alloy: 6 iron+6 gold → 6 platinum. Existing ore/raw Foundry melting remains available. Ore drops include Fortune/Silk Touch handling and separate 5% amethyst chance; custom requirements use STEEL for ore/storage. Catalog entries install each dimension variant. No platinum equipment set exists to copy by default.
 
 ### Mythril: optional high-tier behavior
 
@@ -600,3 +600,130 @@ layout. No placeholder art is generated. Optional `foundry_table_ingot_netherite
 uses the existing rectangular Table layout; by explicit user choice the universal
 base fallback remains until that manual texture is supplied. Do not substitute the
 vanilla item sprite or alter Table UVs. No separate flowing image is required.
+
+
+## Catalog-driven ore generation
+
+`MetalCatalog.java` is the configuration point. `.form(...)` only declares a registered
+block: **it never enables generation**. Keep catalog order and all existing form IDs
+stable. Ore block registration, textures, loot, Fortune/Silk Touch and mining requirements
+remain in their existing owners. Generation is independent of Foundry support and density.
+
+```java
+.oreGeneration(DEEPSLATE_ORE, c -> c
+    .dimension("minecraft:overworld")
+    .biomes("#minecraft:is_overworld")
+    .replace("#minecraft:deepslate_ore_replaceables")
+    .veinSize(8).attemptsPerChunk(3)
+    .height(-64, 0).distribution(BOTTOM_HEAVY))
+```
+
+Static imports: `MetalDefinition.Form.*`, `MetalOreGeneration.Distribution.*`, and
+`MetalOreGeneration.Mode.*`. Repeat entries freely for the same form, biome or dimension;
+avoid accidentally overlapping settings that would intentionally add multiple passes.
+Each entry produces a separate configured/placed feature under
+`catalog/<metal namespace>/<metal path>/<entry index>`. Generated IDs follow entry order;
+regenerate resources after changing the catalog. This does not change metal synchronization IDs.
+
+- `.dimension("namespace:dimension")` and `.replace(...)` are required. Modded dimensions,
+  blocks and tags use the same API; the dimension is checked during placement, not inferred
+  from a biome tag. Register/provide those resources before enabling an entry.
+- `.biomes("minecraft:badlands", "#example:hot_biomes")` is an **OR** of biome IDs and tags.
+  Omitting it means all biomes within the configured dimension. Biomes are checked both
+  when features are installed and at the sampled position.
+- `.replace("minecraft:netherrack", "#example:host_rocks")` is an **OR** of host-block IDs
+  and tags. Every matching host becomes this entry's declared ore form. Use separate stone
+  and deepslate entries to avoid the wrong ore variant in each host. Nothing infers a host
+  from the dimension or ore name.
+- Defaults: vein size 8 (valid 1..64), attempts 3 (1..256), inclusive Y -64..64,
+  `UNIFORM`, `ADDITIVE`, enabled. Attempts are candidate deposits, not guaranteed ore counts;
+  native ore features can produce fewer blocks than the configured maximum.
+- `UNIFORM`: equal probability; `TRIANGLE`: native triangular middle peak;
+  `BOTTOM_HEAVY` / `TOP_HEAVY`: minimum / maximum of two independent inclusive uniform
+  samples, giving smoothly decreasing / increasing weights. Only the native chunk random
+  source is used. Count, square spread, biome filtering and ore shapes remain native.
+- Heights are sampled only from the intersection of the entry and dimension/generator
+  build limits. Ranges are spawn-origin heights, as with native ore placement; a vein's
+  shape can extend beyond its origin. Completely disjoint ranges fail server validation.
+- `.enabled(false)` emits no feature or replacement and does not suppress vanilla generation.
+  Invalid structural settings are rejected even on disabled entries; unresolved external
+  selectors only need to exist when an entry is enabled.
+- Unknown blocks/biomes, missing/empty selector tags and unknown dimensions fail clearly
+  during generation or server startup. Datagen cannot resolve another mod's dimension
+  build limits; startup validates against the actual loaded world/datapacks.
+
+### Vanilla replacement versus addition
+
+Vanilla Iron, Copper, Gold and Netherite have **no configured overrides by default**.
+Their existing generation, including Ancient Debris, remains native. Merely calling
+`.oreGenerationMode(REPLACE)` with no enabled entries does nothing.
+
+```java
+// On an existing vanilla metal definition, with its forms already declared:
+.oreGenerationMode(REPLACE) // default for this metal's entries; otherwise ADDITIVE
+.oreGeneration(ORE, c -> c.dimension("minecraft:overworld")
+    .biomes("minecraft:badlands")
+    .replace("#minecraft:stone_ore_replaceables")
+    .veinSize(9).attemptsPerChunk(4).height(0, 96).distribution(TRIANGLE))
+// .mode(ADDITIVE) or .mode(REPLACE) can override the metal default per entry.
+```
+
+`ADDITIVE` retains native deposits and adds only the configured features. `REPLACE`
+substitutes dimension/biome-guarded copies of **only the relevant vanilla placements**
+at their original step/order. Those copies retain all native modifiers outside the
+replacement scopes and produce nothing inside them; the configured deposits take over.
+There is one guarded copy per original placement, even with multiple replacement entries.
+No unrelated stone, gems, structures, quartz or other metals are removed.
+
+Replacement families:
+
+| Metal/form | Native placements affected |
+|---|---|
+| Iron ORE or DEEPSLATE_ORE | `ore_iron_upper`, `ore_iron_middle`, `ore_iron_small` |
+| Copper ORE or DEEPSLATE_ORE | `ore_copper`, `ore_copper_large` |
+| Gold ORE or DEEPSLATE_ORE | `ore_gold`, `ore_gold_lower`, `ore_gold_extra` (Badlands) |
+| Gold NETHER_ORE | `ore_gold_nether`, `ore_gold_deltas` |
+| Netherite ORE (Ancient Debris) | `ore_ancient_debris_large`, `ore_debris_small` |
+
+Native stone/deepslate ores share placements, so replacement operates on the complete
+Overworld family, not half of a mixed native vein. Configure **both forms** if both are
+wanted in the replacement scope. Nether Gold is a separate family. A Badlands-only
+replacement preserves normal Gold elsewhere and all Nether Gold. Iron/Copper large
+noise veins bypass placed features: a narrow generator hook suppresses their ore/raw
+blocks only inside the same active REPLACE scopes, returning the normal terrain host;
+other metals, vein filler rocks, biomes and dimensions are retained. With no such
+overrides it leaves all native output unchanged. This is not a retrogen/migration system.
+
+### Initial migrated balance
+
+These are deliberately editable initial values, not promises of old worldgen parity:
+
+| Metal | Form / dimension | Origin Y | Distribution | Vein max | Attempts/chunk |
+|---|---|---|---|---:|---:|
+| Mythril | stone / Overworld | 0..64 | TRIANGLE | 8 | 3 |
+| Mythril | deepslate / Overworld | -64..0 | BOTTOM_HEAVY | 8 | 3 |
+| Mythril | Nether | 8..112 | UNIFORM | 8 | 3 |
+| Mythril | End | 0..80 | TRIANGLE | 8 | 3 |
+| Platinum | stone / Overworld | 0..64 | TRIANGLE | 10 | 5 |
+| Platinum | deepslate / Overworld | -64..0 | BOTTOM_HEAVY | 10 | 5 |
+| Platinum | Nether | 8..112 | UNIFORM | 10 | 5 |
+| Platinum | End | 0..80 | TRIANGLE | 10 | 5 |
+
+All use dimension biome tags and explicit stone/deepslate/netherrack/end-stone targets.
+The unrelated extra dungeon placements and Diamond/Emerald suppression are preserved.
+Old custom ore feature/modifier JSON is obsolete and removed by datagen; inspect Git's
+resource deletions after regenerating. Existing chunks are unchanged.
+
+### Raw Netherite artwork and validation
+
+`assets/minecraft/models/item/netherite_scrap.json` points to the authored
+`assets/katzencraftmetals/textures/item/raw_netherite.png`. No copied/recolored PNG or
+new item ID is used: `minecraft:netherite_scrap` remains Raw Netherite.
+
+Run `./gradlew.bat runData` and `./gradlew.bat build` without clean. The opt-in
+`./gradlew.bat --no-configuration-cache -I verification/equipment.init.gradle runData`
+checks seeded distributions, bounds, validation, native targets/codecs, biome scopes,
+Gold overrides, noise-vein scope and the existing equipment/Foundry regressions.
+Inspect newly generated chunks in Minecraft for balance, dimension variants and
+biome transitions; compilation and headless checks do not establish visual worldgen
+or item-art appearance. Include all new Java/JSON/resources in Git after review.

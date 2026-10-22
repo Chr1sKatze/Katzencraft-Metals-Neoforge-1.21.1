@@ -230,7 +230,6 @@ public class ModBlocks {
                     () -> new FoundryTankBlock(
                             BlockBehaviour.Properties.of()
                                     .strength(8.0f, 12.0f)
-                                    .requiresCorrectToolForDrops()
                                     .noOcclusion()
                                     .sound(SoundType.GLASS)
                     )

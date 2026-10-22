@@ -49,10 +49,13 @@ public final class ModMetalRecipeProvider {
             RecipeOutput recipeOutput
     ) {
         for (var metal : net.chriskatze.katzencraftmetals.metal.MetalCatalog.values()) {
-            var owned = StandardMetalForms.entries().stream().filter(entry -> entry.metal().id().equals(metal.id())).toList();
-            var ingot = owned.stream().filter(entry -> entry.form() == MetalDefinition.Form.INGOT).findFirst();
-            var other = owned.stream().filter(entry -> entry.form() == MetalDefinition.Form.NUGGET).findFirst();
-            if (ingot.isPresent() && other.isPresent()) ingotAndNugget(recipeOutput, metal.id().getPath(), ingot.get().item(), other.get().item());
+            // A mod-owned nugget can reference an existing vanilla ingot (Netherite).
+            // Keep both-vanilla conversions native; generate only when we own a form.
+            var nugget = StandardMetalForms.entries().stream().filter(entry -> entry.metal().id().equals(metal.id()))
+                    .filter(entry -> entry.form() == MetalDefinition.Form.NUGGET).findFirst();
+            var ingot = metal.forms().entrySet().stream().filter(entry -> entry.getValue() == MetalDefinition.Form.INGOT)
+                    .map(entry -> net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(entry.getKey()).orElseThrow()).findFirst();
+            if (ingot.isPresent() && nugget.isPresent()) ingotAndNugget(recipeOutput, metal.id().getPath(), ingot.get(), nugget.get().item());
         }
 
     }

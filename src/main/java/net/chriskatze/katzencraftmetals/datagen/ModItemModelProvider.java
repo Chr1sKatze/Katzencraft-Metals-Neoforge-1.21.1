@@ -15,6 +15,12 @@ public class ModItemModelProvider extends ItemModelProvider {
 
     @Override
     protected void registerModels() {
+        // The Netherite nugget artwork is supplied manually after this implementation.
+        // Permit only this pending texture reference; do not synthesize a placeholder.
+        var pendingNuggetTexture = modLoc("item/netherite_nugget");
+        if (!existingFileHelper.exists(pendingNuggetTexture, TEXTURE)) {
+            existingFileHelper.trackGenerated(pendingNuggetTexture, TEXTURE);
+        }
         for (var form : StandardMetalForms.entries()) if (!form.form().block) basicItem(form.item());
 
 

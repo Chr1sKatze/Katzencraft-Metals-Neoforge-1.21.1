@@ -1,0 +1,27 @@
+{
+  "feature": "katzencraftmetals:catalog/katzencraftmetals/mythril/3",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 3
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "katzencraftmetals:ore_height",
+      "distribution": "TRIANGLE",
+      "max_y": 80,
+      "min_y": 0,
+      "scope": {
+        "biomes": [
+          "#minecraft:is_end"
+        ],
+        "dimension": "minecraft:the_end"
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

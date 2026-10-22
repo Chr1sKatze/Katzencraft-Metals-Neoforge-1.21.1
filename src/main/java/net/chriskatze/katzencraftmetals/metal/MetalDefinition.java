@@ -13,7 +13,7 @@ public record MetalDefinition(ResourceLocation id, String englishName, int densi
                               MetalFoundrySupport foundry, MetalAlloy alloy, int meltingTime, int ingotCoolingTime,
                               int blockCoolingTime, Map<ResourceLocation, Integer> meltingTimeOverrides,
                               MetalEquipmentProfiles.Profile equipment, Integer oreMiningLevel,
-                              Integer referencedStorageMiningLevel, Map<Form,Integer> oreMiningOverrides) {
+                              Integer referencedStorageMiningLevel, Map<Form,Integer> oreMiningOverrides, java.util.List<MetalOreGeneration> oreGeneration) {
     public enum StorageSound { METAL, COPPER }
     public record StorageBlock(float strength, float resistance, StorageSound sound, int miningLevel) {
         public StorageBlock {
@@ -41,6 +41,13 @@ public record MetalDefinition(ResourceLocation id, String englishName, int densi
 
     public MetalDefinition {
         Objects.requireNonNull(id, "Metal ID");
+        oreGeneration = java.util.List.copyOf(oreGeneration);
+        for (var entry : oreGeneration) {
+            if (forms.values().stream().filter(f -> f == entry.form()).count() != 1)
+                throw new IllegalArgumentException("Generation requires one declared " + entry.form() + " for " + id);
+        }
+        if (new java.util.HashSet<>(oreGeneration).size() != oreGeneration.size())
+            throw new IllegalArgumentException("Duplicate ore generation entry for " + id);
         if (oreMiningLevel != null) requireMiningLevel(oreMiningLevel);
         if (referencedStorageMiningLevel != null) requireMiningLevel(referencedStorageMiningLevel);
         oreMiningOverrides.forEach((form,level) -> { if (!isOre(form)) throw new IllegalArgumentException("Not an ore form: "+form); requireMiningLevel(level); });
@@ -142,6 +149,8 @@ public record MetalDefinition(ResourceLocation id, String englishName, int densi
         private MetalEquipmentProfiles.Profile equipment;
         private Integer oreMiningLevel, referencedStorageMiningLevel;
         private final Map<Form,Integer> oreMiningOverrides = new java.util.EnumMap<>(Form.class);
+        private final java.util.List<MetalOreGeneration.Builder> oreGeneration = new java.util.ArrayList<>();
+        private MetalOreGeneration.Mode oreMode = MetalOreGeneration.Mode.ADDITIVE;
         private MetalAlloy alloy;
         private int meltingTime = 100, ingotCoolingTime = 100, blockCoolingTime = 100;
         private final Map<ResourceLocation, Integer> meltingTimeOverrides = new LinkedHashMap<>();
@@ -156,6 +165,12 @@ public record MetalDefinition(ResourceLocation id, String englishName, int densi
             if (density <= 0) throw new IllegalArgumentException("Metal density must be positive: " + id);
             this.density = density;
             return this;
+        }
+        /** Default for all entries without an explicit mode; no entries means vanilla stays intact. */
+        public Builder oreGenerationMode(MetalOreGeneration.Mode mode) { oreMode = Objects.requireNonNull(mode); return this; }
+        public Builder oreGeneration(Form form, java.util.function.Consumer<MetalOreGeneration.Builder> configure) {
+            var entry = new MetalOreGeneration.Builder(form);
+            configure.accept(entry); oreGeneration.add(entry); return this;
         }
         public Builder equipment(MetalEquipmentProfiles.Profile profile) { equipment=Objects.requireNonNull(profile);return this; }
         public Builder oreMiningLevel(int level) { requireMiningLevel(level);oreMiningLevel=level;return this; }
@@ -224,7 +239,7 @@ public record MetalDefinition(ResourceLocation id, String englishName, int densi
         }
         public MetalDefinition build() {
             if (density <= 0) throw new IllegalArgumentException("Supply a positive .density(...) for " + id);
-            return new MetalDefinition(id, name, density, units, names, forms, overrides, storageBlock, foundry, alloy, meltingTime, ingotCoolingTime, blockCoolingTime, meltingTimeOverrides, equipment, oreMiningLevel, referencedStorageMiningLevel, oreMiningOverrides);
+            return new MetalDefinition(id, name, density, units, names, forms, overrides, storageBlock, foundry, alloy, meltingTime, ingotCoolingTime, blockCoolingTime, meltingTimeOverrides, equipment, oreMiningLevel, referencedStorageMiningLevel, oreMiningOverrides, oreGeneration.stream().map(e -> e.build(oreMode)).toList());
         }
     }
 }

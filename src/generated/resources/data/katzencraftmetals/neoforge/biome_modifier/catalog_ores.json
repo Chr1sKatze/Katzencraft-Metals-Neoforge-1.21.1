@@ -1,0 +1,78 @@
+{
+  "type": "katzencraftmetals:catalog_ores",
+  "additions": [
+    {
+      "feature": "katzencraftmetals:catalog/katzencraftmetals/mythril/0",
+      "scope": {
+        "biomes": [
+          "#minecraft:is_overworld"
+        ],
+        "dimension": "minecraft:overworld"
+      }
+    },
+    {
+      "feature": "katzencraftmetals:catalog/katzencraftmetals/mythril/1",
+      "scope": {
+        "biomes": [
+          "#minecraft:is_overworld"
+        ],
+        "dimension": "minecraft:overworld"
+      }
+    },
+    {
+      "feature": "katzencraftmetals:catalog/katzencraftmetals/mythril/2",
+      "scope": {
+        "biomes": [
+          "#minecraft:is_nether"
+        ],
+        "dimension": "minecraft:the_nether"
+      }
+    },
+    {
+      "feature": "katzencraftmetals:catalog/katzencraftmetals/mythril/3",
+      "scope": {
+        "biomes": [
+          "#minecraft:is_end"
+        ],
+        "dimension": "minecraft:the_end"
+      }
+    },
+    {
+      "feature": "katzencraftmetals:catalog/katzencraftmetals/platinum/0",
+      "scope": {
+        "biomes": [
+          "#minecraft:is_overworld"
+        ],
+        "dimension": "minecraft:overworld"
+      }
+    },
+    {
+      "feature": "katzencraftmetals:catalog/katzencraftmetals/platinum/1",
+      "scope": {
+        "biomes": [
+          "#minecraft:is_overworld"
+        ],
+        "dimension": "minecraft:overworld"
+      }
+    },
+    {
+      "feature": "katzencraftmetals:catalog/katzencraftmetals/platinum/2",
+      "scope": {
+        "biomes": [
+          "#minecraft:is_nether"
+        ],
+        "dimension": "minecraft:the_nether"
+      }
+    },
+    {
+      "feature": "katzencraftmetals:catalog/katzencraftmetals/platinum/3",
+      "scope": {
+        "biomes": [
+          "#minecraft:is_end"
+        ],
+        "dimension": "minecraft:the_end"
+      }
+    }
+  ],
+  "replacements": []
+}

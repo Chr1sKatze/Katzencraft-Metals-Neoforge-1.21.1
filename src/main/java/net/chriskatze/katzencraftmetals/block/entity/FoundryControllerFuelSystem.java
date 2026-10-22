@@ -1,7 +1,7 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
 import net.chriskatze.katzencraftmetals.fuel.FoundryFuelDefinition;
-import net.chriskatze.katzencraftmetals.fuel.FoundryFuels;
+import net.chriskatze.katzencraftmetals.fuel.FoundryFuelCatalog;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
@@ -28,13 +28,6 @@ final class FoundryControllerFuelSystem {
     private static final String FUEL_INVENTORY_TAG =
             "FuelInventory";
 
-    /*
-     * Kept for compatibility with older callers and saves that still use the
-     * old Coal-specific name.
-     */
-    static final int COAL_BURN_TIME =
-            FoundryFuels.COAL.burnTime();
-
     private final FoundryControllerBlockEntity controller;
 
     private final SimpleContainer inventory =
@@ -46,7 +39,7 @@ final class FoundryControllerFuelSystem {
                         ItemStack stack
                 ) {
                     return controller.isFuelSlotUnlocked(slot)
-                            && FoundryFuels.isFuel(stack);
+                            && FoundryFuelCatalog.isFuel(stack);
                 }
 
                 @Override
@@ -150,7 +143,7 @@ final class FoundryControllerFuelSystem {
                     inventory.getItem(slot);
 
             Optional<FoundryFuelDefinition> definitionOptional =
-                    FoundryFuels.find(stack);
+                    FoundryFuelCatalog.find(stack);
 
             if (definitionOptional.isEmpty()) {
                 continue;
@@ -188,7 +181,7 @@ final class FoundryControllerFuelSystem {
                 slot++
         ) {
             if (
-                    FoundryFuels.isFuel(
+                    FoundryFuelCatalog.isFuel(
                             inventory.getItem(slot)
                     )
             ) {
@@ -218,7 +211,7 @@ final class FoundryControllerFuelSystem {
             ItemStack stack =
                     inventory.getItem(slot);
 
-            if (FoundryFuels.isFuel(stack)) {
+            if (FoundryFuelCatalog.isFuel(stack)) {
                 count += stack.getCount();
             }
         }

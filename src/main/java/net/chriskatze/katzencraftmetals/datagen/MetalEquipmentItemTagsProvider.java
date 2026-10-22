@@ -19,6 +19,18 @@ public final class MetalEquipmentItemTagsProvider extends ItemTagsProvider {
         super(out,lookup,blocks,"katzencraftmetals",files);
     }
     @Override protected void addTags(HolderLookup.Provider lookup){
+        tag(FoundryRecipeIngredients.DEEPSLATE).add(
+                net.minecraft.world.item.Items.DEEPSLATE, net.minecraft.world.item.Items.COBBLED_DEEPSLATE,
+                net.minecraft.world.item.Items.POLISHED_DEEPSLATE, net.minecraft.world.item.Items.DEEPSLATE_BRICKS,
+                net.minecraft.world.item.Items.CRACKED_DEEPSLATE_BRICKS, net.minecraft.world.item.Items.DEEPSLATE_TILES,
+                net.minecraft.world.item.Items.CRACKED_DEEPSLATE_TILES, net.minecraft.world.item.Items.CHISELED_DEEPSLATE);
+        for(var form:net.chriskatze.katzencraftmetals.metal.StandardMetalForms.entries()) {
+            if(form.form()!=net.chriskatze.katzencraftmetals.metal.MetalDefinition.Form.NUGGET)continue;
+            var metalTag=net.minecraft.tags.TagKey.create(net.minecraft.core.registries.Registries.ITEM,
+                    ResourceLocation.fromNamespaceAndPath("c","nuggets/"+form.metal().id().getPath()));
+            tag(metalTag).add(form.item());
+            tag(net.neoforged.neoforge.common.Tags.Items.NUGGETS).addTag(metalTag);
+        }
         for(int level=1;level<=8;level++)tag(ToolLevels.tag(level));
         for(var profile:MetalEquipmentProfiles.activeProfiles()){
             var id=ResourceLocation.fromNamespaceAndPath(profile.vanilla()?"minecraft":"katzencraftmetals",profile.id()+"_pickaxe");

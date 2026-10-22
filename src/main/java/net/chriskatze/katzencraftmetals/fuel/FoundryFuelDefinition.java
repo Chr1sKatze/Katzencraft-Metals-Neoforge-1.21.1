@@ -1,33 +1,13 @@
 package net.chriskatze.katzencraftmetals.fuel;
 
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
+import net.minecraft.resources.ResourceLocation;
+import java.util.Objects;
 
-/** One fuel type understood by the Foundry Controller. */
-public record FoundryFuelDefinition(
-        Item item,
-        int burnTime
-) {
-
+/** Registry-independent Foundry fuel metadata; durations are never furnace fuel values. */
+public record FoundryFuelDefinition(ResourceLocation item, int burnTime) {
     public FoundryFuelDefinition {
-        if (item == null) {
-            throw new IllegalArgumentException(
-                    "Foundry fuel item cannot be null."
-            );
-        }
-
-        if (burnTime <= 0) {
-            throw new IllegalArgumentException(
-                    "Foundry fuel burn time must be positive."
-            );
-        }
-    }
-
-    public boolean matches(
-            ItemStack stack
-    ) {
-        return stack != null
-                && !stack.isEmpty()
-                && stack.is(item);
+        Objects.requireNonNull(item, "Foundry fuel item ID");
+        if (item.equals(ResourceLocation.withDefaultNamespace("air")) || burnTime <= 0)
+            throw new IllegalArgumentException("Foundry fuel requires a non-air item and positive burn duration");
     }
 }

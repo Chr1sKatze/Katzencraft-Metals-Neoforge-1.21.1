@@ -49,9 +49,6 @@ public class FoundryControllerBlockEntity
 
     public static final int MAX_PROGRESS = 20;
 
-    public static final int COAL_BURN_TIME =
-            FoundryControllerFuelSystem.COAL_BURN_TIME;
-
     public static final int MOLTEN_IRON_PER_RAW_IRON =
             ModMoltenMetals.IRON.unitsPerOre();
 

@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": {
+      "tag": "katzencraftmetals:foundry_deepslate"
+    },
+    "F": {
+      "item": "minecraft:furnace"
+    }
+  },
+  "pattern": [
+    "DDD",
+    "DFD",
+    "DDD"
+  ],
+  "result": {
+    "count": 1,
+    "id": "katzencraftmetals:foundry_controller"
+  }
+}

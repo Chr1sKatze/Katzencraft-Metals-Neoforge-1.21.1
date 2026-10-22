@@ -20,8 +20,8 @@ import java.util.TreeMap;
 /**
  * Controller-owned authoritative molten storage for the Foundry Tank structure.
  *
- * Tank blocks never own storage. There is no old-world migration path: the
- * Controller is the only molten-storage owner, and unconnected Tanks are inert.
+ * Active vessels use this pooled storage; detached vessels are held once in
+ * dimension SavedData until a replacement Controller claims them.
  */
 final class FoundryControllerTankStorage {
 
@@ -47,6 +47,7 @@ final class FoundryControllerTankStorage {
 
     /* Runtime-only mutation revision for cheap same-tick scheduling caches. */
     private long revision;
+    private BlockPos vesselAnchor;
 
     /**
      * Exact physical Tank layout represented by the current controller store.
@@ -111,7 +112,7 @@ final class FoundryControllerTankStorage {
                 !boundTankPositions.equals(currentPositions);
 
         if (positionsChanged) {
-            boundTankPositions = currentPositions;
+            onTankStructureChanged(boundTankPositions, currentPositions);
         }
 
         boolean normalized =
@@ -142,7 +143,25 @@ final class FoundryControllerTankStorage {
         Set<BlockPos> normalizedNew =
                 immutablePositions(newPositions);
 
+        if (!boundTankPositions.isEmpty() && !normalizedNew.containsAll(boundTankPositions)) {
+            var old = snapshot();
+            var overlap = new java.util.HashSet<>(boundTankPositions); overlap.retainAll(normalizedNew);
+            if (overlap.isEmpty() && level instanceof net.minecraft.server.level.ServerLevel server) {
+                FoundryDetachedVessels.get(server).put(java.util.UUID.randomUUID(), old);
+                contents.clear();
+            } else replace(old.retain(overlap));
+        }
+        boolean visualHandoff=false;
+        if (level instanceof net.minecraft.server.level.ServerLevel server && !normalizedNew.isEmpty()) {
+            var recovered = FoundryDetachedVessels.get(server).claim(normalizedNew, contents.isEmpty(), false);
+            if (recovered.isPresent()) {
+                contents.putAll(recovered.get().contents());
+                vesselAnchor=recovered.get().anchor();visualHandoff=true;
+            }
+        }
         boundTankPositions = normalizedNew;
+        if(vesselAnchor==null||!boundTankPositions.contains(vesselAnchor))
+            vesselAnchor=boundTankPositions.stream().min(FoundryVesselSnapshot.ORDER).orElse(null);
 
         int capacity =
                 normalizedNew.size()
@@ -161,6 +180,21 @@ final class FoundryControllerTankStorage {
          */
         revision++;
         controller.setChanged();
+        if(visualHandoff && level instanceof net.minecraft.server.level.ServerLevel server)
+            net.chriskatze.katzencraftmetals.network.FoundryDetachedSync.handoff(server,controller,normalizedNew);
+    }
+
+    FoundryVesselSnapshot snapshot() {
+        var anchor = vesselAnchor != null && boundTankPositions.contains(vesselAnchor) ? vesselAnchor : boundTankPositions.stream().min(FoundryVesselSnapshot.ORDER).orElse(controller.getBlockPos());
+        return new FoundryVesselSnapshot(anchor, boundTankPositions, contents, controller.getBlockPos());
+    }
+    void replace(FoundryVesselSnapshot snapshot) {
+        contents.clear();contents.putAll(snapshot.contents());boundTankPositions=snapshot.positions();vesselAnchor=snapshot.anchor();revision++;controller.setChanged();
+    }
+    void detachForControllerRemoval() {
+        if(controller.getLevel() instanceof net.minecraft.server.level.ServerLevel server && !boundTankPositions.isEmpty())
+            FoundryDetachedVessels.get(server).put(java.util.UUID.randomUUID(), snapshot());
+        clearForControllerRemoval();
     }
 
     void clearForControllerRemoval() {
@@ -489,6 +523,7 @@ final class FoundryControllerTankStorage {
                 POSITIONS_TAG,
                 positions
         );
+        if(!boundTankPositions.isEmpty())storageTag.putLong("Anchor",snapshot().anchor().asLong());
 
         parent.put(
                 ROOT_TAG,
@@ -524,6 +559,7 @@ final class FoundryControllerTankStorage {
             }
 
             boundTankPositions = Set.copyOf(loadedPositions);
+            vesselAnchor=storageTag.contains("Anchor")?BlockPos.of(storageTag.getLong("Anchor")):boundTankPositions.stream().min(FoundryVesselSnapshot.ORDER).orElse(null);
         }
     }
 

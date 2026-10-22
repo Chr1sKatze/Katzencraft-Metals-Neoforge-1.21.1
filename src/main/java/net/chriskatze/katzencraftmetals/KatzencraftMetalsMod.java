@@ -37,6 +37,8 @@ public class KatzencraftMetalsMod {
             IEventBus modEventBus,
             ModContainer modContainer
     ) {
+        net.chriskatze.katzencraftmetals.worldgen.ModOreGeneration.register(modEventBus);
+
         ModItems.register(
                 modEventBus
         );

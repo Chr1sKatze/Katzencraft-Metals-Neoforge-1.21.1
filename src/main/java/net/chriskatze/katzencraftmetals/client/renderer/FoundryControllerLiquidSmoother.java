@@ -1,7 +1,5 @@
 package net.chriskatze.katzencraftmetals.client.renderer;
 
-import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
-import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.resources.ResourceLocation;
@@ -23,27 +21,16 @@ import static net.chriskatze.katzencraftmetals.client.renderer.FoundryTankRender
  */
 final class FoundryControllerLiquidSmoother {
 
-    private final Map<FoundryControllerBlockEntity, State> states =
+    private final Map<Object, State> states =
             new WeakHashMap<>();
 
-    Map<ResourceLocation, Float> getDisplayedAmounts(
-            FoundryControllerBlockEntity controller,
-            FoundryTankNetwork network,
-            float partialTick
-    ) {
-        Level level = controller.getLevel();
-
-        if (level == null || network == null) {
-            return Map.of();
-        }
-
-        Map<ResourceLocation, Integer> targetAmounts =
-                network.getMoltenContents();
-
+    Map<ResourceLocation, Float> getDisplayedAmounts(Object identity, Level level,
+            Map<ResourceLocation, Integer> targetAmounts, int capacity, float partialTick) {
+        if(level==null)return Map.of();
         double renderTime = level.getGameTime() + partialTick;
 
         State state = states.computeIfAbsent(
-                controller,
+                identity,
                 ignored -> new State(
                         createTargetBoundaries(targetAmounts),
                         renderTime
@@ -60,7 +47,6 @@ final class FoundryControllerLiquidSmoother {
                 new LinkedHashMap<>();
 
         float previousBoundary = 0.0f;
-        float capacity = network.getCapacity();
 
         for (MoltenMetalDefinition definition : ModMoltenMetals.heaviestFirst()) {
             float boundary = Mth.clamp(

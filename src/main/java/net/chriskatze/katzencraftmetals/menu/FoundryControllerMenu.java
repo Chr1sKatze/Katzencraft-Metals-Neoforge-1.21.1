@@ -3,7 +3,7 @@ package net.chriskatze.katzencraftmetals.menu;
 import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
 import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
-import net.chriskatze.katzencraftmetals.fuel.FoundryFuels;
+import net.chriskatze.katzencraftmetals.fuel.FoundryFuelCatalog;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.chriskatze.katzencraftmetals.recipe.FoundryAlloyCatalog;
@@ -190,7 +190,7 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
                         @Override
                         public boolean mayPlace(ItemStack stack) {
                             return isFuelSlotUnlocked(fuelSlot)
-                                    && FoundryFuels.isFuel(stack);
+                                    && FoundryFuelCatalog.isFuel(stack);
                         }
 
                         @Override
@@ -332,7 +332,7 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
         }
 
         for (int slot = 0; slot < getUnlockedFuelSlotCount(); slot++) {
-            if (FoundryFuels.isFuel(fuelContainer.getItem(slot))) {
+            if (FoundryFuelCatalog.isFuel(fuelContainer.getItem(slot))) {
                 return true;
             }
         }
@@ -664,7 +664,7 @@ public class FoundryControllerMenu extends AbstractContainerMenu {
             ) {
                 return ItemStack.EMPTY;
             }
-        } else if (FoundryFuels.isFuel(stack)) {
+        } else if (FoundryFuelCatalog.isFuel(stack)) {
             if (
                     !moveItemStackTo(
                             stack,

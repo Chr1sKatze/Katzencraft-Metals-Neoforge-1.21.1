@@ -50,12 +50,15 @@ public final class NetheriteProgressionChecks {
             PARTS.forEach(p->disabled.add("netherite_"+p+"_smithing"));
             disabled.forEach(p->selected.put(id(p),recipes.get(id(p))));
             PARTS.forEach(p->selected.put(id("netherite_"+p),recipes.get(id("netherite_"+p))));
-            for(String name:List.of("netherite_ingot","netherite_block","raw_netherite","netherite_ore")) {
+            for(String name:List.of("netherite_ingot","netherite_block","raw_netherite","netherite_ore","netherite_nugget")) {
                 var key=ResourceLocation.parse("katzencraftmetals:foundry_melting/"+name);selected.put(key,recipes.get(key));
             }
             var preserved=List.of("netherite_block","netherite_ingot_from_netherite_block","lodestone",
                     "coast_armor_trim_smithing_template","coast_armor_trim_smithing_template_smithing_trim");
             for(var name:preserved)selected.put(id(name),recipes.get(id(name)));
+            for(var name:List.of("netherite_ingot_from_nuggets","netherite_nugget_from_ingot")) {
+                var key=ResourceLocation.parse("katzencraftmetals:"+name);selected.put(key,recipes.get(key));
+            }
             var manager=new DiamondEquipmentChecks.Manager();manager.load(selected,resources);
             for(var name:preserved)check(manager.byKey(id(name)).isPresent(),"Unrelated recipe lost "+name);
             var oreInput=new SingleRecipeInput(new ItemStack(Items.ANCIENT_DEBRIS));
@@ -76,6 +79,19 @@ public final class NetheriteProgressionChecks {
                 check(resolved.moltenMetal().equals(id("netherite"))&&resolved.moltenAmount()==entry.getValue(),"Foundry yield "+entry.getKey());
                 check(resolved.processingTime()==(entry.getValue()==54?900:100),"Foundry proportional time");
             }
+            var nugget=BuiltInRegistries.ITEM.getOptional(ResourceLocation.parse("katzencraftmetals:netherite_nugget")).orElseThrow();
+            var nuggetGrid=DiamondEquipmentChecks.grid(recipes.get(ResourceLocation.parse("katzencraftmetals:netherite_ingot_from_nuggets")).getAsJsonObject());
+            var ingotResult=manager.getRecipeFor(RecipeType.CRAFTING,nuggetGrid,null).orElseThrow().value().assemble(nuggetGrid,registries);
+            check(ingotResult.is(Items.NETHERITE_INGOT)&&ingotResult.getCount()==1&&nuggetGrid.items().stream().filter(s->s.is(nugget)).count()==6,"Six nuggets craft one ingot");
+            var ingotGrid=CraftingInput.of(1,1,List.of(new ItemStack(Items.NETHERITE_INGOT)));
+            var nuggets=manager.getRecipeFor(RecipeType.CRAFTING,ingotGrid,null).orElseThrow().value().assemble(ingotGrid,registries);
+            check(nuggets.is(nugget)&&nuggets.getCount()==6,"One ingot crafts six nuggets");
+            var nuggetInput=new SingleRecipeInput(new ItemStack(nugget));
+            var nuggetRecipe=manager.getRecipeFor(ModRecipes.FOUNDRY_MELTING_TYPE.get(),nuggetInput,null).orElseThrow().value();
+            var nuggetMelt=FoundryMeltingRecipes.resolve(List.of(nuggetRecipe),nuggetInput.item()).orElseThrow();
+            check(nuggetMelt.moltenMetal().equals(id("netherite"))&&nuggetMelt.moltenAmount()==1&&nuggetMelt.processingTime()==17,"Nugget melts into one Netherite unit in 17 ticks");
+            check(json(resources,ResourceLocation.parse("c:tags/item/nuggets/netherite.json")).toString().contains("katzencraftmetals:netherite_nugget"),"Netherite common nugget tag");
+            System.out.println("PASS: registered Netherite nugget, real six-to-one crafting round trip, one-unit/17-tick melting and generated common tag.");
             // Audit actual selected loot, including Bastion replacements: no refined ingot/template bypasses.
             for(var entry:resources.listResources("loot_table",p->p.getPath().endsWith(".json")).entrySet()) {
                 try(var reader=entry.getValue().openAsReader()) {

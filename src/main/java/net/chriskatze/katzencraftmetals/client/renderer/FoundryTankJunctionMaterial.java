@@ -14,6 +14,26 @@ final class FoundryTankJunctionMaterial implements VertexConsumer {
     private final VertexConsumer liquid;
     private final List<Face> frame;
     private final boolean bottomBand, topBand;
+    private final Footprint below, above;
+
+    private record Footprint(float minX, float maxX, float minZ, float maxZ) {
+        static Footprint at(BlockPos pos, Map<BlockPos, ?> cells) {
+            float inset = FoundryTankRenderConstants.LIQUID_SIDE_INSET;
+            return new Footprint(cells.containsKey(pos.west()) ? 0 : inset,
+                    cells.containsKey(pos.east()) ? 1 : 1 - inset,
+                    cells.containsKey(pos.north()) ? 0 : inset,
+                    cells.containsKey(pos.south()) ? 1 : 1 - inset);
+        }
+
+        boolean samePlane(Vertex v) {
+            float plane = v.nx < -.5f ? minX : v.nx > .5f ? maxX : v.nz < 0 ? minZ : maxZ;
+            return Math.abs(plane - (Math.abs(v.nx) > .5f ? v.x : v.z))
+                    < FoundryTankRenderConstants.LIQUID_EPSILON;
+        }
+
+        float min(boolean alongX) { return alongX ? minX : minZ; }
+        float max(boolean alongX) { return alongX ? maxX : maxZ; }
+    }
     private final int frameLight;
     private final Vertex[] vertices = new Vertex[4];
     private int count;
@@ -40,7 +60,8 @@ final class FoundryTankJunctionMaterial implements VertexConsumer {
         boolean top=layer.maxY()>=1-FoundryTankRenderConstants.LIQUID_EPSILON && !above.isEmpty()
                 && above.getFirst().minY()<=FoundryTankRenderConstants.LIQUID_EPSILON
                 && isSupportedCrossbar(pos.above(),pos,layers);
-        return bottom||top ? new FoundryTankJunctionMaterial(liquid,frame,light.getAsInt(),bottom,top) : liquid;
+        return bottom||top ? new FoundryTankJunctionMaterial(liquid,frame,light.getAsInt(),bottom,top,
+                Footprint.at(pos.below(), layers), Footprint.at(pos.above(), layers)) : liquid;
     }
     private static boolean isSupportedCrossbar(BlockPos bridge, BlockPos support, Map<BlockPos,?> cells) {
         // These keys are the Controller's connected structure, not world occupancy.
@@ -62,8 +83,10 @@ final class FoundryTankJunctionMaterial implements VertexConsumer {
         while (cells.containsKey(start.relative(direction, length + 1))) length++;
         return length;
     }
-    private FoundryTankJunctionMaterial(VertexConsumer liquid,List<Face> frame,int light,boolean bottom,boolean top) {
+    private FoundryTankJunctionMaterial(VertexConsumer liquid,List<Face> frame,int light,boolean bottom,boolean top,
+                                       Footprint below,Footprint above) {
         this.liquid=liquid;this.frame=frame;this.frameLight=light;bottomBand=bottom;topBand=top;
+        this.below=below;this.above=above;
     }
     private Vertex current(){return vertices[count-1];}
     @Override public VertexConsumer addVertex(float x,float y,float z){Vertex v=new Vertex();v.x=v.wx=x;v.y=v.wy=y;v.z=v.wz=z;vertices[count++]=v;return this;}
@@ -92,8 +115,44 @@ final class FoundryTankJunctionMaterial implements VertexConsumer {
         Float previous=null;
         for(float end:cuts){if(previous!=null&&end>previous){
             float middle=(previous+end)*.5f;Vertex[] piece=slice(previous,end,min,max);
-            if((bottomBand&&middle<inset)||(topBand&&middle>1-inset))frame.add(new Face(piece,false,frameLight));
+            if(bottomBand&&middle<inset) routeSideBand(piece,below);
+            else if(topBand&&middle>1-inset) routeSideBand(piece,above);
             else emit(liquid,piece);
+        }previous=end;}
+    }
+    /** Only the return outside the adjoining wall footprint belongs to the frame.
+     * The coincident wall interval remains liquid, even at a structural T-junction. */
+    private void routeSideBand(Vertex[] piece, Footprint adjoining) {
+        Vertex first=piece[0];
+        if(!adjoining.samePlane(first)) {
+            frame.add(new Face(piece,false,frameLight));
+            return;
+        }
+        boolean alongX=Math.abs(first.nz)>.5f;
+        float min=Float.POSITIVE_INFINITY,max=Float.NEGATIVE_INFINITY;
+        for(Vertex v:piece){float coordinate=alongX?v.x:v.z;min=Math.min(min,coordinate);max=Math.max(max,coordinate);}
+        TreeSet<Float> cuts=new TreeSet<>();cuts.add(min);cuts.add(max);
+        float coveredMin=adjoining.min(alongX),coveredMax=adjoining.max(alongX);
+        if(min<coveredMin&&coveredMin<max)cuts.add(coveredMin);
+        if(min<coveredMax&&coveredMax<max)cuts.add(coveredMax);
+        Float previous=null;
+        for(float end:cuts){if(previous!=null&&end>previous){
+            Vertex[] strip=new Vertex[4];
+            for(int i=0;i<4;i++){
+                Vertex v=piece[i],other=null;
+                float coordinate=alongX?v.x:v.z;
+                for(Vertex candidate:piece)if(candidate.y==v.y&&(alongX?candidate.x:candidate.z)!=coordinate){other=candidate;break;}
+                if(other==null)throw new IllegalStateException("Expected axis-aligned liquid band");
+                float edge=coordinate==min?previous:end;
+                float t=(edge-coordinate)/((alongX?other.x:other.z)-coordinate);
+                Vertex n=v.copy();strip[i]=n;
+                n.x=v.x+(other.x-v.x)*t;n.z=v.z+(other.z-v.z)*t;
+                n.wx=v.wx+(other.wx-v.wx)*t;n.wy=v.wy+(other.wy-v.wy)*t;n.wz=v.wz+(other.wz-v.wz)*t;
+                n.u=v.u+(other.u-v.u)*t;n.v=v.v+(other.v-v.v)*t;
+            }
+            float middle=(previous+end)*.5f;
+            if(middle<coveredMin||middle>coveredMax)frame.add(new Face(strip,false,frameLight));
+            else emit(liquid,strip);
         }previous=end;}
     }
     private Vertex[] copy(){Vertex[] result=new Vertex[4];for(int i=0;i<4;i++)result[i]=vertices[i].copy();return result;}

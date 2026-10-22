@@ -44,7 +44,7 @@ public final class EquipmentChecks {
     }
     private static void close(float a,float b,String message){check(Math.abs(a-b)<.00001,message+": "+a+" != "+b);}
     @SubscribeEvent public static void gather(GatherDataEvent event){
-        try{baseline();profiles();crafting();repairMenu();mining();resourceMatrix();vanillaRecipes();DiamondEquipmentChecks.run();NetheriteProgressionChecks.run(event.getLookupProvider().join());check(overridesChecked,"Actual startup override hook did not run");System.out.println("PASS: equipment profiles, approved armor corrections/Copper stats, mining matrix, event denials, component preservation and explicit vanilla overrides.");}
+        try{net.chriskatze.katzencraftmetals.client.renderer.FoundryHorizontalSeamChecks.run();net.chriskatze.katzencraftmetals.block.entity.FoundryDetachedRenderingChecks.run(event.getLookupProvider().join());FoundryCraftingChecks.run(event.getLookupProvider().join());net.chriskatze.katzencraftmetals.block.entity.FoundryDismantlingChecks.run(event.getLookupProvider().join());net.chriskatze.katzencraftmetals.block.entity.FoundryFuelChecks.run(event.getLookupProvider().join());OreGenerationChecks.run(event.getLookupProvider().join());baseline();profiles();crafting();repairMenu();mining();resourceMatrix();vanillaRecipes();DiamondEquipmentChecks.run();NetheriteProgressionChecks.run(event.getLookupProvider().join());check(overridesChecked,"Actual startup override hook did not run");System.out.println("PASS: equipment profiles, approved armor corrections/Copper stats, mining matrix, event denials, component preservation and explicit vanilla overrides.");}
         catch(Exception e){throw new RuntimeException(e);}
     }
     private static void baseline() throws Exception {

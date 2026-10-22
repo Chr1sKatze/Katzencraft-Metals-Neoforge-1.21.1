@@ -49,6 +49,10 @@ public final class FoundryControllerBlockEntityRenderer
             int packedLight,
             int packedOverlay
     ) {
+        // LevelRenderer wraps the supplied BER buffers with the Controller's crumbling
+        // consumer. These vertices belong to remote tanks, not the mined Controller.
+        bufferSource = net.minecraft.client.Minecraft.getInstance().renderBuffers().bufferSource();
+        packedOverlay = net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY;
         FoundryTankNetwork network = controller.getOwnedTankNetwork();
 
         if (network == null || network.getTankPositions().isEmpty()) {
@@ -81,6 +85,7 @@ public final class FoundryControllerBlockEntityRenderer
                 packedOverlay
         );
 
+        if(!network.getMoltenContents().isEmpty())FoundryDetachedTankRenderer.markActive(physicalStructure);
         liquidRenderer.render(
                 controller,
                 network,
@@ -100,7 +105,7 @@ public final class FoundryControllerBlockEntityRenderer
      * A 4x4x4 vessel therefore checks at most 16 candidates here rather than
      * all 64 Tanks every frame.
      */
-    private static void renderOpenIntakeHatches(
+    static void renderOpenIntakeHatches(
             FoundryControllerBlockEntity controller,
             Set<BlockPos> physicalStructure,
             PoseStack poseStack,

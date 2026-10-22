@@ -2,17 +2,20 @@
   "type": "minecraft:crafting_shaped",
   "category": "misc",
   "key": {
-    "I": {
-      "item": "katzencraftmetals:steel_ingot"
+    "D": {
+      "tag": "katzencraftmetals:foundry_deepslate"
+    },
+    "P": {
+      "tag": "minecraft:planks"
     },
     "S": {
-      "item": "minecraft:stone_bricks"
+      "item": "minecraft:smooth_stone_slab"
     }
   },
   "pattern": [
-    "III",
     "S S",
-    "SSS"
+    "DDD",
+    "DPD"
   ],
   "result": {
     "count": 1,

@@ -124,16 +124,16 @@ final class FoundryControllerNetwork {
     ) {
         Set<BlockPos> releasedPositions =
                 new HashSet<>(
-                        controller.getTankStructure()
-                                .getTankPositions()
+                        controller.getTankStorage()
+                                .getBoundTankPositions()
                 );
 
         /*
-         * Tanks are only physical vessels. Breaking the Controller removes the
-         * storage owner, so molten contents cannot remain hidden in the blocks.
+         * Transfer the current pooled vessel into dimension SavedData before
+         * the Controller disappears. Replacement Controllers claim it once.
          */
         controller.getTankStorage()
-                .clearForControllerRemoval();
+                .detachForControllerRemoval();
 
         controller.getTankStructure()
                 .clearForControllerRemoval();

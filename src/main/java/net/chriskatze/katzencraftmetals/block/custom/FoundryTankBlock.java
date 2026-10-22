@@ -90,6 +90,12 @@ public class FoundryTankBlock extends Block {
         );
     }
 
+    /** Fixed 160-tick Survival progress; bypasses tool speed, effects and attributes on both sides. */
+    @Override
+    protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+        return 1.0f / 160.0f;
+    }
+
     @Override
     protected MapCodec<? extends Block> codec() {
         return CODEC;
@@ -418,6 +424,7 @@ public class FoundryTankBlock extends Block {
              * Faucets are physical attachments of this exact Tank and cannot
              * remain floating after their supporting Tank is destroyed.
              */
+            net.chriskatze.katzencraftmetals.block.entity.FoundryTankDismantling.removed(level, pos, state);
             destroyAttachedFaucets(
                     level,
                     pos
@@ -862,7 +869,7 @@ public class FoundryTankBlock extends Block {
                 instanceof FoundryTankBlock;
     }
 
-    private static BooleanProperty connectionProperty(
+    public static BooleanProperty connectionProperty(
             Direction direction
     ) {
         return switch (direction) {

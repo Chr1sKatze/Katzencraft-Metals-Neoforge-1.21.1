@@ -83,23 +83,17 @@ final class FoundryControllerTankLiquidRenderer {
             MultiBufferSource bufferSource,
             int packedOverlay
     ) {
-        Level level = controller.getLevel();
+        render(controller, controller.getLevel(), controller.getBlockPos(), network.getMoltenContents(),
+                structure, structure, partialTick, poseStack, bufferSource, packedOverlay);
+    }
 
-        if (
-                level == null
-                        || network == null
-                        || structure == null
-                        || structure.isEmpty()
-        ) {
-            return;
-        }
-
-        Map<ResourceLocation, Float> displayedGlobalAmounts =
-                smoother.getDisplayedAmounts(
-                        controller,
-                        network,
-                        partialTick
-                );
+    /** Same mesh, shaders and effects for a synchronized detached snapshot. No storage mutation. */
+    void render(Object identity, Level level, BlockPos origin, Map<ResourceLocation,Integer> contents,
+                Set<BlockPos> structure, Set<BlockPos> visibleCells, float partialTick,
+                PoseStack poseStack, MultiBufferSource bufferSource, int packedOverlay) {
+        if(level==null||structure.isEmpty()||visibleCells.isEmpty())return;
+        Map<ResourceLocation,Float> displayedGlobalAmounts=smoother.getDisplayedAmounts(identity,level,contents,
+                structure.size()*FoundryTankNetwork.TANK_CAPACITY,partialTick);
 
         if (displayedGlobalAmounts.isEmpty()) {
             return;
@@ -128,7 +122,7 @@ final class FoundryControllerTankLiquidRenderer {
         Map<Integer, Integer> surfaceCellCounts = new LinkedHashMap<>();
         for (BlockPos cell : structure) surfaceCellCounts.merge(cell.getY(), 1, Integer::sum);
 
-        BlockPos controllerPos = controller.getBlockPos();
+        BlockPos controllerPos = origin;
 
         /*
          * Give the complete Foundry one stable molten-animation phase derived
@@ -148,6 +142,7 @@ final class FoundryControllerTankLiquidRenderer {
 
         List<FoundryTankJunctionMaterial.Face> junctionFrames = new ArrayList<>();
         for (BlockPos tankPos : structure) {
+            if(!visibleCells.contains(tankPos))continue;
             List<FoundryTankRenderedMetalLayer> localLayers =
                     renderedLayers.getOrDefault(tankPos, List.of());
 
@@ -311,6 +306,7 @@ final class FoundryControllerTankLiquidRenderer {
         }
 
         for (BlockPos tankPos : structure) {
+            if(!visibleCells.contains(tankPos))continue;
             List<FoundryTankRenderedMetalLayer> layers = renderedLayers.getOrDefault(tankPos, List.of());
             if (layers.isEmpty() || !allLayersEmpty(renderedLayers.get(tankPos.above()))) continue;
             FoundryTankRenderedMetalLayer layer = layers.getLast();
@@ -327,7 +323,7 @@ final class FoundryControllerTankLiquidRenderer {
             poseStack.pushPose();
             poseStack.translate(tankPos.getX() - controllerPos.getX(), tankPos.getY() - controllerPos.getY(),
                     tankPos.getZ() - controllerPos.getZ());
-            surfaceEffects.renderAndSpawn(controller, tankPos, structure, definition, geometry, renderedLayers,
+            surfaceEffects.renderAndSpawn(identity, level, origin, tankPos, structure, definition, geometry, renderedLayers,
                     partialTick, poseStack.last(), bufferSource, packedOverlay,
                     animationFrame.minV(), animationFrame.maxV());
             poseStack.popPose();

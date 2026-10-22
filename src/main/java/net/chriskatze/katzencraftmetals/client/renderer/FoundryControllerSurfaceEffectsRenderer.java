@@ -2,7 +2,6 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.chriskatze.katzencraftmetals.block.entity.FoundryControllerBlockEntity;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LightTexture;
@@ -82,11 +81,11 @@ final class FoundryControllerSurfaceEffectsRenderer {
     private static final float FULL_TANK_HOT_SPOT_SEPARATION =
             0.004f * (1.0f / 16.0f);
 
-    private final Map<FoundryControllerBlockEntity, SmokeTickState> smokeTickStates =
+    private final Map<Object, SmokeTickState> smokeTickStates =
             new WeakHashMap<>();
 
     void renderAndSpawn(
-            FoundryControllerBlockEntity controller,
+            Object identity, Level sourceLevel, BlockPos origin,
             BlockPos tankPos,
             Set<BlockPos> structure,
             MoltenMetalDefinition definition,
@@ -99,7 +98,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
             float frameMinV,
             float frameMaxV
     ) {
-        Level level = controller.getLevel();
+        Level level = sourceLevel;
         if (level == null) {
             return;
         }
@@ -124,7 +123,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
         );
 
         maybeSpawnSmoke(
-                controller,
+                identity, origin,
                 tankPos,
                 structure,
                 geometry,
@@ -745,7 +744,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
     }
 
     private void maybeSpawnSmoke(
-            FoundryControllerBlockEntity controller,
+            Object identity, BlockPos origin,
             BlockPos tankPos,
             Set<BlockPos> structure,
             FoundryTankLiquidGeometry geometry,
@@ -758,11 +757,11 @@ final class FoundryControllerSurfaceEffectsRenderer {
         }
 
         SmokeTickState tickState =
-                smokeTickStates.get(controller);
+                smokeTickStates.get(identity);
 
         if (tickState == null || tickState.gameTime != gameTime) {
             tickState = new SmokeTickState(gameTime);
-            smokeTickStates.put(controller, tickState);
+            smokeTickStates.put(identity, tickState);
         }
 
         /*
@@ -800,7 +799,7 @@ final class FoundryControllerSurfaceEffectsRenderer {
 
         long seed = mix64(
                 tankPos.asLong()
-                        ^ controller.getBlockPos().asLong()
+                        ^ origin.asLong()
                         ^ gameTime * 0x9E3779B97F4A7C15L
         );
 

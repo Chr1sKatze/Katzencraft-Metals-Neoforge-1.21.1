@@ -1,0 +1,21 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "category": "misc",
+  "key": {
+    "D": {
+      "tag": "katzencraftmetals:foundry_deepslate"
+    },
+    "G": {
+      "item": "minecraft:glass"
+    }
+  },
+  "pattern": [
+    " D ",
+    "DGD",
+    " D "
+  ],
+  "result": {
+    "count": 1,
+    "id": "katzencraftmetals:foundry_tank"
+  }
+}

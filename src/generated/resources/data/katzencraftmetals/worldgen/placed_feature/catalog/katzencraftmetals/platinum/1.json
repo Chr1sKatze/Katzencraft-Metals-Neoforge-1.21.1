@@ -1,0 +1,27 @@
+{
+  "feature": "katzencraftmetals:catalog/katzencraftmetals/platinum/1",
+  "placement": [
+    {
+      "type": "minecraft:count",
+      "count": 5
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "katzencraftmetals:ore_height",
+      "distribution": "BOTTOM_HEAVY",
+      "max_y": 0,
+      "min_y": -64,
+      "scope": {
+        "biomes": [
+          "#minecraft:is_overworld"
+        ],
+        "dimension": "minecraft:overworld"
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

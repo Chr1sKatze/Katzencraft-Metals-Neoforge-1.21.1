@@ -29,6 +29,7 @@ public final class BlockRequirements {
                 "steel_door","cut_steel_stairs","cut_steel_slab","steel_ladder"))result.put(id(block),MiningLevels.IRON);
         result.put(id("steel_button"),MiningLevels.STONE);
         result.put(id("steel_trapdoor"),MiningLevels.WOOD);
+        result.put(id("foundry_controller"), MiningLevels.STONE);
         // Non-metal starting resources. Metal ore/storage levels belong to MetalCatalog.
         for(String block:List.of("stone","cobblestone","deepslate","cobbled_deepslate",
                 "granite","diorite","andesite","tuff","calcite","blackstone","basalt","smooth_basalt",

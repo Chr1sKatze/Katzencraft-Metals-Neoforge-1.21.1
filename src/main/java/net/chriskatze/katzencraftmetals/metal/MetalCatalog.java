@@ -10,11 +10,12 @@ import static net.chriskatze.katzencraftmetals.metal.MetalDefinition.Form.*;
 import static net.chriskatze.katzencraftmetals.metal.MetalDefinition.StorageSound.*;
 import static net.chriskatze.katzencraftmetals.metal.MetalDefinition.metal;
 import static net.chriskatze.katzencraftmetals.metal.MetalAlloy.input;
+import static net.chriskatze.katzencraftmetals.metal.MetalOreGeneration.Distribution.*;
 
 /**
  * Main place to declare metals. Standard ingots/nuggets/storage cubes and their
  * generated resources are automatic; supply textures separately. Foundry is opt-in.
- * Raw items, ores/worldgen, tools and armor still require manual setup.
+ * Ore generation is opt-in here; raw/ore block registration, tools and armor remain manual.
  * See docs/ADDING_METALS.md for texture conventions and remaining manual steps.
  *
  * <p><strong>Append new metals at the END; never reorder existing declarations.</strong>
@@ -89,6 +90,19 @@ public final class MetalCatalog {
                     .meltingTime(160)
                     .ingotCoolingTime(120)
                     .blockCoolingTime(240)
+                    // Explicit deposits only; forms alone never enable generation.
+                    .oreGeneration(ORE, c -> c.dimension("minecraft:overworld").biomes("#minecraft:is_overworld")
+                            .replace("#minecraft:stone_ore_replaceables").veinSize(8).attemptsPerChunk(3)
+                            .height(0, 64).distribution(TRIANGLE))
+                    .oreGeneration(DEEPSLATE_ORE, c -> c.dimension("minecraft:overworld").biomes("#minecraft:is_overworld")
+                            .replace("#minecraft:deepslate_ore_replaceables").veinSize(8).attemptsPerChunk(3)
+                            .height(-64, 0).distribution(BOTTOM_HEAVY))
+                    .oreGeneration(NETHER_ORE, c -> c.dimension("minecraft:the_nether").biomes("#minecraft:is_nether")
+                            .replace("minecraft:netherrack").veinSize(8).attemptsPerChunk(3)
+                            .height(8, 112).distribution(UNIFORM))
+                    .oreGeneration(END_ORE, c -> c.dimension("minecraft:the_end").biomes("#minecraft:is_end")
+                            .replace("minecraft:end_stone").veinSize(8).attemptsPerChunk(3)
+                            .height(0, 80).distribution(TRIANGLE))
                     .foundry()
                     .alloy(160, input("steel", 1), input("platinum", 1))
                     .build(),
@@ -105,6 +119,19 @@ public final class MetalCatalog {
             oreMetal("platinum", "Platinum")
                     .density(21450)
                     .oreMiningLevel(6).storageMiningLevel(6)
+                    // Explicit deposits only; forms alone never enable generation.
+                    .oreGeneration(ORE, c -> c.dimension("minecraft:overworld").biomes("#minecraft:is_overworld")
+                            .replace("#minecraft:stone_ore_replaceables").veinSize(10).attemptsPerChunk(5)
+                            .height(0, 64).distribution(TRIANGLE))
+                    .oreGeneration(DEEPSLATE_ORE, c -> c.dimension("minecraft:overworld").biomes("#minecraft:is_overworld")
+                            .replace("#minecraft:deepslate_ore_replaceables").veinSize(10).attemptsPerChunk(5)
+                            .height(-64, 0).distribution(BOTTOM_HEAVY))
+                    .oreGeneration(NETHER_ORE, c -> c.dimension("minecraft:the_nether").biomes("#minecraft:is_nether")
+                            .replace("minecraft:netherrack").veinSize(10).attemptsPerChunk(5)
+                            .height(8, 112).distribution(UNIFORM))
+                    .oreGeneration(END_ORE, c -> c.dimension("minecraft:the_end").biomes("#minecraft:is_end")
+                            .replace("minecraft:end_stone").veinSize(10).attemptsPerChunk(5)
+                            .height(0, 80).distribution(TRIANGLE))
                     .foundry()
                     .alloy(input("iron", 1), input("gold", 1))
                     .build(),
@@ -114,6 +141,7 @@ public final class MetalCatalog {
             MetalDefinition.builder("minecraft:netherite", "Netherite", 20000, 6)
                     .form(INGOT, "minecraft:netherite_ingot")
                     .form(STORAGE_BLOCK, "minecraft:netherite_block")
+                    .form(NUGGET, "katzencraftmetals:netherite_nugget")
                     .form(RAW, "minecraft:netherite_scrap")
                     .form(ORE, "minecraft:ancient_debris")
                     .equipment(MetalEquipmentProfiles.NETHERITE)
@@ -155,7 +183,7 @@ public final class MetalCatalog {
 
     /**
      * Standard mod metal plus declared raw items and four ore variants.
-     * Additional objects/assets/loot/mining/worldgen/processing remain manual;
+     * Additional objects/assets/loot/mining remain manual; generation is configured above;
      * only standard ingot/nugget/storage forms register automatically.
      * Storage defaults come from metal(); configure density and storage mining level above.
      */

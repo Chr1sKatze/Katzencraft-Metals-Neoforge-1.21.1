@@ -35,7 +35,8 @@ public class FuelChamberBlockEntity
         implements MenuProvider {
 
     public static final int SLOT_COUNT = 3;
-    public static final int COAL_BURN_TIME = 1600;
+    public static final int COAL_BURN_TIME = net.chriskatze.katzencraftmetals.fuel.FoundryFuelCatalog
+            .find(new ItemStack(Items.COAL)).orElseThrow().burnTime();
 
     @Nullable
     private UUID controllerId;
