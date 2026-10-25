@@ -69,10 +69,11 @@ final class FoundryFaucetStreamRenderer {
                     alpha
             );
         }
+        renderEndCap(consumer, pose, geometry, packedOverlay, frameMinV, frameMaxV, alpha);
     }
 
-    /** Close the continuous downward column at its existing lower edge; drip meshes stay unchanged. */
-    static void renderDownwardEndCap(
+    /** Close every continuous column at its existing lower edge; drip meshes stay unchanged. */
+    static void renderEndCap(
             VertexConsumer consumer, PoseStack.Pose pose,
             FoundryFaucetStreamGeometry geometry, int packedOverlay,
             float frameMinV, float frameMaxV, int alpha

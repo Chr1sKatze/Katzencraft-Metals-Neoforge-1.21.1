@@ -14,14 +14,13 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 import java.util.Map;
-import java.util.WeakHashMap;
 
 public class FoundryFaucetBlockEntityRenderer
         implements BlockEntityRenderer<FoundryFaucetBlockEntity> {
 
     private final Map<FoundryFaucetBlockEntity, FoundryFaucetStreamRenderState>
             streamRenderStates =
-            new WeakHashMap<>();
+            FoundryFaucetStreamAnimation.visualStates();
 
     private final FoundryFaucetPourParticleEffects particleEffects =
             new FoundryFaucetPourParticleEffects();
@@ -170,12 +169,6 @@ public class FoundryFaucetBlockEntityRenderer
                 animationFrame.maxV(),
                 255
         );
-
-        if (bottomMounted) {
-            FoundryFaucetStreamRenderer.renderDownwardEndCap(
-                    consumer, poseStack.last(), geometry, packedOverlay,
-                    animationFrame.minV(), animationFrame.maxV(), 255);
-        }
 
         poseStack.popPose();
 

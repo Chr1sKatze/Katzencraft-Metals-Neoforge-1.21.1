@@ -27,6 +27,29 @@
         16,
         1
       ]
+    },
+    {
+      "faces": {
+        "south": {
+          "texture": "#frame",
+          "uv": [
+            0.25,
+            0.25,
+            0.75,
+            0.75
+          ]
+        }
+      },
+      "from": [
+        0,
+        15.8,
+        1
+      ],
+      "to": [
+        16,
+        16,
+        1
+      ]
     }
   ],
   "render_type": "minecraft:cutout",

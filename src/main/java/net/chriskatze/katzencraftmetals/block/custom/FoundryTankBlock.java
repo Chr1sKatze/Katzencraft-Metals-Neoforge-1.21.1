@@ -36,7 +36,7 @@ import java.util.Set;
  * This allows two independent Foundry vessels to sit directly beside each
  * other while keeping a real wall between them.
  *
- * Tanks remain ordinary blocks: no BlockEntity, no ticking, no molten storage,
+ * Tanks remain ordinary blocks: no BlockEntity, no recurring tick, no molten storage,
  * and no persistent ownership ID.
  */
 public class FoundryTankBlock extends Block {
@@ -56,6 +56,7 @@ public class FoundryTankBlock extends Block {
             BooleanProperty.create("up");
     public static final BooleanProperty DOWN =
             BooleanProperty.create("down");
+    public static final BooleanProperty MOLTEN_LIT = BooleanProperty.create("molten_lit");
     public static final BooleanProperty HATCH_OPEN =
             BooleanProperty.create("hatch_open");
 
@@ -87,6 +88,7 @@ public class FoundryTankBlock extends Block {
                         .setValue(UP, false)
                         .setValue(DOWN, false)
                         .setValue(HATCH_OPEN, false)
+                        .setValue(MOLTEN_LIT, false)
         );
     }
 
@@ -268,7 +270,8 @@ public class FoundryTankBlock extends Block {
 
         BlockState placementState =
                 defaultBlockState()
-                        .setValue(HATCH_OPEN, false);
+                        .setValue(HATCH_OPEN, false)
+                        .setValue(MOLTEN_LIT, false);
 
         /*
          * Connect only to neighboring Tanks that belong to the chosen logical
@@ -390,7 +393,15 @@ public class FoundryTankBlock extends Block {
                     pos,
                     pos
             );
+            // Resolve after the new/existing connection handshake finishes.
+            level.scheduleTick(pos, this, 1);
         }
+    }
+
+    @Override
+    protected void tick(BlockState state, net.minecraft.server.level.ServerLevel level,
+                        BlockPos pos, net.minecraft.util.RandomSource random) {
+        net.chriskatze.katzencraftmetals.block.entity.FoundryTankDismantling.placed(level, pos);
     }
 
     @Override
@@ -893,7 +904,8 @@ public class FoundryTankBlock extends Block {
                 WEST,
                 UP,
                 DOWN,
-                HATCH_OPEN
+                HATCH_OPEN,
+                MOLTEN_LIT
         );
     }
 }

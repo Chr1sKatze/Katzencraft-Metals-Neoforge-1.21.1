@@ -32,6 +32,8 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jetbrains.annotations.Nullable;
 
 public class FoundryTableBlock extends FoundryBasinBlock {
+    @Override protected boolean supportsContainedFluids() { return false; }
+
     public static final MapCodec<FoundryTableBlock> CODEC = simpleCodec(FoundryTableBlock::new);
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     private static final VoxelShape[] SHAPES = makeShapes();

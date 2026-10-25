@@ -39,6 +39,9 @@ public final class FoundryDetachedTankRenderer {
             var origin=snapshot.renderOrigin();var pose=event.getPoseStack();pose.pushPose();pose.translate(origin.getX()-camera.x,origin.getY()-camera.y,origin.getZ()-camera.z);
             RENDERERS.computeIfAbsent(entry.getKey(),id->new FoundryControllerTankLiquidRenderer()).render(entry.getKey(),level,origin,snapshot.contents(),snapshot.positions(),Set.copyOf(visible),
                     event.getPartialTick().getGameTimeDeltaPartialTick(false),pose,minecraft.renderBuffers().bufferSource(),OverlayTexture.NO_OVERLAY);
+            // Match the attached path: liquid first, then the occluding translucent hatch.
+            FoundryControllerBlockEntityRenderer.renderOpenIntakeHatches(level,origin,Set.copyOf(visible),
+                    pose,minecraft.renderBuffers().bufferSource(),OverlayTexture.NO_OVERLAY);
             pose.popPose();
         }
     }

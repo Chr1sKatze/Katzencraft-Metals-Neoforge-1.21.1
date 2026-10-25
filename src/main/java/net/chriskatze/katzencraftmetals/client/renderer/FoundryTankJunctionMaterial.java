@@ -2,6 +2,7 @@ package net.chriskatze.katzencraftmetals.client.renderer;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import java.util.ArrayList;
@@ -13,7 +14,8 @@ import java.util.TreeSet;
 final class FoundryTankJunctionMaterial implements VertexConsumer {
     private final VertexConsumer liquid;
     private final List<Face> frame;
-    private final boolean bottomBand, topBand;
+    private final boolean bottomBand, topBand, undersideReturn;
+    private final int cornerReturns, lowerSteps, upperSteps;
     private final Footprint below, above;
 
     private record Footprint(float minX, float maxX, float minZ, float maxZ) {
@@ -52,17 +54,68 @@ final class FoundryTankJunctionMaterial implements VertexConsumer {
     static VertexConsumer wrap(VertexConsumer liquid, List<Face> frame, java.util.function.IntSupplier light,
                                BlockPos pos, FoundryTankRenderedMetalLayer layer,
                                Map<BlockPos,List<FoundryTankRenderedMetalLayer>> layers) {
+        Route route = route(pos, layer, layers);
+        return route == null ? liquid : new FoundryTankJunctionMaterial(liquid, frame, light.getAsInt(),
+                route.bottom(), route.top(), route.underside(), route.corners(), route.lowerSteps(), route.upperSteps(), route.below(), route.above());
+    }
+
+    record Route(boolean bottom, boolean top, boolean underside, int corners, int lowerSteps, int upperSteps, Footprint below, Footprint above) {}
+
+    /** Geometry-only classification; rebuilt with the exact smoothed layer layout. */
+    static Route route(BlockPos pos, FoundryTankRenderedMetalLayer layer,
+                       Map<BlockPos,List<FoundryTankRenderedMetalLayer>> layers) {
         List<FoundryTankRenderedMetalLayer> below=layers.getOrDefault(pos.below(),List.of());
         List<FoundryTankRenderedMetalLayer> above=layers.getOrDefault(pos.above(),List.of());
-        boolean bottom=layer.minY()<=FoundryTankRenderConstants.LIQUID_EPSILON && !below.isEmpty()
-                && below.getLast().maxY()>=1-FoundryTankRenderConstants.LIQUID_EPSILON
-                && isSupportedCrossbar(pos,pos.below(),layers);
+        boolean joinedBelow=layer.minY()<=FoundryTankRenderConstants.LIQUID_EPSILON && !below.isEmpty()
+                && below.getLast().maxY()>=1-FoundryTankRenderConstants.LIQUID_EPSILON;
+        boolean bottom=joinedBelow && isSupportedCrossbar(pos,pos.below(),layers);
+        // The gap-repair underside outside the support footprint lies on the frame return.
+        // Its ownership does not require a two-ended T: one-sided steps and wider supports
+        // have the same narrow return. Side bands keep the stricter crossbar rule below.
+        boolean underside=joinedBelow && hasUndersideReturn(pos,layers);
         boolean top=layer.maxY()>=1-FoundryTankRenderConstants.LIQUID_EPSILON && !above.isEmpty()
                 && above.getFirst().minY()<=FoundryTankRenderConstants.LIQUID_EPSILON
                 && isSupportedCrossbar(pos.above(),pos,layers);
-        return bottom||top ? new FoundryTankJunctionMaterial(liquid,frame,light.getAsInt(),bottom,top,
-                Footprint.at(pos.below(), layers), Footprint.at(pos.above(), layers)) : liquid;
+        int corners=0, lowerSteps=0, upperSteps=0;
+        for (Direction side : Direction.Plane.HORIZONTAL) {
+            BlockPos neighbor=pos.relative(side);
+            var adjacent=layers.get(neighbor);
+            if (adjacent==null || adjacent.isEmpty()) continue;
+            Direction low=side.getAxis()==Direction.Axis.Z?Direction.WEST:Direction.NORTH;
+            Direction high=low.getOpposite();
+            int shift=side.get2DDataValue()*2;
+            if (layers.containsKey(pos.relative(low)) && !layers.containsKey(neighbor.relative(low))) corners|=1<<shift;
+            if (layers.containsKey(pos.relative(high)) && !layers.containsKey(neighbor.relative(high))) corners|=2<<shift;
+            // Only restored floor/ceiling headroom at a real structural step.
+            // Ordinary layer boundaries and exterior walls never satisfy these conditions.
+            if (layer.maxY()>=1-FoundryTankRenderConstants.LIQUID_EPSILON && !above.isEmpty()
+                    && !layers.containsKey(neighbor.above())
+                    && Math.abs(adjacent.getLast().maxY()-FoundryTankRenderConstants.LIQUID_MAX_INSET)<FoundryTankRenderConstants.LIQUID_EPSILON)
+                upperSteps|=1<<side.get2DDataValue();
+            if (layer.minY()<=FoundryTankRenderConstants.LIQUID_EPSILON && !below.isEmpty()
+                    && !layers.containsKey(neighbor.below())
+                    && Math.abs(adjacent.getFirst().minY()-FoundryTankRenderConstants.LIQUID_INSET)<FoundryTankRenderConstants.LIQUID_EPSILON)
+                lowerSteps|=1<<side.get2DDataValue();
+        }
+        return bottom || top || underside || corners!=0 || lowerSteps!=0 || upperSteps!=0
+                ? new Route(bottom, top, underside, corners, lowerSteps, upperSteps, Footprint.at(pos.below(), layers),
+                Footprint.at(pos.above(), layers)) : null;
     }
+
+    /** No captured supplier allocation on the common non-junction path. Lighting stays live. */
+    static VertexConsumer wrap(VertexConsumer liquid, List<Face> frame, Route route,
+                               net.minecraft.world.level.Level level, BlockPos pos) {
+        return route == null ? liquid : new FoundryTankJunctionMaterial(liquid, frame,
+                net.minecraft.client.renderer.LevelRenderer.getLightColor(level, pos),
+                route.bottom(), route.top(), route.underside(), route.corners(), route.lowerSteps(), route.upperSteps(), route.below(), route.above());
+    }
+    private static boolean hasUndersideReturn(BlockPos pos, Map<BlockPos, ?> cells) {
+        for (var direction : net.minecraft.core.Direction.Plane.HORIZONTAL) {
+            if (cells.containsKey(pos.relative(direction)) && !cells.containsKey(pos.below().relative(direction))) return true;
+        }
+        return false;
+    }
+
     private static boolean isSupportedCrossbar(BlockPos bridge, BlockPos support, Map<BlockPos,?> cells) {
         // These keys are the Controller's connected structure, not world occupancy.
         // A footprint difference alone also matches ordinary walls with a step
@@ -83,10 +136,10 @@ final class FoundryTankJunctionMaterial implements VertexConsumer {
         while (cells.containsKey(start.relative(direction, length + 1))) length++;
         return length;
     }
-    private FoundryTankJunctionMaterial(VertexConsumer liquid,List<Face> frame,int light,boolean bottom,boolean top,
+    private FoundryTankJunctionMaterial(VertexConsumer liquid,List<Face> frame,int light,boolean bottom,boolean top,boolean underside,int corners,int lower,int upper,
                                        Footprint below,Footprint above) {
-        this.liquid=liquid;this.frame=frame;this.frameLight=light;bottomBand=bottom;topBand=top;
-        this.below=below;this.above=above;
+        this.liquid=liquid;this.frame=frame;this.frameLight=light;bottomBand=bottom;topBand=top;undersideReturn=underside;
+        this.below=below;this.above=above;cornerReturns=corners;lowerSteps=lower;upperSteps=upper;
     }
     private Vertex current(){return vertices[count-1];}
     @Override public VertexConsumer addVertex(float x,float y,float z){Vertex v=new Vertex();v.x=v.wx=x;v.y=v.wy=y;v.z=v.wz=z;vertices[count++]=v;return this;}
@@ -101,12 +154,13 @@ final class FoundryTankJunctionMaterial implements VertexConsumer {
 
     private void route(){
         if(vertices[0].ny<-.5f){
-            if(bottomBand && vertices[0].y<=FoundryTankRenderConstants.LIQUID_EPSILON)frame.add(new Face(copy(),true,frameLight));
+            if((bottomBand || undersideReturn) && vertices[0].y<=FoundryTankRenderConstants.LIQUID_EPSILON)frame.add(new Face(copy(),true,frameLight));
             else emit(liquid,vertices);return;
         }
         if(Math.abs(vertices[0].ny)>.5f){emit(liquid,vertices);return;}
         float min=Float.POSITIVE_INFINITY,max=Float.NEGATIVE_INFINITY;
         for(Vertex v:vertices){min=Math.min(min,v.y);max=Math.max(max,v.y);}
+        if (isSharedReturn(min,max)) { frame.add(new Face(copy(),false,frameLight)); return; }
         // Only the extension beyond an ordinary floor/ceiling inset is classified.
         float inset=FoundryTankRenderConstants.LIQUID_INSET;
         TreeSet<Float> cuts=new TreeSet<>();cuts.add(min);cuts.add(max);
@@ -120,6 +174,27 @@ final class FoundryTankJunctionMaterial implements VertexConsumer {
             else emit(liquid,piece);
         }previous=end;}
     }
+    /** Match the actual corner/height-return quads emitted by renderLayerSide, not a generic seam. */
+    private boolean isSharedReturn(float minY,float maxY) {
+        Vertex first=vertices[0];
+        Direction side=first.nx<-.5f?Direction.WEST:first.nx>.5f?Direction.EAST:first.nz<0?Direction.NORTH:Direction.SOUTH;
+        float plane=side.getAxis()==Direction.Axis.X?first.x:first.z;
+        float expected=side.getAxisDirection()==Direction.AxisDirection.NEGATIVE?0:1;
+        float epsilon=FoundryTankRenderConstants.LIQUID_EPSILON;
+        if (Math.abs(plane-expected)>epsilon) return false;
+        int bit=1<<side.get2DDataValue();
+        if ((upperSteps&bit)!=0 && minY>=FoundryTankRenderConstants.LIQUID_MAX_INSET-epsilon) return true;
+        if ((lowerSteps&bit)!=0 && maxY<=FoundryTankRenderConstants.LIQUID_INSET+epsilon) return true;
+        int corners=(cornerReturns>>(side.get2DDataValue()*2))&3;
+        if (corners==0) return false;
+        float min=Float.POSITIVE_INFINITY,max=Float.NEGATIVE_INFINITY;
+        for (Vertex v:vertices) {
+            float c=side.getAxis()==Direction.Axis.Z?v.x:v.z;min=Math.min(min,c);max=Math.max(max,c);
+        }
+        return ((corners&1)!=0 && max<=FoundryTankRenderConstants.LIQUID_SIDE_INSET+epsilon)
+                || ((corners&2)!=0 && min>=FoundryTankRenderConstants.LIQUID_SIDE_MAX-epsilon);
+    }
+
     /** Only the return outside the adjoining wall footprint belongs to the frame.
      * The coincident wall interval remains liquid, even at a structural T-junction. */
     private void routeSideBand(Vertex[] piece, Footprint adjoining) {

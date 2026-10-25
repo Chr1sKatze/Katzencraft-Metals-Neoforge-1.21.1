@@ -54,8 +54,9 @@ public final class FoundryTankIntakeHatchRenderer {
                 tankState, model, 1, 1, 1, packedLight, packedOverlay,
                 ModelData.EMPTY, RenderType.cutout());
 
-        // The hatch has only its existing open/enabled state, no faucet pouring state.
-        renderHatchOpening(bufferSource.getBuffer(FoundryFaucetOpeningRenderType.get()),
+        // Blend after liquid, testing against world depth without replacing that depth.
+        // Opaque cap/model and faucet openings retain their normal depth writes.
+        renderHatchOpening(bufferSource.getBuffer(FoundryFaucetOpeningRenderType.getHatch()),
                 pose, packedLight, packedOverlay);
     }
 

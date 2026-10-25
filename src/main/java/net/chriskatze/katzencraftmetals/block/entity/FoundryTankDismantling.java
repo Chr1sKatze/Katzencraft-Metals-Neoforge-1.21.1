@@ -11,9 +11,22 @@ import java.util.*;
 public final class FoundryTankDismantling {
     private FoundryTankDismantling() {}
     private static final ThreadLocal<Set<Level>> ACTIVE = ThreadLocal.withInitial(HashSet::new);
+    /** One-shot placement refresh after connection BlockStates have settled. */
+    public static void placed(Level level, BlockPos pos) {
+        if (!(level instanceof ServerLevel server) || ACTIVE.get().contains(level)
+                || !(level.getBlockState(pos).getBlock() instanceof FoundryTankBlock)) return;
+        refreshDetached(server,pos,level.getBlockState(pos));
+    }
+
+    private static void refreshDetached(ServerLevel level, BlockPos pos, BlockState state) {
+        FoundryDetachedVessels.get(level).expand(logicalComponent(level,pos,state));
+    }
     public static void removed(Level level,BlockPos removed,BlockState oldState) {
         if(!(level instanceof ServerLevel server)||!ACTIVE.get().add(level))return;
         try {
+            // Include any additions whose one-shot tick has not run yet. The old
+            // state restores the removed cell for this pre-edit component read.
+            refreshDetached(server,removed,oldState);
             FoundryControllerBlockEntity owner=null;
             for(var c:nearby(server,removed))if(c.getTankStorage().getBoundTankPositions().contains(removed)){owner=c;break;}
             var data=FoundryDetachedVessels.get(server);

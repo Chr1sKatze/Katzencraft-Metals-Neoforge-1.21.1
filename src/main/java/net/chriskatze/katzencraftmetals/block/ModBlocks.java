@@ -229,6 +229,7 @@ public class ModBlocks {
                     "foundry_tank",
                     () -> new FoundryTankBlock(
                             BlockBehaviour.Properties.of()
+                                    .lightLevel(state -> state.getValue(FoundryTankBlock.MOLTEN_LIT) ? 12 : 0)
                                     .strength(8.0f, 12.0f)
                                     .noOcclusion()
                                     .sound(SoundType.GLASS)
@@ -238,6 +239,7 @@ public class ModBlocks {
     public static final DeferredBlock<FoundryTableBlock> FOUNDRY_TABLE =
             registerBlock("foundry_table", () -> new FoundryTableBlock(
                     BlockBehaviour.Properties.of().strength(3.5f, 6.0f)
+                            .lightLevel(state -> state.getValue(FoundryBasinBlock.CAST_STATE) == FoundryBasinBlock.CastState.MOLTEN ? 12 : 0)
                             .requiresCorrectToolForDrops().noOcclusion().sound(SoundType.METAL)));
 
     public static final DeferredBlock<FoundryBasinBlock> FOUNDRY_BASIN =
@@ -245,6 +247,8 @@ public class ModBlocks {
                     "foundry_basin",
                     () -> new FoundryBasinBlock(
                             BlockBehaviour.Properties.of()
+                                    .lightLevel(FoundryBasinBlock::lightEmission)
+                                    .randomTicks()
                                     .strength(3.5f, 6.0f)
                                     .requiresCorrectToolForDrops()
                                     .sound(SoundType.METAL)

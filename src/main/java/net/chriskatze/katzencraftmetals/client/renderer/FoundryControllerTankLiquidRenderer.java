@@ -7,7 +7,6 @@ import net.chriskatze.katzencraftmetals.block.entity.FoundryTankNetwork;
 import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.chriskatze.katzencraftmetals.metal.MoltenMetalDefinition;
 import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.BlockPos;
@@ -74,6 +73,130 @@ final class FoundryControllerTankLiquidRenderer {
     private final FoundryControllerSurfaceEffectsRenderer surfaceEffects =
             new FoundryControllerSurfaceEffectsRenderer();
 
+    // A BER is shared by Controllers. Never share one vessel's layout with another.
+    private final Map<Object, LayerCache> layerCaches = new java.util.WeakHashMap<>();
+    private java.lang.ref.WeakReference<Object> cacheWorld = new java.lang.ref.WeakReference<>(null);
+
+    LayerCache cachedLayers(Object identity, Object world, Set<BlockPos> structure,
+                            Map<ResourceLocation, Float> displayedAmounts) {
+        if (cacheWorld.get() != world) {
+            layerCaches.clear();
+            cacheWorld = new java.lang.ref.WeakReference<>(world);
+        }
+        LayerCache cache = layerCaches.computeIfAbsent(identity, ignored -> new LayerCache());
+        cache.update(structure, displayedAmounts);
+        return cache;
+    }
+
+    /** Cache only deterministic layout data, keyed by the exact SMOOTHED amounts.
+     * Texture frames, waves, partial ticks, colors/light and hotspots stay live.
+     */
+    static final class LayerCache {
+        private Set<BlockPos> structure = Set.of();
+        private Map<ResourceLocation, Float> amounts = Map.of();
+        Map<BlockPos, List<FoundryTankRenderedMetalLayer>> layers = Map.of();
+        final Map<Integer, Integer> surfaceCounts = new LinkedHashMap<>();
+        final Map<BlockPos, Cell> cells = new LinkedHashMap<>();
+        private final Map<BlockPos, Bounds> bounds = new LinkedHashMap<>();
+        final List<FoundryTankJunctionMaterial.Face> junctionFrames = new ArrayList<>();
+
+        void update(Set<BlockPos> currentStructure, Map<ResourceLocation, Float> currentAmounts) {
+            boolean changedStructure = !structure.equals(currentStructure);
+            if (!changedStructure && amounts.equals(currentAmounts)) return;
+            if (changedStructure) {
+                structure = Set.copyOf(currentStructure);
+                surfaceCounts.clear();
+                bounds.clear();
+                for (BlockPos pos : currentStructure) {
+                    surfaceCounts.merge(pos.getY(), 1, Integer::sum);
+                    bounds.put(pos, new Bounds(currentStructure.contains(pos.west()) ? 0 : LIQUID_SIDE_INSET,
+                            currentStructure.contains(pos.east()) ? 1 : LIQUID_SIDE_MAX,
+                            currentStructure.contains(pos.north()) ? 0 : LIQUID_SIDE_INSET,
+                            currentStructure.contains(pos.south()) ? 1 : LIQUID_SIDE_MAX));
+                }
+            }
+            amounts = Map.copyOf(currentAmounts);
+            var byY = distributeAcrossHorizontalLevels(currentStructure, currentAmounts);
+            var next = new LinkedHashMap<BlockPos, List<FoundryTankRenderedMetalLayer>>();
+            for (BlockPos pos : currentStructure) next.put(pos, createRenderedLayers(pos, currentStructure, byY));
+            layers = new LayerMap(next, bounds);
+            cells.clear();
+            for (var entry : next.entrySet()) {
+                BlockPos pos = entry.getKey();
+                Bounds footprint = bounds.get(pos);
+                float minX = footprint.minX(), maxX = footprint.maxX(), minZ = footprint.minZ(), maxZ = footprint.maxZ();
+                var geometry = new ArrayList<FoundryTankLiquidGeometry>();
+                var routes = new ArrayList<FoundryTankJunctionMaterial.Route>();
+                for (var layer : entry.getValue()) {
+                    geometry.add(new FoundryTankLiquidGeometry(minX, maxX,
+                            layer.minY(), layer.maxY(), minZ, maxZ, layer.renderTop(), layer.renderBottom()));
+                    routes.add(FoundryTankJunctionMaterial.route(pos, layer, layers));
+                }
+                cells.put(pos, new Cell(minX, maxX, minZ, maxZ, List.copyOf(geometry),
+                        java.util.Collections.unmodifiableList(routes),
+                        FoundryTankSurfaceRenderer.sideGlow(pos, layers)));
+            }
+        }
+    }
+
+    private record Bounds(float minX, float maxX, float minZ, float maxZ) {}
+
+    /** Exact-height metadata only: no UV frame, wave sample, light or pose is retained. */
+    private static final class LayerMap extends java.util.AbstractMap<BlockPos, List<FoundryTankRenderedMetalLayer>> {
+        private final Map<BlockPos, List<FoundryTankRenderedMetalLayer>> values;
+        private final Map<FoundryTankRenderedMetalLayer, InterfaceTrim> trims = new java.util.IdentityHashMap<>();
+        private final Map<FoundryTankRenderedMetalLayer, SideVisibility[]> sides = new java.util.IdentityHashMap<>();
+        LayerMap(Map<BlockPos, List<FoundryTankRenderedMetalLayer>> source, Map<BlockPos, Bounds> bounds) {
+            values = java.util.Collections.unmodifiableMap(source);
+            for (var entry : source.entrySet()) for (var layer : entry.getValue()) {
+                BlockPos pos = entry.getKey();
+                trims.put(layer, getShaderInterfaceTrim(pos, layer, values));
+                Bounds b = bounds.get(pos);
+                var g = new FoundryTankLiquidGeometry(b.minX(), b.maxX(), layer.minY(), layer.maxY(),
+                        b.minZ(), b.maxZ(), layer.renderTop(), layer.renderBottom());
+                var visibility = new SideVisibility[4];
+                for (Direction side : Direction.Plane.HORIZONTAL)
+                    visibility[side.get2DDataValue()] = sideVisibility(pos, side, layer, g, values);
+                sides.put(layer, visibility);
+            }
+        }
+        @Override public List<FoundryTankRenderedMetalLayer> get(Object key) { return values.get(key); }
+        @Override public boolean containsKey(Object key) { return values.containsKey(key); }
+        @Override public int size() { return values.size(); }
+        @Override public Set<Entry<BlockPos, List<FoundryTankRenderedMetalLayer>>> entrySet() { return values.entrySet(); }
+    }
+
+    private record SideVisibility(BlockPos neighbor, List<FoundryTankRenderedMetalLayer> neighbors,
+                                  FoundryTankLiquidGeometry left, FoundryTankLiquidGeometry right,
+                                  FoundryTankLiquidGeometry overlap, List<FoundryTankVerticalInterval> visible) {}
+
+    private static SideVisibility sideVisibility(BlockPos pos, Direction side, FoundryTankRenderedMetalLayer layer,
+                                                 FoundryTankLiquidGeometry geometry,
+                                                 Map<BlockPos, List<FoundryTankRenderedMetalLayer>> layers) {
+        BlockPos neighbor = pos.relative(side);
+        var neighbors = layers.get(neighbor);
+        if (neighbors == null || neighbors.isEmpty()) return new SideVisibility(neighbor, neighbors, null, null, geometry, List.of());
+        boolean alongX = side == Direction.NORTH || side == Direction.SOUTH;
+        float min = alongX ? geometry.minX() : geometry.minZ(), max = alongX ? geometry.maxX() : geometry.maxZ();
+        float neighborMin = layers.containsKey(neighbor.relative(alongX ? Direction.WEST : Direction.NORTH)) ? 0 : LIQUID_SIDE_INSET;
+        float neighborMax = layers.containsKey(neighbor.relative(alongX ? Direction.EAST : Direction.SOUTH)) ? 1 : LIQUID_SIDE_MAX;
+        float overlapMin = Math.max(min, neighborMin), overlapMax = Math.min(max, neighborMax);
+        var left = min < overlapMin ? sideWidth(geometry, alongX, min, overlapMin) : null;
+        var right = overlapMax < max ? sideWidth(geometry, alongX, overlapMax, max) : null;
+        var overlap = min == overlapMin && max == overlapMax ? geometry : sideWidth(geometry, alongX, overlapMin, overlapMax);
+        List<FoundryTankVerticalInterval> visible = List.of(new FoundryTankVerticalInterval(layer.minY(), layer.maxY()));
+        // Keep the original interval subtraction and epsilon decisions exactly.
+        for (var other : neighbors) {
+            visible = subtractInterval(visible, new FoundryTankVerticalInterval(other.minY(), other.maxY()));
+            if (visible.isEmpty()) break;
+        }
+        return new SideVisibility(neighbor, neighbors, left, right, overlap, List.copyOf(visible));
+    }
+
+    private record Cell(float minX, float maxX, float minZ, float maxZ,
+                        List<FoundryTankLiquidGeometry> geometry, List<FoundryTankJunctionMaterial.Route> routes,
+                        FoundryTankSurfaceRenderer.SideGlow sideGlow) {}
+
     void render(
             FoundryControllerBlockEntity controller,
             FoundryTankNetwork network,
@@ -99,28 +222,9 @@ final class FoundryControllerTankLiquidRenderer {
             return;
         }
 
-        Map<Integer, Map<ResourceLocation, Float>> amountsByY =
-                distributeAcrossHorizontalLevels(
-                        structure,
-                        displayedGlobalAmounts
-                );
-
-        Map<BlockPos, List<FoundryTankRenderedMetalLayer>> renderedLayers =
-                new LinkedHashMap<>();
-
-        for (BlockPos tankPos : structure) {
-            renderedLayers.put(
-                    tankPos,
-                    createRenderedLayers(
-                            tankPos,
-                            structure,
-                            amountsByY
-                    )
-            );
-        }
-
-        Map<Integer, Integer> surfaceCellCounts = new LinkedHashMap<>();
-        for (BlockPos cell : structure) surfaceCellCounts.merge(cell.getY(), 1, Integer::sum);
+        LayerCache cached = cachedLayers(identity, level, structure, displayedGlobalAmounts);
+        Map<BlockPos, List<FoundryTankRenderedMetalLayer>> renderedLayers = cached.layers;
+        Map<Integer, Integer> surfaceCellCounts = cached.surfaceCounts;
 
         BlockPos controllerPos = origin;
 
@@ -140,7 +244,8 @@ final class FoundryControllerTankLiquidRenderer {
                         controllerPos.asLong()
                 );
 
-        List<FoundryTankJunctionMaterial.Face> junctionFrames = new ArrayList<>();
+        List<FoundryTankJunctionMaterial.Face> junctionFrames = cached.junctionFrames;
+        junctionFrames.clear();
         for (BlockPos tankPos : structure) {
             if(!visibleCells.contains(tankPos))continue;
             List<FoundryTankRenderedMetalLayer> localLayers =
@@ -150,18 +255,8 @@ final class FoundryControllerTankLiquidRenderer {
                 continue;
             }
 
-            float minX = structure.contains(tankPos.west())
-                    ? 0.0f
-                    : LIQUID_SIDE_INSET;
-            float maxX = structure.contains(tankPos.east())
-                    ? 1.0f
-                    : LIQUID_SIDE_MAX;
-            float minZ = structure.contains(tankPos.north())
-                    ? 0.0f
-                    : LIQUID_SIDE_INSET;
-            float maxZ = structure.contains(tankPos.south())
-                    ? 1.0f
-                    : LIQUID_SIDE_MAX;
+            Cell cell = cached.cells.get(tankPos);
+            float minX = cell.minX(), maxX = cell.maxX(), minZ = cell.minZ(), maxZ = cell.maxZ();
 
             poseStack.pushPose();
             poseStack.translate(
@@ -171,8 +266,9 @@ final class FoundryControllerTankLiquidRenderer {
             );
             PoseStack.Pose pose = poseStack.last();
 
-            var sideGlow = FoundryTankSurfaceRenderer.sideGlow(tankPos, renderedLayers);
-            for (FoundryTankRenderedMetalLayer renderedLayer : localLayers) {
+            var sideGlow = cell.sideGlow();
+            for (int layerIndex = 0; layerIndex < localLayers.size(); layerIndex++) {
+                FoundryTankRenderedMetalLayer renderedLayer = localLayers.get(layerIndex);
                 MoltenMetalDefinition definition =
                         ModMoltenMetals.get(renderedLayer.metal())
                                 .orElse(null);
@@ -187,17 +283,7 @@ final class FoundryControllerTankLiquidRenderer {
                         )
                 );
 
-                FoundryTankLiquidGeometry geometry =
-                        new FoundryTankLiquidGeometry(
-                                minX,
-                                maxX,
-                                renderedLayer.minY(),
-                                renderedLayer.maxY(),
-                                minZ,
-                                maxZ,
-                                renderedLayer.renderTop(),
-                                renderedLayer.renderBottom()
-                        );
+                FoundryTankLiquidGeometry geometry = cell.geometry().get(layerIndex);
 
 
                 /*
@@ -233,7 +319,7 @@ final class FoundryControllerTankLiquidRenderer {
                 // the side consumer before wrapping it for the existing junction fixes.
                 consumer = bufferSource.getBuffer(FoundryTankLiquidDepthRenderType.get(definition.animatedTexture()));
                 VertexConsumer junctionConsumer = FoundryTankJunctionMaterial.wrap(consumer, junctionFrames,
-                        () -> LevelRenderer.getLightColor(level, tankPos), tankPos, renderedLayer, renderedLayers);
+                        cell.routes().get(layerIndex), level, tankPos);
 
                 renderLayerBottom(tankPos, renderedLayer, geometry, renderedLayers,
                         junctionConsumer, pose, packedOverlay, animationFrame.minV(), animationFrame.maxV());
@@ -244,7 +330,7 @@ final class FoundryControllerTankLiquidRenderer {
                     consumer = FoundryTankSurfaceRenderer.sideConsumer(bufferSource, consumer,
                             geometry, definition, animationFrame.minV(), animationFrame.maxV(), sideGlow);
                     junctionConsumer = FoundryTankJunctionMaterial.wrap(consumer, junctionFrames,
-                            () -> LevelRenderer.getLightColor(level, tankPos), tankPos, renderedLayer, renderedLayers);
+                            cell.routes().get(layerIndex), level, tankPos);
                 }
 
                 for (Direction side : Direction.Plane.HORIZONTAL) {
@@ -276,6 +362,7 @@ final class FoundryControllerTankLiquidRenderer {
                     structure,
                     localLayers,
                     renderedLayers,
+                    sideGlow,
                     minX,
                     maxX,
                     minZ,
@@ -295,8 +382,11 @@ final class FoundryControllerTankLiquidRenderer {
         // before submitting any surface effects, without extra world queries.
         // Submit replacement material after liquid buffers are finished, avoiding
         // stale consumers and duplicate coplanar liquid/frame submissions.
-        for (boolean bottom : new boolean[]{false, true}) {
-            if (junctionFrames.stream().noneMatch(face -> face.bottom() == bottom)) continue;
+        for (int part = 0; part < 2; part++) {
+            boolean bottom = part == 1;
+            boolean present = false;
+            for (var face : junctionFrames) if (face.bottom() == bottom) { present = true; break; }
+            if (!present) continue;
             ResourceLocation texture = bottom ? FoundryTankRenderConstants.TOP_TEXTURE
                     : ResourceLocation.fromNamespaceAndPath("katzencraftmetals", "textures/block/foundry_tank_frame.png");
             VertexConsumer frameConsumer = bufferSource.getBuffer(RenderType.entityCutout(texture));
@@ -313,13 +403,7 @@ final class FoundryControllerTankLiquidRenderer {
             if (!layer.renderTop()) continue;
             MoltenMetalDefinition definition = ModMoltenMetals.get(layer.metal()).orElse(null);
             if (definition == null) continue;
-            FoundryTankLiquidGeometry geometry = new FoundryTankLiquidGeometry(
-                    structure.contains(tankPos.west()) ? 0 : LIQUID_SIDE_INSET,
-                    structure.contains(tankPos.east()) ? 1 : LIQUID_SIDE_MAX,
-                    layer.minY(), layer.maxY(),
-                    structure.contains(tankPos.north()) ? 0 : LIQUID_SIDE_INSET,
-                    structure.contains(tankPos.south()) ? 1 : LIQUID_SIDE_MAX,
-                    true, layer.renderBottom());
+            FoundryTankLiquidGeometry geometry = cached.cells.get(tankPos).geometry().getLast();
             poseStack.pushPose();
             poseStack.translate(tankPos.getX() - controllerPos.getX(), tankPos.getY() - controllerPos.getY(),
                     tankPos.getZ() - controllerPos.getZ());
@@ -537,7 +621,26 @@ final class FoundryControllerTankLiquidRenderer {
             float frameMinV,
             float frameMaxV
     ) {
-        BlockPos neighborPos = tankPos.relative(side);
+        SideVisibility[] cachedSides = allLayers instanceof LayerMap map ? map.sides.get(renderedLayer) : null;
+        SideVisibility cached = cachedSides == null ? null : cachedSides[side.get2DDataValue()];
+        if (cached != null && cached.neighbors() != null) {
+            if (cached.neighbors().isEmpty()) {
+                FoundryTankLiquidQuads.renderLiquidSideSegment(side, consumer, pose, geometry,
+                        renderedLayer.minY(), renderedLayer.maxY(), true, packedOverlay, frameMinV, frameMaxV);
+            } else {
+                if (cached.left() != null) FoundryTankLiquidQuads.renderLiquidSideSegment(side, consumer, pose, cached.left(),
+                        renderedLayer.minY(), renderedLayer.maxY(), true, packedOverlay, frameMinV, frameMaxV);
+                if (cached.right() != null) FoundryTankLiquidQuads.renderLiquidSideSegment(side, consumer, pose, cached.right(),
+                        renderedLayer.minY(), renderedLayer.maxY(), true, packedOverlay, frameMinV, frameMaxV);
+                for (int i = 0; i < cached.visible().size(); i++) {
+                    var interval = cached.visible().get(i);
+                    FoundryTankLiquidQuads.renderLiquidSideSegment(side, consumer, pose, cached.overlap(),
+                            interval.minY(), interval.maxY(), true, packedOverlay, frameMinV, frameMaxV);
+                }
+            }
+            return;
+        }
+        BlockPos neighborPos = cached == null ? tankPos.relative(side) : cached.neighbor();
         List<FoundryTankRenderedMetalLayer> neighborLayers = allLayers.get(neighborPos);
 
         if (neighborLayers == null) {
@@ -685,6 +788,7 @@ final class FoundryControllerTankLiquidRenderer {
             Set<BlockPos> structure,
             List<FoundryTankRenderedMetalLayer> localLayers,
             Map<BlockPos, List<FoundryTankRenderedMetalLayer>> allLayers,
+            FoundryTankSurfaceRenderer.SideGlow sideGlow,
             float minX,
             float maxX,
             float minZ,
@@ -714,7 +818,7 @@ final class FoundryControllerTankLiquidRenderer {
                     controllerPos,
                     tankPos,
                     structure,
-                    FoundryTankSurfaceRenderer.sideGlow(tankPos, allLayers),
+                    sideGlow,
                     lower,
                     upper,
                     boundaryY,
@@ -756,7 +860,7 @@ final class FoundryControllerTankLiquidRenderer {
                             controllerPos,
                             tankPos,
                             structure,
-                            FoundryTankSurfaceRenderer.sideGlow(tankPos, allLayers),
+                            sideGlow,
                             lower,
                             upper,
                             1.0f,
@@ -1522,6 +1626,10 @@ final class FoundryControllerTankLiquidRenderer {
             FoundryTankRenderedMetalLayer layer,
             Map<BlockPos, List<FoundryTankRenderedMetalLayer>> allLayers
     ) {
+        if (allLayers instanceof LayerMap cached) {
+            InterfaceTrim trim = cached.trims.get(layer);
+            if (trim != null) return trim;
+        }
         float bottom = 0.0f;
         float top = 0.0f;
 

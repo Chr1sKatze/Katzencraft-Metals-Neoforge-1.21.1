@@ -46,6 +46,23 @@ The Controller block and individual tanks retain their normal targeted block-mod
 Snapshots now preserve their original Controller render origin (animation/smoke phase);
 older detached saves without this optional field use their anchor.
 
+## Detached expansion
+
+Tank placement still marks nearby Controllers dirty. It also schedules one server tick
+(not a recurring Tank ticker) to let the logical connection handshake finish. The shared
+Tank edit helper then reads the complete mutually connected component and expands any
+intersecting detached escrow. Removal calls the same refresh using its pre-removal block
+state, so additions immediately followed by removals cannot bypass the layout update.
+
+Only valid complete expansions are committed; incomplete/invalid components do not
+truncate saved records and ordinary placement never triggers automatic dismantling.
+Physical neighbors with disconnected face flags remain independent vessels. The update
+preserves all individual molten amounts, anchor, escrow UUID and render origin. If a
+valid component joins several detached records, they are replaced atomically by one pool.
+The existing SavedData mutation notification sends the full revised layout to watchers
+of both old and newly occupied chunks; client liquid rendering and ambient audio reuse
+those same views. Consecutive additions need no further block removal or Controller.
+
 ## Destruction transaction
 
 The tank's normal removal callback captures storage before resolving dirty Controller
@@ -64,27 +81,44 @@ Controller as absent.
 
 ## Whole-unit accounting
 
-The old implementation merely trimmed top-layer overflow to fit the new capacity. That
-could retain metal from removed lower tanks and discard metal belonging to survivors.
+The pre-removal molten inventory is pooled, not owned by individual tank cells.
+After the final valid surviving component/subset has been selected (including all
+additional automatic dismantling), its capacity is `surviving tank count * 108` units.
+All original quantities are retained when they fit, regardless of which cells used to
+visually contain each metal. The renderer redistributes the retained pool by density
+into the new layout using its existing height calculations.
 
-Removal now apportions the **pre-edit** pooled contents by horizontal Y layer and metal
-density, matching existing equalized capacity. Storage has integer molten units; equal
-fractional shares cannot be stored independently. Whole units use stable Y/X/Z cell order,
-with a rotating remainder across metal layers, keeping each cell within its 108-unit
-capacity. Only units assigned to retained cells survive. No removed-cell units are moved
-into survivors. Remaining pooled liquid may then equalize normally in its smaller layout.
+Only genuine capacity overflow is discarded. The same normalization policy as active
+Controller storage removes the lightest/topmost metal first, proceeding in the existing
+`ModMoltenMetals.lightestFirst()` order (including stable catalog order for equal densities).
+Every retained amount remains an exact integer of the same metal; nothing is duplicated
+or converted. With no surviving tanks the retained capacity and contents are zero.
+
+This applies to both active Controller storage and detached dimension SavedData.
+Recursive automatic removals are guarded: the pool is trimmed once against the final
+layout, not charged repeatedly per removed cell. Saved snapshots preserve the resulting
+quantities, anchor and render origin, and existing synchronization updates rendering,
+ambient sound and faucet availability without separate client inventories.
+
+Examples at the actual 108-unit capacity per Tank:
+
+- Two tanks with 40 or 100 units: removing one preserves every unit.
+- Two tanks with 200 units: removing one retains 108 and loses only 92 overflow units.
+- Three tanks with 200 units: removing an end tank retains all 200 in the two survivors.
+- If breaking the middle tank also dismantles the disconnected end, final capacity is
+  one tank (108), so retention is based on that final capacity.
+
 The anchor is persisted and does not move merely because the vessel expands.
-
 Existing active Controller NBT remains supported. It gains only an optional anchor key;
 old saves choose a deterministic anchor. Unchanged tanks/casting/fuel assets are preserved.
-Changes affect future edits, not already-lost metal from earlier Controller destruction.
+This correction affects future removals; it cannot recover metal already lost in older saves.
 
 ## Verification
 
 The opt-in `verification/equipment.init.gradle` suite loads effective recipes and native
 loot, exercises actual production removal callbacks in an isolated map world, and checks
 split/invalid shapes, rapid removals, recursive drop counts, nine fill thresholds, 648
-unit-conservation cases, SavedData reload/claim, existing client update tags, and 160 mining
+capacity-retention cases, SavedData reload/claim, existing client update tags, and 160 mining
 increments. Existing fuel, ore, equipment, casting and loot regressions also run.
 
 Minecraft tests remain: real player timing with effects/tools and interruptions; Creative;

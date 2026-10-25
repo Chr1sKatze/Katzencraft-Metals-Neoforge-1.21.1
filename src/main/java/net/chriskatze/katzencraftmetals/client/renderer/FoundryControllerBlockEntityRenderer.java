@@ -69,22 +69,6 @@ public final class FoundryControllerBlockEntityRenderer
             return;
         }
 
-        /*
-         * The old per-Tank BER used to draw the intake hatch. Tanks no longer
-         * have a BER in the controller-owned rewrite, so the Controller BER
-         * must coordinate that dynamic visual too.
-         *
-         * This stays purely client-side/render-only. HATCH_OPEN is still the
-         * ordinary Tank BlockState toggled by explicit player interaction.
-         */
-        renderOpenIntakeHatches(
-                controller,
-                physicalStructure,
-                poseStack,
-                bufferSource,
-                packedOverlay
-        );
-
         if(!network.getMoltenContents().isEmpty())FoundryDetachedTankRenderer.markActive(physicalStructure);
         liquidRenderer.render(
                 controller,
@@ -95,6 +79,9 @@ public final class FoundryControllerBlockEntityRenderer
                 bufferSource,
                 packedOverlay
         );
+        // Draw the depth-writing translucent hatch after all liquid behind it.
+        renderOpenIntakeHatches(controller.getLevel(), controller.getBlockPos(), physicalStructure,
+                poseStack, bufferSource, packedOverlay);
     }
 
     /**
@@ -106,19 +93,18 @@ public final class FoundryControllerBlockEntityRenderer
      * all 64 Tanks every frame.
      */
     static void renderOpenIntakeHatches(
-            FoundryControllerBlockEntity controller,
+            Level level,
+            BlockPos renderOrigin,
             Set<BlockPos> physicalStructure,
             PoseStack poseStack,
             MultiBufferSource bufferSource,
             int packedOverlay
     ) {
-        Level level = controller.getLevel();
-
         if (level == null) {
             return;
         }
 
-        BlockPos controllerPos = controller.getBlockPos();
+        BlockPos controllerPos = renderOrigin;
 
         for (BlockPos tankPos : physicalStructure) {
             /*
@@ -178,18 +164,21 @@ public final class FoundryControllerBlockEntityRenderer
             return Set.of();
         }
 
-        Set<BlockPos> physical = new HashSet<>();
+        Set<BlockPos> positions = network.getTankPositions();
+        Set<BlockPos> physical = null;
 
-        for (BlockPos tankPos : network.getTankPositions()) {
+        for (BlockPos tankPos : positions) {
             if (
-                    level.getBlockState(tankPos)
+                    !level.getBlockState(tankPos)
                             .is(ModBlocks.FOUNDRY_TANK.get())
             ) {
-                physical.add(tankPos.immutable());
+                // Keep live block checks. Only allocate a filtered set when a snapshot is stale.
+                if (physical == null) physical = new HashSet<>(positions);
+                physical.remove(tankPos);
             }
         }
 
-        return Set.copyOf(physical);
+        return physical == null ? positions : Set.copyOf(physical);
     }
 
     @Override

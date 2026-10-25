@@ -57,17 +57,20 @@ public class ModBlockStateProvider extends BlockStateProvider {
         foundryTankBlock();
 
         ModelFile tableModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_table"));
-        getVariantBuilder(ModBlocks.FOUNDRY_TABLE.get()).forAllStates(state ->
+        getVariantBuilder(ModBlocks.FOUNDRY_TABLE.get()).forAllStatesExcept(state ->
                 ConfiguredModel.builder().modelFile(tableModel)
                         .rotationY(net.chriskatze.katzencraftmetals.block.custom.FoundryTableBlock.modelRotation(
                                 state.getValue(net.chriskatze.katzencraftmetals.block.custom.FoundryTableBlock.FACING))).build());
         simpleBlockItem(ModBlocks.FOUNDRY_TABLE.get(), tableModel);
 
-        ModelFile foundryBasinModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_basin"));
+        ModelFile foundryBasinModel = models().getBuilder("foundry_basin_rendered")
+                .customLoader(FoundryBasinModelAdapter::new).end();
         getVariantBuilder(ModBlocks.FOUNDRY_BASIN.get())
-                .forAllStates(state -> ConfiguredModel.builder()
+                .forAllStatesExcept(state -> ConfiguredModel.builder()
                         .modelFile(foundryBasinModel)
-                        .build());
+                        .build(), net.chriskatze.katzencraftmetals.block.custom.FoundryBasinBlock.CONTAINED_WATER,
+                        net.chriskatze.katzencraftmetals.block.custom.FoundryBasinBlock.CONTAINED_LAVA,
+                        net.chriskatze.katzencraftmetals.block.custom.FoundryBasinBlock.FLUID_LEVEL);
         simpleBlockItem(ModBlocks.FOUNDRY_BASIN.get(), foundryBasinModel);
 
         ModelFile faucetModel = new ModelFile.UncheckedModelFile(modLoc("block/foundry_faucet"));
@@ -1514,7 +1517,7 @@ public class ModBlockStateProvider extends BlockStateProvider {
             float toX, float toY, float toZ,
             float minU, float minV, float maxU, float maxV
     ) {
-        tankSideModel(
+        BlockModelBuilder model = tankSideModel(
                 name,
                 face,
                 fromX, fromY, fromZ,
@@ -1522,6 +1525,23 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 "top",
                 minU, minV, maxU, maxV
         );
+        if (face == Direction.UP) {
+            // Adjacent full cells stop at Y=15.8, whereas this rail's underside is
+            // Y=15.9. Close that exposed side strip at the rail's inward edge.
+            // Keep the original horizontal faces, footprint and corner ownership.
+            Direction inward;
+            if (toZ - fromZ <= 1.0f) {
+                inward = fromZ < 8.0f ? Direction.SOUTH : Direction.NORTH;
+                fromZ = toZ = fromZ < 8.0f ? toZ : fromZ;
+            } else {
+                inward = fromX < 8.0f ? Direction.EAST : Direction.WEST;
+                fromX = toX = fromX < 8.0f ? toX : fromX;
+            }
+            model.element().from(fromX, 15.8f, fromZ).to(toX, toY, toZ)
+                    .face(inward).texture("#frame")
+                    // Same opaque bevel pixel used by the existing interior joins.
+                    .uvs(0.25f, 0.25f, 0.75f, 0.75f).end().end();
+        }
     }
 
     private void correctionCap(

@@ -11,7 +11,6 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -100,142 +99,91 @@ final class FoundryTankLeverAutoPourControl {
             long gameTime = level.getGameTime();
             long structureRevision = network.getStructureRevision();
             CachedLeverState cached = LEVER_STATE_CACHE.get(controller);
-
-            if (
-                    cached != null
-                            && cached.gameTime() == gameTime
-                            && cached.structureRevision() == structureRevision
-            ) {
-                return cached.enabled();
+            if (cached == null || cached.structureRevision != structureRevision || cached.world.get() != level) {
+                cached = new CachedLeverState(level, structureRevision, network.getTankPositions());
+                LEVER_STATE_CACHE.put(controller, cached);
             }
-
-            boolean enabled = scanAutoPourEnabled(level, network);
-            LEVER_STATE_CACHE.put(
-                    controller,
-                    new CachedLeverState(
-                            gameTime,
-                            structureRevision,
-                            enabled
-                    )
-            );
-            return enabled;
+            if (cached.gameTime != gameTime) {
+                cached.enabled = cached.search.enabled(level);
+                cached.gameTime = gameTime;
+            }
+            return cached.enabled;
         }
 
         return scanAutoPourEnabled(level, network);
     }
 
 
-    private static boolean scanAutoPourEnabled(
-            Level level,
-            FoundryTankNetwork network
-    ) {
-        Set<BlockPos> candidateAnchors =
-                collectLeverAnchorCandidates(
-                        level,
-                        network
-                );
-
-        for (BlockPos anchorPos : candidateAnchors) {
-            if (hasPoweredLeverAttachedToAnchor(
-                    level,
-                    anchorPos
-            )) {
-                return true;
-            }
-        }
-
-        return false;
+    private static boolean scanAutoPourEnabled(Level level, FoundryTankNetwork network) {
+        return new LeverSearch(network.getTankPositions()).enabled(level);
     }
 
-    private static Set<BlockPos> collectLeverAnchorCandidates(
-            Level level,
-            FoundryTankNetwork network
-    ) {
-        Set<BlockPos> anchors =
-                new HashSet<>();
-
-        for (BlockPos tankPos : network.getTankPositions()) {
-            addFoundryBlockLeverAnchors(
-                    level,
-                    anchors,
-                    tankPos
-            );
-        }
-
-        /*
-         * Faucets are foundry attachments, so a lever around an attached
-         * Faucet remains part of the same bounded control area.
-         */
-        for (
-                BlockPos faucetPos : FoundryTankNetwork.findAttachedFaucets(
-                level,
-                network.getTankPositions()
-        )
-        ) {
-            addFoundryBlockLeverAnchors(
-                    level,
-                    anchors,
-                    faucetPos
-            );
-        }
-
-        return anchors;
-    }
-
-    private static void addFoundryBlockLeverAnchors(
-            Level level,
-            Set<BlockPos> anchors,
-            BlockPos foundryBlockPos
-    ) {
-        anchors.add(
-                foundryBlockPos.immutable()
-        );
-
-        List<BlockPos> directSupportCandidates =
-                new ArrayList<>();
-
-        for (Direction direction : Direction.values()) {
-            BlockPos directNeighbor =
-                    foundryBlockPos.relative(
-                            direction
-                    ).immutable();
-
-            anchors.add(
-                    directNeighbor
-            );
-
-            directSupportCandidates.add(
-                    directNeighbor
-            );
-        }
-
-        /*
-         * One additional bounded step through a solid support block preserves
-         * the small control rim/platform behavior without flood-filling through
-         * an entire building.
-         */
-        for (BlockPos supportPos : directSupportCandidates) {
-            if (!canExtendLeverAnchorsThroughSupportBlock(
-                    level,
-                    supportPos
-            )) {
-                continue;
-            }
-
-            for (Direction direction : Direction.values()) {
-                anchors.add(
-                        supportPos.relative(
-                                direction
-                        ).immutable()
-                );
+    /** Bounded geometry only. Read lever power, faucet attachment and support sturdiness LIVE.
+     * No world-state result is retained across ticks; levers/support edits need no event hooks.
+     */
+    static final class LeverSearch {
+        private record Origin(BlockPos pos, Direction faucetFacing) {
+            boolean active(Level level) {
+                if (faucetFacing == null) return true;
+                if (!level.hasChunkAt(pos)) return false;
+                BlockState state = level.getBlockState(pos);
+                return state.getBlock() instanceof FoundryFaucetBlock
+                        && state.hasProperty(FoundryFaucetBlock.FACING)
+                        && state.getValue(FoundryFaucetBlock.FACING) == faucetFacing;
             }
         }
+        private record Path(Origin origin, BlockPos support) {}
+        private final Map<BlockPos, List<Path>> anchors = new java.util.LinkedHashMap<>();
+        private final BlockPos[] probes;
+
+        LeverSearch(Set<BlockPos> tanks) {
+            for (BlockPos tank : tanks) {
+                addOrigin(new Origin(tank.immutable(), null));
+                for (Direction facing : FoundryFaucetBlock.FACING.getPossibleValues())
+                    addOrigin(new Origin(tank.relative(facing), facing));
+            }
+            Set<BlockPos> candidates = new java.util.LinkedHashSet<>();
+            for (BlockPos anchor : anchors.keySet())
+                for (Direction direction : DIRECTIONS) candidates.add(anchor.relative(direction));
+            probes = candidates.toArray(BlockPos[]::new);
+        }
+
+        private void add(BlockPos anchor, Origin origin, BlockPos support) {
+            anchors.computeIfAbsent(anchor, ignored -> new ArrayList<>()).add(new Path(origin, support));
+        }
+        private void addOrigin(Origin origin) {
+            add(origin.pos(), origin, null);
+            for (Direction direction : DIRECTIONS) {
+                BlockPos direct = origin.pos().relative(direction);
+                add(direct, origin, null);
+                for (Direction extension : DIRECTIONS) add(direct.relative(extension), origin, direct);
+            }
+        }
+        boolean enabled(Level level) {
+            // Probe each possible lever position once, instead of six neighbors per anchor.
+            // Most blocks are not powered levers: never scan supports for those blocks.
+            for (BlockPos lever : probes) {
+                if (!level.hasChunkAt(lever)) continue;
+                BlockState state = level.getBlockState(lever);
+                if (!isPoweredLever(state)) continue;
+                BlockPos anchor = getLeverAttachedBlockPos(lever, state);
+                List<Path> paths = anchors.get(anchor);
+                if (paths == null) continue;
+                for (Path path : paths) if (path.origin().active(level)
+                        && (path.support() == null || canExtendLeverAnchorsThroughSupportBlock(level, path.support())))
+                    return true;
+            }
+            return false;
+        }
     }
+
+    private static final Direction[] DIRECTIONS = Direction.values();
 
     private static boolean canExtendLeverAnchorsThroughSupportBlock(
             Level level,
             BlockPos supportPos
     ) {
+        if (!level.hasChunkAt(supportPos)) return false;
         BlockState state =
                 level.getBlockState(
                         supportPos
@@ -249,45 +197,12 @@ final class FoundryTankLeverAutoPourControl {
             return false;
         }
 
-        for (Direction direction : Direction.values()) {
+        for (Direction direction : DIRECTIONS) {
             if (state.isFaceSturdy(
                     level,
                     supportPos,
                     direction
             )) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static boolean hasPoweredLeverAttachedToAnchor(
-            Level level,
-            BlockPos anchorPos
-    ) {
-        for (Direction direction : Direction.values()) {
-            BlockPos leverPos =
-                    anchorPos.relative(
-                            direction
-                    );
-
-            BlockState leverState =
-                    level.getBlockState(
-                            leverPos
-                    );
-
-            if (!isPoweredLever(leverState)) {
-                continue;
-            }
-
-            BlockPos attachedBlockPos =
-                    getLeverAttachedBlockPos(
-                            leverPos,
-                            leverState
-                    );
-
-            if (anchorPos.equals(attachedBlockPos)) {
                 return true;
             }
         }
@@ -349,11 +264,17 @@ final class FoundryTankLeverAutoPourControl {
         );
     }
 
-    private record CachedLeverState(
-            long gameTime,
-            long structureRevision,
-            boolean enabled
-    ) {
+    private static final class CachedLeverState {
+        final java.lang.ref.WeakReference<Level> world;
+        final long structureRevision;
+        final LeverSearch search;
+        long gameTime = Long.MIN_VALUE;
+        boolean enabled;
+        CachedLeverState(Level level, long revision, Set<BlockPos> tanks) {
+            world = new java.lang.ref.WeakReference<>(level);
+            structureRevision = revision;
+            search = new LeverSearch(tanks);
+        }
     }
 
 }

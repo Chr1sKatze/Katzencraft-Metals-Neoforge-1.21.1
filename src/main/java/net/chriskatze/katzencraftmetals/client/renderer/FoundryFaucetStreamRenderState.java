@@ -10,6 +10,15 @@ final class FoundryFaucetStreamRenderState {
     boolean wasPouring;
     FoundryFaucetDripStyle dripStyle;
 
+    void copyFrom(FoundryFaucetStreamRenderState source) {
+        fillProgress = source.fillProgress;
+        drainStartProgress = source.drainStartProgress;
+        drainProgress = source.drainProgress;
+        lastRenderTime = source.lastRenderTime;
+        wasPouring = source.wasPouring;
+        dripStyle = source.dripStyle;
+    }
+
     private FoundryFaucetStreamRenderState(
             float fillProgress,
             float drainStartProgress,

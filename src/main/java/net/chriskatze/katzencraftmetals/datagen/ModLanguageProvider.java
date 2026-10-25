@@ -17,6 +17,7 @@ public class ModLanguageProvider extends LanguageProvider {
 
     @Override
     protected void addTranslations() {
+        add("creativetab.katzencraftmetals.foundry", locale.equals("de_de") ? "Gie\u00dferei" : "Foundry");
         MetalLanguageEntries.entries(net.chriskatze.katzencraftmetals.metal.MetalCatalog.values(), locale).forEach(this::add);
         add("tooltip.katzencraftmetals.foundry_recovery", locale.equals("de_de")
                 ? "Gießerei-Rückgewinnung: %s %s-Erz" : "Foundry Recovery: %s %s Ore");

@@ -23,6 +23,11 @@ public class ModBlockTagProvider extends BlockTagsProvider {
 
     @Override
     protected void addTags(HolderLookup.Provider provider) {
+        // NeoForge tag removals exclude only these four blocks, without replacing vanilla's tag.
+        for (var block : java.util.List.of(ModBlocks.FOUNDRY_CONTROLLER.get(), ModBlocks.FOUNDRY_TANK.get(),
+                ModBlocks.FOUNDRY_BASIN.get(), ModBlocks.FOUNDRY_TABLE.get())) {
+            tag(BlockTags.ENDERMAN_HOLDABLE).remove(net.minecraft.core.registries.BuiltInRegistries.BLOCK.getKey(block));
+        }
         java.util.Set<net.minecraft.world.level.block.Block> pickaxeBlocks = new java.util.LinkedHashSet<>();
         for (var form : StandardMetalForms.entries()) if (form.form().block) pickaxeBlocks.add(form.block());
 

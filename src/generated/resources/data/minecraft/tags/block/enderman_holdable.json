@@ -1,0 +1,9 @@
+{
+  "remove": [
+    "katzencraftmetals:foundry_controller",
+    "katzencraftmetals:foundry_tank",
+    "katzencraftmetals:foundry_basin",
+    "katzencraftmetals:foundry_table"
+  ],
+  "values": []
+}

@@ -1,14 +1,13 @@
 package net.chriskatze.katzencraftmetals.block.entity;
 
-import net.chriskatze.katzencraftmetals.metal.ModMoltenMetals;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceLocation;
 import java.util.*;
 import java.util.function.BiPredicate;
 
-/** Immutable pre-edit vessel. Integer units are apportioned within each horizontal layer,
- * in density order, with a stable position-order remainder. Nothing is moved out of a removed tank. */
+/** Immutable pre-edit pooled vessel. Surviving capacity retains the complete inventory
+ * unless overflow requires removing the lightest/topmost metals first. */
 public record FoundryVesselSnapshot(BlockPos anchor, Set<BlockPos> positions, Map<ResourceLocation,Integer> contents, BlockPos renderOrigin) {
     public FoundryVesselSnapshot(BlockPos anchor, Set<BlockPos> positions, Map<ResourceLocation,Integer> contents) {
         this(anchor, positions, contents, anchor);
@@ -20,22 +19,11 @@ public record FoundryVesselSnapshot(BlockPos anchor, Set<BlockPos> positions, Ma
         if (contents.values().stream().anyMatch(v -> v <= 0) || contents.values().stream().mapToLong(Integer::longValue).sum() > (long)positions.size()*FoundryTankNetwork.TANK_CAPACITY)
             throw new IllegalArgumentException("Invalid vessel quantities");
     }
-    /** Preserve only the units attributed to surviving cells before the edit, never capacity-trim the pooled top. */
+    /** Redistribute the original inventory into the final valid surviving capacity. */
     public FoundryVesselSnapshot retain(Set<BlockPos> surviving) {
         if (!positions.containsAll(surviving)) throw new IllegalArgumentException("Survivors outside original layout");
-        Map<ResourceLocation,Integer> remaining = new HashMap<>(contents), kept = new LinkedHashMap<>();
-        var layers = new TreeMap<Integer,List<BlockPos>>();
-        positions.stream().sorted(ORDER).forEach(p -> layers.computeIfAbsent(p.getY(), k -> new ArrayList<>()).add(p));
-        for (var cells : layers.values()) {
-            int free = cells.size()*FoundryTankNetwork.TANK_CAPACITY, cursor = 0;
-            for (var metal : ModMoltenMetals.heaviestFirst()) {
-                int amount = Math.min(free,remaining.getOrDefault(metal.id(),0));
-                for (int i=0;i<amount;i++) if (surviving.contains(cells.get((cursor+i)%cells.size()))) kept.merge(metal.id(),1,Integer::sum);
-                cursor = (cursor+amount)%cells.size();free-=amount;
-                remaining.computeIfPresent(metal.id(),(id,old)->old-amount);
-            }
-        }
-        if (remaining.values().stream().anyMatch(v -> v != 0)) throw new IllegalStateException("Unallocated vessel metal");
+        var kept = FoundryControllerTankStorage.normalizeContents(contents,
+                surviving.size() * FoundryTankNetwork.TANK_CAPACITY);
         var nextAnchor = surviving.contains(anchor) ? anchor : surviving.stream().min(ORDER).orElse(anchor);
         return new FoundryVesselSnapshot(nextAnchor,surviving,kept,renderOrigin);
     }

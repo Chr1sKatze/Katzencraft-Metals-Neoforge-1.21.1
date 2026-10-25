@@ -5,7 +5,36 @@ import net.minecraft.util.Mth;
 
 import java.util.Map;
 
-final class FoundryFaucetStreamAnimation {
+public final class FoundryFaucetStreamAnimation {
+
+    private static final Map<FoundryFaucetBlockEntity, FoundryFaucetStreamRenderState> VISUAL_STATES = new java.util.WeakHashMap<>();
+    private static final Map<FoundryFaucetBlockEntity, FoundryFaucetStreamRenderState> SOUND_STATES = new java.util.WeakHashMap<>();
+
+    static Map<FoundryFaucetBlockEntity, FoundryFaucetStreamRenderState> visualStates() { return VISUAL_STATES; }
+
+    public static void clearSoundStates() { SOUND_STATES.clear(); }
+
+    /** Follow the renderer's exact timeline without advancing/mutating its state.
+     * Between frames (or offscreen), use the same animation function, not a sound delay.
+     */
+    public static boolean hasVisibleStream(FoundryFaucetBlockEntity faucet,
+                                          net.chriskatze.katzencraftmetals.block.entity.FoundryBasinBlockEntity basin) {
+        var visual = VISUAL_STATES.get(faucet);
+        var sound = SOUND_STATES.get(faucet);
+        if (visual == null && sound == null && !faucet.isPouring() && !faucet.isDraining()) return false;
+        if (visual != null && (sound == null || visual.lastRenderTime >= sound.lastRenderTime)) {
+            if (sound == null) {
+                sound = FoundryFaucetStreamRenderState.createInitial(0, visual.lastRenderTime, false, visual.dripStyle);
+                SOUND_STATES.put(faucet, sound);
+            }
+            sound.copyFrom(visual);
+        }
+        // A rendered fractional tick may be newer than this audio tick: never rewind it.
+        float partial = sound == null ? 0 : (float) Math.max(0, sound.lastRenderTime - faucet.getLevel().getGameTime());
+        float progress = updateAndGetAnimationProgress(faucet, partial, SOUND_STATES);
+        return (faucet.isPouring() || progress < 0.9999f)
+                && FoundryFaucetMetalResolver.resolve(faucet, basin) != null;
+    }
 
     private FoundryFaucetStreamAnimation() {
     }

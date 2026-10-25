@@ -5,6 +5,7 @@ import net.chriskatze.katzencraftmetals.block.ModBlocks;
 import net.chriskatze.katzencraftmetals.block.entity.ModBlockEntities;
 import net.chriskatze.katzencraftmetals.config.CatoToolTierConfig;
 import net.chriskatze.katzencraftmetals.item.ModItems;
+import net.chriskatze.katzencraftmetals.item.ModCreativeModeTabs;
 import net.chriskatze.katzencraftmetals.menu.ModMenuTypes;
 import net.chriskatze.katzencraftmetals.recipe.ModRecipes;
 import net.chriskatze.katzencraftmetals.world.KatzencraftWorldRulesData;
@@ -46,6 +47,8 @@ public class KatzencraftMetalsMod {
         ModBlocks.register(
                 modEventBus
         );
+
+        ModCreativeModeTabs.register(modEventBus);
 
         ModBlockEntities.register(
                 modEventBus
@@ -129,16 +132,6 @@ public class KatzencraftMetalsMod {
             event.accept(ModBlocks.DEEPSLATE_MYTHRIL_ORE);
             event.accept(ModBlocks.NETHER_MYTHRIL_ORE);
             event.accept(ModBlocks.END_MYTHRIL_ORE);
-        }
-
-        if (
-                event.getTabKey()
-                        == CreativeModeTabs.FUNCTIONAL_BLOCKS
-        ) {
-            event.accept(ModBlocks.FOUNDRY_CONTROLLER);
-            event.accept(ModBlocks.FOUNDRY_TANK);
-            event.accept(ModBlocks.FOUNDRY_BASIN);
-            event.accept(ModBlocks.FOUNDRY_TABLE);
         }
 
         if (

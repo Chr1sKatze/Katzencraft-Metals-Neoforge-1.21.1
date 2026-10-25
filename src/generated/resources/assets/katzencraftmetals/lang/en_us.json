@@ -27,6 +27,7 @@
   "block.katzencraftmetals.steel_lever": "Steel Lever",
   "block.katzencraftmetals.steel_pressure_plate": "Steel Pressure Plate",
   "block.katzencraftmetals.steel_trapdoor": "Steel Trapdoor",
+  "creativetab.katzencraftmetals.foundry": "Foundry",
   "gui.katzencraftmetals.foundry.empty": "Empty",
   "gui.katzencraftmetals.foundry.ore_amount": "%s ore",
   "gui.katzencraftmetals.foundry.select_output": "Click to select output",

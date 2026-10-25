@@ -30,6 +30,12 @@ public final class ModSounds {
                     6.0F
             );
 
+    public static final DeferredHolder<SoundEvent, SoundEvent> FOUNDRY_POURING_LOOP =
+            registerVariableRange("foundry_pouring_loop");
+
+    public static final DeferredHolder<SoundEvent, SoundEvent> FOUNDRY_TANK_LOOP =
+            registerVariableRange("foundry_tank_loop");
+
     private ModSounds() {
     }
 

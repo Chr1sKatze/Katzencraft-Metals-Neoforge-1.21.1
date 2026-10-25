@@ -14,6 +14,8 @@ public final class FoundryDetachedVessels extends SavedData {
     private void changed(Set<BlockPos> affected) { changed(affected,true); }
     private void changed(Set<BlockPos> affected, boolean notifyClients) {
         setDirty(); visualRevision++;
+        // Silent claims hand over directly to active storage; do not briefly turn its lights off.
+        if (notifyClients && observingLevel != null) FoundryMoltenLighting.update(observingLevel, affected, null);
         if(notifyClients && observingLevel != null)net.chriskatze.katzencraftmetals.network.FoundryDetachedSync.changed(observingLevel,this,affected);
     }
     private final Map<UUID,FoundryVesselSnapshot> vessels = new LinkedHashMap<>();
@@ -29,6 +31,23 @@ public final class FoundryDetachedVessels extends SavedData {
         var affected=new HashSet<>(snapshot.positions());
         var previous=vessels.get(id);if(previous!=null)affected.addAll(previous.positions());
         if(snapshot.positions().isEmpty())vessels.remove(id);else vessels.put(id,snapshot);changed(affected);
+    }
+    /** Expand complete escrows atomically. No capacity trimming or new inventory is created. */
+    boolean expand(Set<BlockPos> positions) {
+        if (!FoundryTankStructureValidation.validate(positions).valid()) return false;
+        var matches=vessels.entrySet().stream()
+                .filter(e->!Collections.disjoint(e.getValue().positions(),positions)).toList();
+        if(matches.isEmpty() || matches.stream().anyMatch(e->!positions.containsAll(e.getValue().positions()))) return false;
+        if(matches.size()==1 && matches.getFirst().getValue().positions().equals(positions)) return false;
+        var amounts=new LinkedHashMap<net.minecraft.resources.ResourceLocation,Integer>();
+        for(var entry:matches)entry.getValue().contents().forEach((id,n)->amounts.merge(id,n,Math::addExact));
+        var first=matches.getFirst();var previous=first.getValue();
+        var expanded=new FoundryVesselSnapshot(previous.anchor(),positions,amounts,previous.renderOrigin());
+        matches.forEach(e->vessels.remove(e.getKey()));
+        vessels.put(first.getKey(),expanded);
+        // positions includes all old cells: notify watchers of old AND newly occupied chunks once.
+        changed(positions);
+        return true;
     }
     public Optional<FoundryVesselSnapshot> claim(Set<BlockPos> positions) { return claim(positions,true); }
     Optional<FoundryVesselSnapshot> claim(Set<BlockPos> positions, boolean destinationEmpty) { return claim(positions,destinationEmpty,true); }

@@ -15,5 +15,21 @@
         "attenuation_distance": 6
       }
     ]
+  },
+  "foundry_pouring_loop": {
+    "sounds": [
+      {
+        "name": "katzencraftmetals:foundry_pouring_loop",
+        "stream": true
+      }
+    ]
+  },
+  "foundry_tank_loop": {
+    "sounds": [
+      {
+        "name": "katzencraftmetals:tank_loop",
+        "stream": true
+      }
+    ]
   }
 }

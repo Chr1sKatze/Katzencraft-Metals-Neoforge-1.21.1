@@ -46,8 +46,8 @@ final class FoundryFaucetRenderConstants {
     static final float STREAM_DEPTH_UV =
             STREAM_MAX_Z - STREAM_MIN_Z;
 
-    static final float BASIN_MIN_Y = 4.0f / 16.0f;
-    static final float BASIN_MAX_Y = 14.25f / 16.0f;
+    static final float BASIN_MIN_Y = FoundryBasinRenderGeometry.FLOOR;
+    static final float BASIN_MAX_Y = FoundryBasinRenderGeometry.FULL_SURFACE;
 
     static final float STREAM_ANIMATION_DURATION_TICKS =
             FoundryFaucetBlockEntity.STREAM_ANIMATION_STEPS

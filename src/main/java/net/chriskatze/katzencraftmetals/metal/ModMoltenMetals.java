@@ -14,6 +14,11 @@ import java.util.Optional;
 public final class ModMoltenMetals {
 
     private static final Map<ResourceLocation, MoltenMetalDefinition> DEFINITIONS = createDefinitions();
+    // Definitions/densities are immutable. Preserve stable catalog order for density ties.
+    private static final List<MoltenMetalDefinition> LIGHTEST_FIRST = DEFINITIONS.values().stream()
+            .sorted(Comparator.comparingInt(MoltenMetalDefinition::density)).toList();
+    private static final List<MoltenMetalDefinition> HEAVIEST_FIRST = DEFINITIONS.values().stream()
+            .sorted(Comparator.comparingInt(MoltenMetalDefinition::density).reversed()).toList();
 
     private static Map<ResourceLocation, MoltenMetalDefinition> createDefinitions() {
         Map<ResourceLocation, MoltenMetalDefinition> definitions = new LinkedHashMap<>();
@@ -85,25 +90,10 @@ public final class ModMoltenMetals {
     }
 
     public static List<MoltenMetalDefinition> lightestFirst() {
-        return DEFINITIONS.values()
-                .stream()
-                .sorted(
-                        Comparator.comparingInt(
-                                MoltenMetalDefinition::density
-                        )
-                )
-                .toList();
+        return LIGHTEST_FIRST;
     }
 
     public static List<MoltenMetalDefinition> heaviestFirst() {
-        return DEFINITIONS.values()
-                .stream()
-                .sorted(
-                        Comparator.comparingInt(
-                                        MoltenMetalDefinition::density
-                                )
-                                .reversed()
-                )
-                .toList();
+        return HEAVIEST_FIRST;
     }
 }

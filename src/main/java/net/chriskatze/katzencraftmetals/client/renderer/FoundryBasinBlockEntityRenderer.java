@@ -23,22 +23,19 @@ public class FoundryBasinBlockEntityRenderer
             0.0005f;
 
     private static final float MIN_X =
-            2.05f / 16.0f;
+            FoundryBasinRenderGeometry.WALL_MIN;
 
     private static final float MAX_X =
-            13.95f / 16.0f;
+            FoundryBasinRenderGeometry.WALL_MAX;
 
     private static final float MIN_Z =
-            2.05f / 16.0f;
+            FoundryBasinRenderGeometry.WALL_MIN;
 
     private static final float MAX_Z =
-            13.95f / 16.0f;
+            FoundryBasinRenderGeometry.WALL_MAX;
 
     private static final float MIN_Y =
-            4.0f / 16.0f;
-
-    private static final float MAX_Y =
-            14.25f / 16.0f;
+            FoundryBasinRenderGeometry.FLOOR;
 
     public FoundryBasinBlockEntityRenderer(
             BlockEntityRendererProvider.Context context
@@ -68,6 +65,8 @@ public class FoundryBasinBlockEntityRenderer
         if (basin.getLevel() == null) {
             return;
         }
+
+        if (FoundryBasinWaterRenderer.render(basin, poseStack, bufferSource, packedLight, packedOverlay)) return;
 
         MoltenMetalDefinition metal =
                 ModMoltenMetals.get(
@@ -100,11 +99,7 @@ public class FoundryBasinBlockEntityRenderer
                 );
 
         float surfaceY =
-                Mth.lerp(
-                        fillPercentage,
-                        MIN_Y,
-                        MAX_Y
-                );
+                FoundryBasinRenderGeometry.surface(fillPercentage);
 
         float coolingBlend;
 
@@ -165,9 +160,7 @@ public class FoundryBasinBlockEntityRenderer
         if (coolingBlend > 0.001f) {
             VertexConsumer cooledConsumer =
                     bufferSource.getBuffer(
-                            RenderType.entityTranslucent(
-                                    metal.cooledTexture()
-                            )
+                            RenderType.entityTranslucent(metal.cooledTexture())
                     );
 
             renderMetalVolume(
@@ -214,7 +207,7 @@ public class FoundryBasinBlockEntityRenderer
                 MAX_Z + geometryOffset;
 
         float minY =
-                MIN_Y - geometryOffset;
+                MIN_Y;
 
         float topY =
                 surfaceY + geometryOffset;

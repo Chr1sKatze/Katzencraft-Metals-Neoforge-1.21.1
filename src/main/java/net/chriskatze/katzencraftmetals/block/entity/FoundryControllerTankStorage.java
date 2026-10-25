@@ -47,6 +47,7 @@ final class FoundryControllerTankStorage {
 
     /* Runtime-only mutation revision for cheap same-tick scheduling caches. */
     private long revision;
+    private long lightingRevision = -1;
     private BlockPos vesselAnchor;
 
     /**
@@ -96,8 +97,10 @@ final class FoundryControllerTankStorage {
                     !contents.isEmpty()
                             || !boundTankPositions.isEmpty();
 
+            var previousPositions = boundTankPositions;
             contents.clear();
             boundTankPositions = Set.of();
+            FoundryMoltenLighting.update(level, previousPositions, snapshot());
 
             if (changed) {
                 revision++;
@@ -123,6 +126,8 @@ final class FoundryControllerTankStorage {
             controller.setChanged();
             controller.syncToClient();
         }
+        // Also reconciles persisted layouts on first access after chunk/world load.
+        refreshLighting();
     }
 
     /**
@@ -173,15 +178,25 @@ final class FoundryControllerTankStorage {
             contents.clear();
         }
 
+        var lightingPositions = new java.util.HashSet<>(oldPositions);
+        lightingPositions.addAll(normalizedNew);
+        FoundryMoltenLighting.update(level, lightingPositions, snapshot());
         /*
          * Physical Tank BlockStates are independent from molten-storage state.
          * FoundryControllerTankStructure performs the one Controller sync after
          * both structure positions and pooled contents are final.
          */
         revision++;
+        refreshLighting();
         controller.setChanged();
         if(visualHandoff && level instanceof net.minecraft.server.level.ServerLevel server)
             net.chriskatze.katzencraftmetals.network.FoundryDetachedSync.handoff(server,controller,normalizedNew);
+    }
+
+    private void refreshLighting() {
+        if (lightingRevision == revision || controller.getLevel() == null || controller.getLevel().isClientSide()) return;
+        FoundryMoltenLighting.update(controller.getLevel(), boundTankPositions, snapshot());
+        lightingRevision = revision;
     }
 
     FoundryVesselSnapshot snapshot() {
@@ -189,7 +204,10 @@ final class FoundryControllerTankStorage {
         return new FoundryVesselSnapshot(anchor, boundTankPositions, contents, controller.getBlockPos());
     }
     void replace(FoundryVesselSnapshot snapshot) {
+        var previousPositions = boundTankPositions;
         contents.clear();contents.putAll(snapshot.contents());boundTankPositions=snapshot.positions();vesselAnchor=snapshot.anchor();revision++;controller.setChanged();
+        var affected = new java.util.HashSet<>(previousPositions); affected.addAll(boundTankPositions);
+        FoundryMoltenLighting.update(controller.getLevel(), affected, snapshot());
     }
     void detachForControllerRemoval() {
         if(controller.getLevel() instanceof net.minecraft.server.level.ServerLevel server && !boundTankPositions.isEmpty())
@@ -304,6 +322,7 @@ final class FoundryControllerTankStorage {
         );
 
         revision++;
+        refreshLighting();
         controller.setChanged();
         controller.syncToClient();
         return accepted;
@@ -352,6 +371,7 @@ final class FoundryControllerTankStorage {
         }
 
         revision++;
+        refreshLighting();
         controller.setChanged();
         controller.syncToClient();
         return extracted;
@@ -594,7 +614,7 @@ final class FoundryControllerTankStorage {
     }
 
     /** Overflow leaves from the physical top/lightest metal first. */
-    private static Map<ResourceLocation, Integer> normalizeContents(
+    static Map<ResourceLocation, Integer> normalizeContents(
             Map<ResourceLocation, Integer> requestedContents,
             int capacity
     ) {

@@ -78,7 +78,7 @@ public final class FoundryHorizontalSeamChecks {
                         }
                         if(layout==2&&upper>0&&p.equals(bridge)&&direction.getAxis()!=axis.getAxis())
                             check(!frames.isEmpty(),"Genuine crossbar's exposed end returns remain frame material");
-                        if(layout==1||layout==3||layout==4)check(frames.isEmpty(),"Ordinary stack, straight wall and L/step have no junction bands");
+                        if((layout==1||layout==3||layout==4)&&!cells.contains(p.relative(direction)))check(frames.isEmpty(),"Ordinary stack, straight wall and L/step have no junction bands");
                         checks++;
                     }
                     var original=new Capture();var liquid=new Capture();var frames=new ArrayList<FoundryTankJunctionMaterial.Face>();

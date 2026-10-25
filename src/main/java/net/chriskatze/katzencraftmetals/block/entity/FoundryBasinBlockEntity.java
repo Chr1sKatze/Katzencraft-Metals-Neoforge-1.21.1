@@ -105,6 +105,8 @@ public class FoundryBasinBlockEntity
             ResourceLocation metal,
             int amount
     ) {
+        if (net.chriskatze.katzencraftmetals.block.custom.FoundryBasinBlock.hasContainedFluid(getBlockState())) return false;
+
         if (amount <= 0) {
             return false;
         }
