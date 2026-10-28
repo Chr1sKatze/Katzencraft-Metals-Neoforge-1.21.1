@@ -1526,6 +1526,17 @@ public class ModBlockStateProvider extends BlockStateProvider {
                 minU, minV, maxU, maxV
         );
         if (face == Direction.UP) {
+            // Mirror the existing 0.12-model-pixel underside frame return:
+            // extend this horizontal rail across the shared boundary toward
+            // the inset vertical wall, rather than capping the interior join.
+            float lipMinX = fromX, lipMaxX = toX, lipMinZ = fromZ, lipMaxZ = toZ;
+            if (toZ - fromZ <= 1.0f) {
+                lipMinZ = fromZ < 8.0f ? -0.12f : 16.0f;
+                lipMaxZ = fromZ < 8.0f ? 0.0f : 16.12f;
+            } else {
+                lipMinX = fromX < 8.0f ? -0.12f : 16.0f;
+                lipMaxX = fromX < 8.0f ? 0.0f : 16.12f;
+            }
             // Adjacent full cells stop at Y=15.8, whereas this rail's underside is
             // Y=15.9. Close that exposed side strip at the rail's inward edge.
             // Keep the original horizontal faces, footprint and corner ownership.
@@ -1540,6 +1551,9 @@ public class ModBlockStateProvider extends BlockStateProvider {
             model.element().from(fromX, 15.8f, fromZ).to(toX, toY, toZ)
                     .face(inward).texture("#frame")
                     // Same opaque bevel pixel used by the existing interior joins.
+                    .uvs(0.25f, 0.25f, 0.75f, 0.75f).end().end();
+            model.element().from(lipMinX, toY, lipMinZ).to(lipMaxX, toY, lipMaxZ)
+                    .face(Direction.UP).texture("#frame")
                     .uvs(0.25f, 0.25f, 0.75f, 0.75f).end().end();
         }
     }

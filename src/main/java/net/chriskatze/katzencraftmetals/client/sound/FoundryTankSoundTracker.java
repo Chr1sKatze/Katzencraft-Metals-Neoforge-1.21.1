@@ -1,6 +1,7 @@
 package net.chriskatze.katzencraftmetals.client.sound;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
@@ -10,13 +11,27 @@ final class FoundryTankSoundTracker {
     record Source(Set<BlockPos> cells, boolean molten) {
         Source { cells = Set.copyOf(cells); }
     }
-    private static final Comparator<BlockPos> ORDER = Comparator.comparingInt((BlockPos pos) -> pos.getY())
-            .thenComparingInt(BlockPos::getX).thenComparingInt(BlockPos::getZ);
     private static final class Binding {
         Set<BlockPos> cells;
         final FoundryTankLoopSoundInstance sound;
-        Binding(Source source, BlockPos position) { cells = source.cells(); sound = new FoundryTankLoopSoundInstance(position); }
+        Binding(Source source) {
+            cells = source.cells();
+            sound = new FoundryTankLoopSoundInstance(center(cells));
+        }
+        void updateLayout(Source source) {
+            if (cells.equals(source.cells())) return;
+            cells = source.cells();
+            sound.moveTo(center(cells));
+        }
     }
+
+    /** Equal-sized Tank volumes: centroid of their centers, not their bounding box or molten distribution. */
+    private static Vec3 center(Set<BlockPos> cells) {
+        long x=0, y=0, z=0;
+        for (BlockPos pos : cells) { x+=pos.getX(); y+=pos.getY(); z+=pos.getZ(); }
+        return new Vec3((double)x/cells.size()+0.5D, (double)y/cells.size()+0.5D, (double)z/cells.size()+0.5D);
+    }
+
     private final List<Binding> bindings = new ArrayList<>();
 
     void update(List<Source> sources, Predicate<BlockPos> loadedTank,
@@ -30,18 +45,15 @@ final class FoundryTankSoundTracker {
             if (!Collections.disjoint(occupied, source.cells())) continue;
             occupied.addAll(source.cells());
             if (!source.molten()) continue;
-            BlockPos position = source.cells().stream().filter(loadedTank).min(ORDER).orElse(null);
-            if (position == null) continue;
+            if (source.cells().stream().noneMatch(loadedTank)) continue;
             Binding binding = bindings.stream().filter(b -> !used.contains(b)
                     && !Collections.disjoint(b.cells, source.cells())).findFirst().orElse(null);
             if (binding == null) {
-                binding = new Binding(source, position);
+                binding = new Binding(source);
                 bindings.add(binding);
                 play.accept(binding.sound);
             }
-            binding.cells = source.cells();
-            if (!source.cells().contains(binding.sound.position()) || !loadedTank.test(binding.sound.position()))
-                binding.sound.moveTo(position);
+            binding.updateLayout(source);
             binding.sound.setMolten(true);
             used.add(binding);
         }

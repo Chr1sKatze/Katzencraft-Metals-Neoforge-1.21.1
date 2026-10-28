@@ -64,6 +64,7 @@ public final class FoundryFrameExposureChecks {
         return z>=14.5f/16-1e-6&&z<=1+1e-6&&minX<=.5f&&maxX>=.5f&&minY<=15.85f/16&&maxY>=15.85f/16;
     }
     public static void run(boolean requireCoverage)throws Exception {
+        invertedTJunction();
         var root=Path.of(System.getProperty("katzencraft.equipment.root"));
         var create=FoundryControllerTankLiquidRenderer.class.getDeclaredMethod("createRenderedLayers",BlockPos.class,Set.class,Map.class);create.setAccessible(true);
         var side=FoundryControllerTankLiquidRenderer.class.getDeclaredMethod("renderLayerSide",BlockPos.class,Direction.class,
@@ -75,7 +76,7 @@ public final class FoundryFrameExposureChecks {
         for(var edge:Direction.Plane.HORIZONTAL) {
             var name="foundry_tank_correction_up_"+edge.getName();
             var json=JsonParser.parseString(Files.readString(root.resolve("src/generated/resources/assets/katzencraftmetals/models/block/"+name+".json"))).getAsJsonObject();
-            var elements=json.getAsJsonArray("elements");check(elements.size()==2,"Exactly one new return, original horizontal rail preserved");
+            var elements=json.getAsJsonArray("elements");check(elements.size()==3,"Existing vertical return plus horizontal junction lip, original rail preserved");
             var original=elements.get(0).getAsJsonObject();check(original.getAsJsonArray("from").get(1).getAsFloat()==15.9f&&original.getAsJsonArray("to").get(1).getAsFloat()==16,"Original rail depth unchanged");
             var lip=elements.get(1).getAsJsonObject();check(lip.getAsJsonArray("from").get(1).getAsFloat()==15.8f&&lip.getAsJsonArray("to").get(1).getAsFloat()==16,"Return ends exactly at full adjacent liquid height");
             check(lip.getAsJsonObject("faces").size()==1&&lip.getAsJsonObject("faces").has(edge.getOpposite().getName()),"Return faces the cavity in every orientation");
@@ -127,5 +128,56 @@ public final class FoundryFrameExposureChecks {
             else failingCovered=geometryHits>0||replacementHits>0;
         }
         if(requireCoverage)check(failingCovered,"Missing frame coverage: two-column stepped join exposes NORTH liquid side at Z=1, Y=15.8/16..1; frame underside stops at Y=15.9/16. Previous DOWN-only material correction never touched this NORTH face.");
+    }
+
+    /** Compare the existing downward frame-material return with its top-rail counterpart. */
+    private static void invertedTJunction() throws Exception {
+        var root=Path.of(System.getProperty("katzencraft.equipment.root"));
+        var bottom=FoundryControllerTankLiquidRenderer.class.getDeclaredMethod("renderLayerBottom",BlockPos.class,FoundryTankRenderedMetalLayer.class,
+                FoundryTankLiquidGeometry.class,Map.class,VertexConsumer.class,PoseStack.Pose.class,int.class,float.class,float.class);
+        bottom.setAccessible(true);
+        var corrections=FoundryTankConnectedFrameModel.class.getDeclaredMethod("computeCorrectionMask",Set.class,BlockPos.class);corrections.setAccessible(true);
+        var parts=Class.forName(FoundryTankConnectedFrameModel.class.getName()+"$CorrectionPart").getEnumConstants();
+        var bevel=javax.imageio.ImageIO.read(root.resolve("src/main/resources/assets/katzencraftmetals/textures/block/foundry_tank_frame.png").toFile());
+        for(var arm:Direction.Plane.HORIZONTAL) {
+            var cells=Set.of(BlockPos.ZERO,BlockPos.ZERO.relative(arm),BlockPos.ZERO.relative(arm.getOpposite()),BlockPos.ZERO.below());
+            var metal=ResourceLocation.withDefaultNamespace("iron");
+            Map<BlockPos,List<FoundryTankRenderedMetalLayer>> layers=new HashMap<>();
+            for(var pos:cells)layers.put(pos,List.of(new FoundryTankRenderedMetalLayer(metal,pos.equals(BlockPos.ZERO)?0:.2f/16,pos.equals(BlockPos.ZERO.below())?1:15.8f/16,true,false)));
+            var layer=layers.get(BlockPos.ZERO).getFirst();float inset=FoundryTankRenderConstants.LIQUID_SIDE_INSET;
+            var g=new FoundryTankLiquidGeometry(arm.getAxis()==Direction.Axis.X?0:inset,arm.getAxis()==Direction.Axis.X?1:1-inset,
+                    0,layer.maxY(),arm.getAxis()==Direction.Axis.Z?0:inset,arm.getAxis()==Direction.Axis.Z?1:1-inset,true,false);
+            var molten=new Capture();var replacement=new ArrayList<FoundryTankJunctionMaterial.Face>();
+            bottom.invoke(null,BlockPos.ZERO,layer,g,layers,FoundryTankJunctionMaterial.wrap(molten,replacement,()->0,BlockPos.ZERO,layer,layers),new PoseStack().last(),0,0f,1f);
+            check(molten.points.isEmpty()&&!replacement.isEmpty(),"Working underside return stays opaque frame material");
+            List<Face> below=new ArrayList<>();for(var face:replacement){var points=new ArrayList<V>();for(var v:face.vertices())points.add(new V(v.wx,v.wy,v.wz));below.add(new Face(Direction.DOWN,points,"existing-frame-return"));}
+            var inverted=Set.of(BlockPos.ZERO,BlockPos.ZERO.relative(arm),BlockPos.ZERO.relative(arm.getOpposite()),BlockPos.ZERO.above());
+            var wing=BlockPos.ZERO.relative(arm);long mask=(long)corrections.invoke(null,inverted,wing);
+            var edge=arm.getOpposite();String name="foundry_tank_correction_up_"+edge.getName();
+            boolean selected=false;for(var part:parts){var location=part.getClass().getDeclaredMethod("location");location.setAccessible(true);var id=((net.minecraft.client.resources.model.ModelResourceLocation)location.invoke(part)).id();if(id.getPath().equals("block/"+name))selected=(mask&(1L<<((Enum<?>)part).ordinal()))!=0;}
+            check(selected,"Horizontal rail extension is selected by actual inverted-T topology");
+            List<Face> above=new ArrayList<>();modelFaces(root,"katzencraftmetals:block/"+name,wing,above);
+            for(float along:new float[]{2,8,14})for(float distance:new float[]{.025f,.075f,.11f}) {
+                float x=arm.getAxis()==Direction.Axis.X?(arm.getStepX()<0?distance:16-distance):along;
+                float z=arm.getAxis()==Direction.Axis.Z?(arm.getStepZ()<0?distance:16-distance):along;
+                check(horizontalHits(below,Direction.DOWN,0,x/16,z/16)==1,"Working lower lip covers full 0.12-pixel width");
+                check(horizontalHits(above,Direction.UP,1,x/16,z/16)==1,"Missing exterior-facing horizontal lip toward vertical wall: "+arm+" offset="+distance+" along="+along);
+            }
+            var json=JsonParser.parseString(Files.readString(root.resolve("src/generated/resources/assets/katzencraftmetals/models/block/"+name+".json"))).getAsJsonObject();
+            var lip=json.getAsJsonArray("elements").get(2).getAsJsonObject();
+            check(lip.getAsJsonObject("faces").size()==1&&lip.getAsJsonObject("faces").getAsJsonObject("up").get("texture").getAsString().equals("#frame"),"One opaque frame face, no double-sided overlay");
+            for(var uv:lip.getAsJsonObject("faces").getAsJsonObject("up").getAsJsonArray("uv"))check(uv.getAsFloat()>=.25f&&uv.getAsFloat()<=.75f,"Same bevel UV region as existing frame joins");
+            check((bevel.getRGB(0,0)>>>24)==255,"Existing bevel pixel remains opaque");
+            int joins=FoundryTankInteriorFrameJoins.mask(inverted::contains,d->inverted.contains(BlockPos.ZERO.relative(d)),BlockPos.ZERO);
+            check(FoundryTankInteriorFrameJoins.faces(joins).stream().noneMatch(f->f.normal()==Direction.UP&&f.plane()==16),"Redundant Y=16 interior closure removed");
+        }
+        System.out.println("PASS: horizontal lip mirrors real downward material return in four orientations; full 0.12-pixel coverage and opaque material, existing underside unchanged.");
+    }
+    private static long horizontalHits(List<Face> faces,Direction normal,float plane,float x,float z) {
+        return faces.stream().filter(f->f.normal()==normal).filter(f->{
+            float minX=Float.POSITIVE_INFINITY,maxX=Float.NEGATIVE_INFINITY,minZ=minX,maxZ=maxX;
+            for(var v:f.points()){if(Math.abs(v.y()-plane)>1e-6)return false;minX=Math.min(minX,v.x());maxX=Math.max(maxX,v.x());minZ=Math.min(minZ,v.z());maxZ=Math.max(maxZ,v.z());}
+            return x>minX&&x<maxX&&z>minZ&&z<maxZ;
+        }).count();
     }
 }
